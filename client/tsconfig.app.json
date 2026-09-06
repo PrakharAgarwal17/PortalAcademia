@@ -26,7 +26,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src", "tailwind.config.js", "postcss.config.js"]
 }

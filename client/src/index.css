@@ -1,80 +1,76 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================================
-   Google Fonts
-   ============================================================ */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
-
-/* ============================================================
-   shadcn/ui design tokens — Light Mode
+   shadcn/ui design tokens — Anti-Slop Gov-Tech / Enterprise Zinc
    ============================================================ */
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 257 20% 10%;
+    --foreground: 240 10% 3.9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 257 20% 10%;
+    --card-foreground: 240 10% 3.9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 257 20% 10%;
+    --popover-foreground: 240 10% 3.9%;
 
-    /* Brand: violet */
-    --primary: 257 70% 58%;
-    --primary-foreground: 0 0% 100%;
+    /* Sharp semantic primary (Zinc-900) */
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
 
-    --secondary: 257 15% 94%;
-    --secondary-foreground: 257 20% 20%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
 
-    --muted: 257 15% 95%;
-    --muted-foreground: 257 10% 45%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
 
-    --accent: 257 30% 92%;
-    --accent-foreground: 257 60% 40%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 257 15% 90%;
-    --input: 257 15% 90%;
-    --ring: 257 70% 58%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
 
-    --radius: 0.75rem;
+    /* Strict 6px maximum structural bound */
+    --radius: 0.375rem;
   }
 
-  /* ============================================================
-     Dark mode tokens
-     ============================================================ */
+  /* Dark mode tokens */
   .dark {
-    --background: 257 25% 8%;
-    --foreground: 257 10% 95%;
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
 
-    --card: 257 25% 10%;
-    --card-foreground: 257 10% 95%;
+    --card: 240 5.9% 10%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 257 25% 10%;
-    --popover-foreground: 257 10% 95%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 257 70% 65%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
 
-    --secondary: 257 20% 16%;
-    --secondary-foreground: 257 10% 85%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 257 20% 14%;
-    --muted-foreground: 257 10% 55%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
 
-    --accent: 257 30% 20%;
-    --accent-foreground: 257 70% 75%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 62% 50%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 257 20% 18%;
-    --input: 257 20% 18%;
-    --ring: 257 70% 65%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
   }
 }
 
@@ -91,13 +87,16 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased m-0;
-    font-family: "Inter", system-ui, sans-serif;
+    @apply bg-zinc-50 text-foreground font-sans antialiased m-0 selection:bg-zinc-200 selection:text-zinc-900;
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+  }
+
+  .dark body {
+    @apply bg-zinc-950 selection:bg-zinc-800 selection:text-zinc-100;
   }
 
   #root {
     @apply min-h-screen;
-    /* Remove the old Vite centered layout */
     width: 100%;
     max-width: 100%;
     margin: 0;
@@ -106,12 +105,16 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
-    @apply text-foreground;
+    font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+    @apply text-foreground tracking-tight;
   }
 
   p {
     margin: 0;
+  }
+
+  code, kbd, samp, pre {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   }
 }
 
@@ -119,42 +122,12 @@
    Custom utilities
    ============================================================ */
 @layer utilities {
-  /* Gradient text */
-  .text-gradient {
-    @apply bg-gradient-to-r from-brand-500 via-purple-500 to-brand-700 bg-clip-text text-transparent;
+  /* Tabular numbers for high-density enterprise data */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 
-  /* Glass card surface */
-  .glass {
-    @apply bg-white/10 backdrop-blur-md border border-white/20;
-  }
-
-  .glass-dark {
-    @apply bg-black/20 backdrop-blur-md border border-white/10;
-  }
-
-  /* Animated gradient background */
-  .bg-mesh {
-    background:
-      radial-gradient(ellipse 80% 50% at 20% 40%, hsla(257, 70%, 58%, 0.15) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 40% at 80% 20%, hsla(280, 60%, 55%, 0.12) 0%, transparent 60%),
-      radial-gradient(ellipse 70% 60% at 50% 90%, hsla(240, 65%, 60%, 0.10) 0%, transparent 60%),
-      hsl(var(--background));
-  }
-
-  /* Shimmer loading state */
-  .shimmer {
-    background: linear-gradient(
-      90deg,
-      hsl(var(--muted)) 25%,
-      hsl(var(--accent)) 50%,
-      hsl(var(--muted)) 75%
-    );
-    background-size: 200% auto;
-    @apply animate-shimmer;
-  }
-
-  /* Focus visible ring */
+  /* Standard 2px focus ring */
   .focus-ring {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
   }

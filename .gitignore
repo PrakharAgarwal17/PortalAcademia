@@ -10,9 +10,12 @@ desktop.ini
 *.njsproj
 *.sln
 *.sw?
+
+# Local developer overrides — not for version control
 .env
 .env.local
-.env.*.local    
+.env.*.local
+.agents/
 docker-compose.yml
 docker-compose.override.yml
 

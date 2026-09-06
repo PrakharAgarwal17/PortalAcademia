@@ -24,7 +24,7 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-foreground" />
       </div>
     );
   }
@@ -52,10 +52,10 @@ function AppShell() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 animate-spin text-brand-600" />
-          <p className="text-sm text-muted-foreground">
-            Checking your session…
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-foreground" />
+          <p className="text-xs font-mono text-muted-foreground">
+            Verifying session telemetry…
           </p>
         </div>
       </div>

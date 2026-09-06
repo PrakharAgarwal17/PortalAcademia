@@ -1,7 +1,6 @@
 import { useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
-  GraduationCap,
   Eye,
   EyeOff,
   Loader2,
@@ -10,6 +9,9 @@ import {
   Lock,
   ArrowLeft,
   CheckCircle2,
+  ShieldCheck,
+  Server,
+  KeyRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +24,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useAppDispatch } from "@/context/store";
 import { checkAuthThunk } from "@/context/authSlice";
 
@@ -83,14 +87,12 @@ function GoogleButton({ label }: { label: string }) {
       id={`google-${label.toLowerCase().replace(/\s+/g, "-")}-btn`}
       type="button"
       variant="outline"
-      className="w-full gap-3"
+      className="w-full gap-2 h-9 text-xs font-medium"
       onClick={() => {
-        // Google OAuth not yet wired — server route pending
-        alert("Google Sign-In is coming soon. Please use email for now.");
+        alert("Google Sign-In is coming soon. Please use institutional email.");
       }}
     >
-      {/* Google icon inline SVG */}
-      <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" aria-hidden>
+      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" aria-hidden>
         <path
           d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
           fill="#4285F4"
@@ -100,31 +102,31 @@ function GoogleButton({ label }: { label: string }) {
           fill="#34A853"
         />
         <path
-          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
           fill="#FBBC05"
         />
         <path
-          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
           fill="#EA4335"
         />
       </svg>
-      {label}
+      <span>{label}</span>
     </Button>
   );
 }
 
 // ============================================================
-// Divider
+// Or Divider
 // ============================================================
 
 function OrDivider() {
   return (
-    <div className="relative my-2">
+    <div className="relative my-1">
       <div className="absolute inset-0 flex items-center">
         <span className="w-full border-t border-border" />
       </div>
-      <div className="relative flex justify-center text-xs uppercase">
-        <span className="bg-background px-2 text-muted-foreground">or</span>
+      <div className="relative flex justify-center text-[10px] uppercase font-mono">
+        <span className="bg-card px-2 text-muted-foreground">or continue with</span>
       </div>
     </div>
   );
@@ -138,9 +140,9 @@ function ErrorAlert({ message }: { message: string }) {
   return (
     <div
       role="alert"
-      className="flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/8 px-4 py-3 text-sm text-destructive"
+      className="flex items-start gap-2 rounded-sm border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive"
     >
-      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+      <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
   );
@@ -165,7 +167,6 @@ function OtpModal({ open, email, onClose, onVerified }: OtpModalProps) {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   function handleChange(index: number, value: string) {
-    // Allow only digits
     const digit = value.replace(/\D/g, "").slice(-1);
     const next = [...otp];
     next[index] = digit;
@@ -197,7 +198,6 @@ function OtpModal({ open, email, onClose, onVerified }: OtpModalProps) {
       next[i] = pasted[i];
     }
     setOtp(next);
-    // Focus last filled or next empty
     const lastFilled = Math.min(pasted.length, OTP_LENGTH - 1);
     inputRefs.current[lastFilled]?.focus();
   }
@@ -249,33 +249,31 @@ function OtpModal({ open, email, onClose, onVerified }: OtpModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm rounded-md border border-border bg-background p-6">
         <DialogHeader>
-          <div className="w-12 h-12 mx-auto rounded-2xl bg-brand-600/10 border border-brand-600/20 flex items-center justify-center mb-2">
-            <Mail className="w-6 h-6 text-brand-600" />
+          <div className="w-8 h-8 mx-auto rounded-sm bg-muted border border-border flex items-center justify-center mb-2">
+            <KeyRound className="w-4 h-4 text-foreground" />
           </div>
-          <DialogTitle className="text-center text-xl">
-            Verify your email
+          <DialogTitle className="text-center text-base font-semibold">
+            Two-Factor Verification
           </DialogTitle>
-          <DialogDescription className="text-center">
-            We sent a 6-digit code to{" "}
-            <span className="font-semibold text-foreground">{email}</span>.
-            <br />
-            It expires in 5 minutes.
+          <DialogDescription className="text-center text-xs text-muted-foreground mt-1">
+            Enter the 6-digit verification code transmitted to{" "}
+            <span className="font-mono text-foreground font-medium">{email}</span>.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-5 mt-2">
+        <div className="flex flex-col gap-4 mt-2">
           {success ? (
-            <div className="flex flex-col items-center gap-3 py-4">
-              <CheckCircle2 className="w-12 h-12 text-emerald-500 animate-pulse" />
-              <p className="text-sm font-medium text-foreground">
-                Verified! Redirecting…
+            <div className="flex flex-col items-center gap-2 py-4">
+              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+              <p className="text-xs font-medium text-foreground">
+                Identity verified. Initializing session…
               </p>
             </div>
           ) : (
             <>
-              {/* OTP cells */}
+              {/* OTP inputs */}
               <div className="flex items-center justify-center gap-2">
                 {otp.map((digit, i) => (
                   <input
@@ -289,8 +287,7 @@ function OtpModal({ open, email, onClose, onVerified }: OtpModalProps) {
                     onChange={(e) => handleChange(i, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(i, e)}
                     onPaste={i === 0 ? handlePaste : undefined}
-                    className="w-11 h-13 rounded-xl border-2 border-input bg-background text-center text-xl font-bold text-foreground transition-all duration-150 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20 focus:outline-none caret-transparent"
-                    style={{ height: "3.25rem" }}
+                    className="w-10 h-11 rounded-md border border-input bg-background text-center font-mono text-base font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 tabular-nums"
                     aria-label={`OTP digit ${i + 1}`}
                   />
                 ))}
@@ -300,28 +297,27 @@ function OtpModal({ open, email, onClose, onVerified }: OtpModalProps) {
 
               <Button
                 id="otp-verify-btn"
-                variant="brand"
-                className="w-full"
+                className="w-full h-9 text-xs font-medium"
                 onClick={handleVerify}
                 disabled={isLoading || otp.join("").length < OTP_LENGTH}
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  "Verify & Continue"
+                  "Confirm & Authenticate"
                 )}
               </Button>
 
-              <p className="text-xs text-center text-muted-foreground">
-                Wrong email?{" "}
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono">
+                <span>Timeout: 05:00</span>
                 <button
                   type="button"
-                  className="text-brand-600 hover:underline"
+                  className="text-foreground hover:underline"
                   onClick={onClose}
                 >
-                  Go back
+                  Change Email
                 </button>
-              </p>
+              </div>
             </>
           )}
         </div>
@@ -385,11 +381,10 @@ function SignInForm() {
       const data = (await response.json()) as AuthMessageResponse;
 
       if (!response.ok) {
-        setError(data.message ?? "Sign in failed. Please try again.");
+        setError(data.message ?? "Authentication failed. Check credentials.");
         return;
       }
 
-      // Hydrate Redux store from cookie
       await dispatch(checkAuthThunk());
 
       if (data.isOnboarded === false) {
@@ -409,47 +404,53 @@ function SignInForm() {
       id="signin-form"
       onSubmit={handleSubmit}
       noValidate
-      className="flex flex-col gap-5"
+      className="flex flex-col gap-4"
     >
       {error && <ErrorAlert message={error} />}
 
       {/* Email */}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="signin-email">Email address</Label>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="signin-email" className="text-xs font-medium text-foreground">
+          Email Address
+        </Label>
         <div className="relative">
-          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
           <Input
             id="signin-email"
             type="email"
             autoComplete="email"
-            placeholder="you@institution.edu"
+            placeholder="institutional@university.edu"
             value={email}
             onChange={(e) => {
               setEmail(e.target.value);
               setFieldErrors((p) => ({ ...p, email: undefined }));
             }}
-            className={`pl-9 ${fieldErrors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
+            className={`pl-8 h-9 text-xs ${fieldErrors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
           />
         </div>
         {fieldErrors.email && (
-          <p className="text-xs text-destructive">{fieldErrors.email}</p>
+          <p className="text-[0.8rem] font-medium text-destructive">
+            {fieldErrors.email}
+          </p>
         )}
       </div>
 
       {/* Password */}
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between">
-          <Label htmlFor="signin-password">Password</Label>
+          <Label htmlFor="signin-password" className="text-xs font-medium text-foreground">
+            Password
+          </Label>
           <button
             type="button"
             id="forgot-password-btn"
-            className="text-xs text-brand-600 hover:underline"
+            className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
           >
-            Forgot Password?
+            Forgot?
           </button>
         </div>
         <div className="relative">
-          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
           <Input
             id="signin-password"
             type={showPassword ? "text" : "password"}
@@ -460,38 +461,44 @@ function SignInForm() {
               setPassword(e.target.value);
               setFieldErrors((p) => ({ ...p, password: undefined }));
             }}
-            className={`pl-9 pr-10 ${fieldErrors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
+            className={`pl-8 pr-9 h-9 text-xs ${fieldErrors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
           />
           <button
             type="button"
-            onClick={() => setShowPassword((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            onClick={() => setShowPassword((p) => !p)}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             aria-label={showPassword ? "Hide password" : "Show password"}
           >
             {showPassword ? (
-              <EyeOff className="w-4 h-4" />
+              <EyeOff className="w-3.5 h-3.5" />
             ) : (
-              <Eye className="w-4 h-4" />
+              <Eye className="w-3.5 h-3.5" />
             )}
           </button>
         </div>
         {fieldErrors.password && (
-          <p className="text-xs text-destructive">{fieldErrors.password}</p>
+          <p className="text-[0.8rem] font-medium text-destructive">
+            {fieldErrors.password}
+          </p>
         )}
       </div>
 
       <Button
         id="signin-submit-btn"
         type="submit"
-        variant="brand"
-        className="w-full"
+        className="w-full h-9 text-xs font-medium mt-1"
         disabled={isLoading}
       >
-        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign In"}
+        {isLoading ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          "Authenticate Session"
+        )}
       </Button>
 
       <OrDivider />
-      <GoogleButton label="Continue with Google" />
+
+      <GoogleButton label="Continue with Google Workspace" />
     </form>
   );
 }
@@ -501,44 +508,47 @@ function SignInForm() {
 // ============================================================
 
 function SignUpForm() {
-  const dispatch = useAppDispatch();
-  const navigate = useNavigate();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [otpOpen, setOtpOpen] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{
     email?: string;
     password?: string;
     confirmPassword?: string;
   }>({});
+  const [otpModalOpen, setOtpModalOpen] = useState(false);
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
 
   function validate(): boolean {
-    const errs: typeof fieldErrors = {};
+    const errs: {
+      email?: string;
+      password?: string;
+      confirmPassword?: string;
+    } = {};
+
     const emailErr = validateEmail(email);
     if (emailErr) errs.email = emailErr;
+
     const passErr = validatePassword(password);
     if (passErr) errs.password = passErr;
-    if (!confirmPassword) {
-      errs.confirmPassword = "Please confirm your password.";
-    } else if (password !== confirmPassword) {
+
+    if (password !== confirmPassword) {
       errs.confirmPassword = "Passwords do not match.";
     }
+
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   }
 
   /**
-   * @description Registers a new user by sending email + password to the server.
-   *              The server sends an OTP to the provided email for verification.
-   * @param {{ email: string; password: string; confirmPassword: string }} payload - Registration details
-   * @returns {Promise<AuthMessageResponse>} Confirmation message ("Next up verify OTP")
-   * @throws {Error} 400 (user exists, password mismatch) or 500 (server error)
+   * @description Registers a new user. The server sends an OTP to the given email address.
+   * @param {{ email: string; password: string; confirmPassword: string }} payload - Registration data
+   * @returns {Promise<AuthMessageResponse>} Server confirmation message
+   * @throws {Error} 400 (validation failure or user already exists) or 500 (server error)
    */
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -564,12 +574,11 @@ function SignUpForm() {
       const data = (await response.json()) as AuthMessageResponse;
 
       if (!response.ok) {
-        setError(data.message ?? "Sign up failed. Please try again.");
+        setError(data.message ?? "Registration failed.");
         return;
       }
 
-      // Open OTP modal
-      setOtpOpen(true);
+      setOtpModalOpen(true);
     } catch {
       setError("Network error. Please check your connection and try again.");
     } finally {
@@ -577,9 +586,9 @@ function SignUpForm() {
     }
   }
 
-  function handleVerified(isOnboarded: boolean) {
-    dispatch(checkAuthThunk());
-    setOtpOpen(false);
+  async function handleVerified(isOnboarded: boolean) {
+    setOtpModalOpen(false);
+    await dispatch(checkAuthThunk());
     if (!isOnboarded) {
       navigate("/onboarding/select-type", { replace: true });
     } else {
@@ -593,92 +602,98 @@ function SignUpForm() {
         id="signup-form"
         onSubmit={handleSubmit}
         noValidate
-        className="flex flex-col gap-5"
+        className="flex flex-col gap-3.5"
       >
         {error && <ErrorAlert message={error} />}
 
         {/* Email */}
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="signup-email">Email address</Label>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="signup-email" className="text-xs font-medium text-foreground">
+            Email Address
+          </Label>
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
             <Input
               id="signup-email"
               type="email"
               autoComplete="email"
-              placeholder="you@institution.edu"
+              placeholder="institutional@university.edu"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
                 setFieldErrors((p) => ({ ...p, email: undefined }));
               }}
-              className={`pl-9 ${fieldErrors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
+              className={`pl-8 h-9 text-xs ${fieldErrors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
             />
           </div>
           {fieldErrors.email && (
-            <p className="text-xs text-destructive">{fieldErrors.email}</p>
+            <p className="text-[0.8rem] font-medium text-destructive">
+              {fieldErrors.email}
+            </p>
           )}
         </div>
 
         {/* Password */}
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="signup-password">Password</Label>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="signup-password" className="text-xs font-medium text-foreground">
+            Password (min 8 chars)
+          </Label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
             <Input
               id="signup-password"
               type={showPassword ? "text" : "password"}
               autoComplete="new-password"
-              placeholder="Min. 8 characters"
+              placeholder="••••••••"
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
                 setFieldErrors((p) => ({ ...p, password: undefined }));
               }}
-              className={`pl-9 pr-10 ${fieldErrors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
+              className={`pl-8 pr-9 h-9 text-xs ${fieldErrors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
             />
             <button
               type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              onClick={() => setShowPassword((p) => !p)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showPassword ? (
+                <EyeOff className="w-3.5 h-3.5" />
+              ) : (
+                <Eye className="w-3.5 h-3.5" />
+              )}
             </button>
           </div>
           {fieldErrors.password && (
-            <p className="text-xs text-destructive">{fieldErrors.password}</p>
+            <p className="text-[0.8rem] font-medium text-destructive">
+              {fieldErrors.password}
+            </p>
           )}
         </div>
 
         {/* Confirm Password */}
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="signup-confirm-password">Confirm Password</Label>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="signup-confirm-password" className="text-xs font-medium text-foreground">
+            Confirm Password
+          </Label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
             <Input
               id="signup-confirm-password"
-              type={showConfirm ? "text" : "password"}
+              type={showPassword ? "text" : "password"}
               autoComplete="new-password"
-              placeholder="Re-enter password"
+              placeholder="••••••••"
               value={confirmPassword}
               onChange={(e) => {
                 setConfirmPassword(e.target.value);
                 setFieldErrors((p) => ({ ...p, confirmPassword: undefined }));
               }}
-              className={`pl-9 pr-10 ${fieldErrors.confirmPassword ? "border-destructive focus-visible:ring-destructive" : ""}`}
+              className={`pl-8 h-9 text-xs ${fieldErrors.confirmPassword ? "border-destructive focus-visible:ring-destructive" : ""}`}
             />
-            <button
-              type="button"
-              onClick={() => setShowConfirm((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label={showConfirm ? "Hide confirm password" : "Show confirm password"}
-            >
-              {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
           </div>
           {fieldErrors.confirmPassword && (
-            <p className="text-xs text-destructive">
+            <p className="text-[0.8rem] font-medium text-destructive">
               {fieldErrors.confirmPassword}
             </p>
           )}
@@ -687,25 +702,26 @@ function SignUpForm() {
         <Button
           id="signup-submit-btn"
           type="submit"
-          variant="brand"
-          className="w-full"
+          className="w-full h-9 text-xs font-medium mt-1"
           disabled={isLoading}
         >
           {isLoading ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
-            "Create Account"
+            "Dispatch Verification Code"
           )}
         </Button>
 
         <OrDivider />
-        <GoogleButton label="Continue with Google" />
+
+        <GoogleButton label="Continue with Google Workspace" />
       </form>
 
+      {/* OTP Dialog */}
       <OtpModal
-        open={otpOpen}
+        open={otpModalOpen}
         email={email}
-        onClose={() => setOtpOpen(false)}
+        onClose={() => setOtpModalOpen(false)}
         onVerified={handleVerified}
       />
     </>
@@ -713,148 +729,159 @@ function SignUpForm() {
 }
 
 // ============================================================
-// Auth Page
+// Auth Page Component
 // ============================================================
 
 export default function AuthPage() {
   return (
     <>
-      <title>Sign In or Sign Up — PortalAcademia</title>
+      <title>Authentication // PortalAcademia</title>
       <meta
         name="description"
-        content="Sign in to your PortalAcademia account or create a new one to start your academia-industry journey."
+        content="Access PortalAcademia with verified institutional credentials."
       />
 
-      <div className="min-h-screen bg-mesh flex">
-        {/* Left — decorative panel (hidden on mobile) */}
-        <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-brand-700 via-purple-800 to-brand-900 flex-col items-center justify-center p-12 gap-8">
-          {/* Orbs */}
-          <div
-            aria-hidden
-            className="absolute -top-32 -left-32 w-80 h-80 rounded-full bg-white/10 blur-3xl pointer-events-none"
-          />
-          <div
-            aria-hidden
-            className="absolute -bottom-32 -right-32 w-80 h-80 rounded-full bg-white/10 blur-3xl pointer-events-none"
-          />
-
-          <div className="relative flex flex-col items-center text-center gap-6 max-w-sm">
-            <div className="w-16 h-16 rounded-2xl bg-white/15 border border-white/25 flex items-center justify-center backdrop-blur-sm">
-              <GraduationCap className="w-8 h-8 text-white" />
+      <div className="min-h-screen flex flex-col lg:flex-row bg-zinc-50 dark:bg-zinc-950">
+        {/* Left — Enterprise telemetry & architecture panel */}
+        <div className="hidden lg:flex lg:w-1/2 bg-zinc-900 text-zinc-100 border-r border-zinc-800 flex-col justify-between p-12">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-sm bg-white text-zinc-900 flex items-center justify-center font-mono font-bold text-xs">
+                PA
+              </div>
+              <span className="font-mono text-xs uppercase tracking-wider text-zinc-300">
+                PortalAcademia // SIH-26044
+              </span>
             </div>
-            <h2 className="text-3xl font-display font-bold text-white leading-snug">
-              Bridge the gap between academia and industry
-            </h2>
-            <p className="text-white/70 text-sm leading-relaxed">
-              Join students, faculty, and recruiters building meaningful
-              connections on PortalAcademia.
-            </p>
 
-            {/* Testimonial card */}
-            <div className="mt-4 w-full rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 p-5 text-left">
-              <p className="text-white/90 text-sm leading-relaxed italic">
-                "PortalAcademia helped me identify exactly which skills I was
-                missing and land my first SDE internship within 3 months."
+            <div className="mt-14 max-w-md">
+              <span className="text-xs font-mono uppercase tracking-wider text-zinc-400">
+                Security Architecture
+              </span>
+              <h1 className="text-2xl font-semibold tracking-tight text-white mt-1">
+                Zero-Trust Credential &amp; Identity Gateway
+              </h1>
+              <p className="text-xs text-zinc-400 mt-3 leading-relaxed">
+                Production-grade identity management configured with strict HttpOnly session tokens, server-side cryptographic email verification, and deterministic stakeholder authorization matrices.
               </p>
-              <div className="mt-3 flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-300 to-purple-400 flex items-center justify-center text-white font-bold text-xs">
-                  A
-                </div>
-                <div>
-                  <p className="text-white text-xs font-semibold">
-                    Aarav Mehta
-                  </p>
-                  <p className="text-white/55 text-xs">
-                    B.Tech CSE, 3rd year
-                  </p>
-                </div>
+            </div>
+          </div>
+
+          {/* Structured Architecture Specs Card */}
+          <div className="w-full max-w-md rounded-md border border-zinc-800 bg-zinc-950/60 p-4 font-mono text-xs">
+            <div className="flex items-center justify-between pb-2 mb-3 border-b border-zinc-800">
+              <div className="flex items-center gap-2 text-zinc-300">
+                <Server className="w-3.5 h-3.5 text-emerald-400" />
+                <span>SESSION_ENCLAVE</span>
+              </div>
+              <Badge variant="outline" className="border-zinc-700 text-zinc-300 text-[9px] py-0">
+                STRICT-COOKIE
+              </Badge>
+            </div>
+
+            <div className="divide-y divide-zinc-800/80 text-[11px] tabular-nums">
+              <div className="flex justify-between py-1.5">
+                <span className="text-zinc-500">Token Exposure:</span>
+                <span className="text-zinc-300">None (HttpOnly Cookie)</span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-zinc-500">Validation Protocol:</span>
+                <span className="text-zinc-300">6-Digit Cryptographic OTP</span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-zinc-500">Transport Layer:</span>
+                <span className="text-zinc-300">TLS 1.3 / Strict-SameSite</span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-zinc-500">Target Environment:</span>
+                <span className="text-zinc-300">Gov-Tech SIH 26044 Node</span>
               </div>
             </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-[11px] font-mono text-zinc-500">
+            <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Encrypted Session Management Verified</span>
           </div>
         </div>
 
-        {/* Right — auth form panel */}
-        <div className="flex-1 flex flex-col items-center justify-center px-4 py-12 sm:px-8">
-          {/* Back to home */}
-          <div className="w-full max-w-md mb-6">
+        {/* Right — Auth Card Panel */}
+        <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">
+          <div className="w-full max-w-sm mb-4">
             <Link
               to="/"
               id="back-to-home-link"
-              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-mono"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              Back to home
+              <span>Return to Index</span>
             </Link>
           </div>
 
-          {/* Card */}
-          <div className="w-full max-w-md bg-card border border-border/60 rounded-2xl shadow-xl shadow-black/5 p-8">
-            {/* Logo */}
-            <div className="flex items-center gap-2 mb-7">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center shadow-md">
-                <GraduationCap className="w-4 h-4 text-white" />
+          <Card className="w-full max-w-sm rounded-md border border-border bg-card p-6 shadow-sm">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-sm bg-zinc-900 text-zinc-100 flex items-center justify-center font-mono font-bold text-[10px]">
+                  PA
+                </div>
+                <span className="font-semibold text-xs text-foreground tracking-tight">
+                  PortalAcademia
+                </span>
               </div>
-              <span className="font-display font-bold text-base text-foreground">
-                Portal<span className="text-brand-600">Academia</span>
+              <span className="font-mono text-[10px] text-muted-foreground uppercase">
+                Auth Gateway
               </span>
             </div>
 
             {/* Tabs */}
             <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="w-full mb-6">
+              <TabsList className="w-full h-8 mb-5 rounded-md bg-muted p-0.5">
                 <TabsTrigger
                   id="signin-tab"
                   value="signin"
-                  className="flex-1"
+                  className="flex-1 rounded-sm text-xs font-medium"
                 >
                   Sign In
                 </TabsTrigger>
                 <TabsTrigger
                   id="signup-tab"
                   value="signup"
-                  className="flex-1"
+                  className="flex-1 rounded-sm text-xs font-medium"
                 >
                   Sign Up
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="signin">
-                <div className="mb-5">
-                  <h1 className="text-xl font-display font-bold text-foreground">
-                    Welcome back
-                  </h1>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Sign in to your PortalAcademia account
+                <div className="mb-4">
+                  <h2 className="text-sm font-semibold text-foreground">
+                    Institutional Login
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Enter your registered credentials to access your console.
                   </p>
                 </div>
                 <SignInForm />
               </TabsContent>
 
               <TabsContent value="signup">
-                <div className="mb-5">
-                  <h1 className="text-xl font-display font-bold text-foreground">
-                    Create your account
-                  </h1>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Join thousands of students and professionals
+                <div className="mb-4">
+                  <h2 className="text-sm font-semibold text-foreground">
+                    Register Account
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Create credentials and verify your email domain.
                   </p>
                 </div>
                 <SignUpForm />
               </TabsContent>
             </Tabs>
 
-            <p className="mt-6 text-center text-xs text-muted-foreground">
-              By continuing, you agree to our{" "}
-              <span className="text-brand-600 cursor-pointer hover:underline">
-                Terms of Service
-              </span>{" "}
-              and{" "}
-              <span className="text-brand-600 cursor-pointer hover:underline">
-                Privacy Policy
-              </span>
-              .
+            <p className="mt-5 text-center text-[11px] text-muted-foreground">
+              By authenticating, you agree to academic compliance regulations and system telemetry logging.
             </p>
-          </div>
+          </Card>
         </div>
       </div>
     </>
