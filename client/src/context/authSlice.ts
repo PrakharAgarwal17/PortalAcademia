@@ -18,7 +18,6 @@ interface AuthState {
   token: null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  isInitialized: boolean;
   error: string | null;
 }
 
@@ -36,8 +35,6 @@ interface CheckAuthResponse {
 // Async Thunks
 // ============================================================
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
-
 /**
  * @description Validates the current session by calling the server's checkAuth
  *              endpoint. The server reads the httpOnly "accesstoken" cookie
@@ -51,44 +48,22 @@ export const checkAuthThunk = createAsyncThunk<
   void,
   { rejectValue: string }
 >("auth/checkAuth", async (_, { rejectWithValue }) => {
-  try {
-    const response = await fetch(`${API_BASE}/api/auth/checkAuth`, {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_BASE_URL}/api/auth/checkAuth`,
+    {
       method: "POST",
       credentials: "include", // send httpOnly cookie
       headers: { "Content-Type": "application/json" },
-    });
-
-    if (!response.ok) {
-      return rejectWithValue("Session check failed");
     }
+  );
 
-    const data = (await response.json()) as CheckAuthResponse;
-    return data;
-  } catch (error) {
-    return rejectWithValue("Network error during session check");
+  if (!response.ok) {
+    return rejectWithValue("Session check failed");
   }
+
+  const data = (await response.json()) as CheckAuthResponse;
+  return data;
 });
-
-/**
- * @description Signs out the current user by invoking the backend logout endpoint
- *              which clears the httpOnly session cookie.
- * @param {void} _ - No parameters required
- * @returns {Promise<void>}
- */
-export const signOutThunk = createAsyncThunk<void, void>(
-  "auth/signOut",
-  async () => {
-    try {
-      await fetch(`${API_BASE}/api/auth/SignOut`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-      });
-    } catch {
-      // Ignore network failures on logout
-    }
-  }
-);
 
 // ============================================================
 // Initial State
@@ -99,7 +74,6 @@ const initialState: AuthState = {
   token: null,
   isAuthenticated: false,
   isLoading: false,
-  isInitialized: false,
   error: null,
 };
 
@@ -114,7 +88,6 @@ const authSlice = createSlice({
     setCredentials(state, action: PayloadAction<AuthUser>) {
       state.user = action.payload;
       state.isAuthenticated = true;
-      state.isInitialized = true;
       state.error = null;
     },
     clearAuth(state) {
@@ -138,7 +111,6 @@ const authSlice = createSlice({
       })
       .addCase(checkAuthThunk.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.isInitialized = true;
         if (action.payload.valid && action.payload.user) {
           state.isAuthenticated = true;
           state.user = {
@@ -153,15 +125,8 @@ const authSlice = createSlice({
       })
       .addCase(checkAuthThunk.rejected, (state) => {
         state.isLoading = false;
-        state.isInitialized = true;
         state.isAuthenticated = false;
         state.user = null;
-      })
-      .addCase(signOutThunk.fulfilled, (state) => {
-        state.isAuthenticated = false;
-        state.user = null;
-        state.token = null;
-        state.error = null;
       });
   },
 });

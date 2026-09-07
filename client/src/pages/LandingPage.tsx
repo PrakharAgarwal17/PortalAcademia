@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAppSelector } from "@/context/store";
 
 // ============================================================
 // Types
@@ -263,7 +262,6 @@ const lifecycleSteps = [
 
 function Header() {
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAppSelector((s) => s.auth);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background">
@@ -312,38 +310,24 @@ function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
-          {isAuthenticated ? (
-            <Button
-              id="nav-dashboard-btn"
-              size="sm"
-              onClick={() => navigate(user?.isOnboarded ? "/dashboard" : "/onboarding/select-type")}
-              className="h-8 px-3 text-xs font-medium"
-            >
-              Console
-              <ChevronRight className="w-3.5 h-3.5 ml-1" />
-            </Button>
-          ) : (
-            <>
-              <Button
-                id="nav-signin-btn"
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate("/auth")}
-                className="h-8 px-3 text-xs"
-              >
-                Sign In
-              </Button>
-              <Button
-                id="nav-enter-btn"
-                size="sm"
-                onClick={() => navigate("/auth")}
-                className="h-8 px-3 text-xs font-medium"
-              >
-                Launch Console
-                <ChevronRight className="w-3.5 h-3.5 ml-1" />
-              </Button>
-            </>
-          )}
+          <Button
+            id="nav-signin-btn"
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/auth")}
+            className="h-8 px-3 text-xs"
+          >
+            Sign In
+          </Button>
+          <Button
+            id="nav-enter-btn"
+            size="sm"
+            onClick={() => navigate("/auth")}
+            className="h-8 px-3 text-xs font-medium"
+          >
+            Launch Console
+            <ChevronRight className="w-3.5 h-3.5 ml-1" />
+          </Button>
         </div>
       </div>
     </header>
