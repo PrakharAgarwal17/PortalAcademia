@@ -1,9 +1,7 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ArrowLeft, Lock, Shield, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 export default function PrivacyPage() {
-  const navigate = useNavigate();
 
   return (
     <>
@@ -33,15 +31,13 @@ export default function PrivacyPage() {
               </span>
             </div>
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => navigate("/auth")}
-              className="h-8 px-3 text-xs"
+            <Link
+              to="/auth"
+              className="inline-flex items-center justify-center gap-1 h-8 px-3 text-xs font-medium rounded-md border border-border bg-background hover:bg-muted text-foreground transition-colors"
             >
               Sign In
               <ChevronRight className="w-3.5 h-3.5 ml-1" />
-            </Button>
+            </Link>
           </div>
         </header>
 

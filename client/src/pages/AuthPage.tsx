@@ -11,19 +11,6 @@ import {
   CheckCircle2,
   KeyRound,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Card } from "@/components/ui/card";
 import { useAppDispatch } from "@/context/store";
 import { checkAuthThunk } from "@/context/authSlice";
 
@@ -91,12 +78,11 @@ function GoogleButton({ label }: { label: string }) {
   }
 
   return (
-    <Button
+    <button
       id={`google-${label.toLowerCase().replace(/\s+/g, "-")}-btn`}
       type="button"
-      variant="outline"
-      className="w-full gap-2 h-9 text-xs font-medium"
       onClick={handleGoogleLogin}
+      className="w-full flex items-center justify-center gap-2 h-9 px-4 text-xs font-medium rounded-md border border-border bg-background hover:bg-muted text-foreground transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
     >
       <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" aria-hidden>
         <path
@@ -117,7 +103,7 @@ function GoogleButton({ label }: { label: string }) {
         />
       </svg>
       <span>{label}</span>
-    </Button>
+    </button>
   );
 }
 
@@ -155,7 +141,7 @@ function ErrorAlert({ message }: { message: string }) {
 }
 
 // ============================================================
-// OTP Modal
+// OTP Modal (Direct Native Modal)
 // ============================================================
 
 interface OtpModalProps {
@@ -171,6 +157,8 @@ function OtpModal({ open, email, onClose, onVerified }: OtpModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  if (!open) return null;
 
   function handleChange(index: number, value: string) {
     const digit = value.replace(/\D/g, "").slice(-1);
@@ -238,43 +226,56 @@ function OtpModal({ open, email, onClose, onVerified }: OtpModalProps) {
       const data = (await response.json()) as AuthMessageResponse;
 
       if (!response.ok) {
-        setError(data.message ?? "OTP verification failed.");
+        setError(data.message ?? "Invalid or expired OTP. Please try again.");
         return;
       }
 
       setSuccess(true);
       setTimeout(() => {
         onVerified(data.isOnboarded ?? false);
-      }, 800);
+      }, 750);
     } catch {
-      setError("Network error. Please check your connection and try again.");
+      setError("Network error. Could not verify OTP. Please try again.");
     } finally {
       setIsLoading(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-sm rounded-md border border-border bg-background p-6">
-        <DialogHeader>
-          <div className="w-8 h-8 mx-auto rounded-sm bg-muted border border-border flex items-center justify-center mb-2">
-            <KeyRound className="w-4 h-4 text-foreground" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-sm rounded-md border border-border bg-card p-6 shadow-lg text-foreground animate-in fade-in duration-150">
+        <div className="flex flex-col space-y-1.5 text-center sm:text-left mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-sm bg-muted border border-border flex items-center justify-center shrink-0">
+              <KeyRound className="w-3.5 h-3.5 text-foreground" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-foreground tracking-tight">
+                Verify Identity Token
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Enter the 6-digit numeric OTP sent to your email.
+              </p>
+            </div>
           </div>
-          <DialogTitle className="text-center text-base font-semibold">
-            Two-Factor Verification
-          </DialogTitle>
-          <DialogDescription className="text-center text-xs text-muted-foreground mt-1">
-            Enter the 6-digit verification code transmitted to{" "}
-            <span className="font-mono text-foreground font-medium">{email}</span>.
-          </DialogDescription>
-        </DialogHeader>
+        </div>
 
-        <div className="flex flex-col gap-4 mt-2">
+        <div className="flex flex-col gap-4">
+          <div className="rounded-sm border border-border bg-muted/40 p-2.5 text-xs text-muted-foreground font-mono">
+            <span className="text-[10px] uppercase text-muted-foreground block">
+              Recipient Destination
+            </span>
+            <span className="text-foreground font-medium break-all">{email}</span>
+          </div>
+
           {success ? (
-            <div className="flex flex-col items-center gap-2 py-4">
-              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-              <p className="text-xs font-medium text-foreground">
-                Identity verified. Initializing session…
+            <div className="flex flex-col items-center justify-center py-6 gap-2 text-center">
+              <CheckCircle2 className="w-8 h-8 text-emerald-500 animate-in zoom-in-50 duration-200" />
+              <p className="text-xs font-semibold text-foreground">
+                Identity Verified
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Provisioning secure session…
               </p>
             </div>
           ) : (
@@ -293,7 +294,7 @@ function OtpModal({ open, email, onClose, onVerified }: OtpModalProps) {
                     onChange={(e) => handleChange(i, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(i, e)}
                     onPaste={i === 0 ? handlePaste : undefined}
-                    className="w-10 h-11 rounded-md border border-input bg-background text-center font-mono text-base font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 tabular-nums"
+                    className="w-10 h-11 rounded-md border border-input bg-background text-center font-mono text-base font-semibold text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring tabular-nums"
                     aria-label={`OTP digit ${i + 1}`}
                   />
                 ))}
@@ -301,18 +302,19 @@ function OtpModal({ open, email, onClose, onVerified }: OtpModalProps) {
 
               {error && <ErrorAlert message={error} />}
 
-              <Button
+              <button
                 id="otp-verify-btn"
-                className="w-full h-9 text-xs font-medium"
+                type="button"
                 onClick={handleVerify}
                 disabled={isLoading || otp.join("").length < OTP_LENGTH}
+                className="w-full flex items-center justify-center gap-2 h-9 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   "Confirm & Authenticate"
                 )}
-              </Button>
+              </button>
 
               <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono">
                 <span>Timeout: 05:00</span>
@@ -327,8 +329,8 @@ function OtpModal({ open, email, onClose, onVerified }: OtpModalProps) {
             </>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
 
@@ -421,12 +423,12 @@ function SignInForm() {
 
       {/* Email */}
       <div className="flex flex-col gap-1">
-        <Label htmlFor="signin-email" className="text-xs font-medium text-foreground">
+        <label htmlFor="signin-email" className="text-xs font-medium text-foreground">
           Email Address
-        </Label>
+        </label>
         <div className="relative">
           <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-          <Input
+          <input
             id="signin-email"
             type="email"
             autoComplete="email"
@@ -436,7 +438,9 @@ function SignInForm() {
               setEmail(e.target.value);
               setFieldErrors((p) => ({ ...p, email: undefined }));
             }}
-            className={`pl-8 h-9 text-xs ${fieldErrors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
+            className={`w-full pl-8 h-9 text-xs rounded-md border border-input bg-transparent px-3 py-1 shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+              fieldErrors.email ? "border-destructive focus-visible:ring-destructive" : ""
+            }`}
           />
         </div>
         {fieldErrors.email && (
@@ -448,12 +452,14 @@ function SignInForm() {
 
       {/* Password */}
       <div className="flex flex-col gap-1">
-        <Label htmlFor="signin-password" className="text-xs font-medium text-foreground">
-          Password
-        </Label>
+        <div className="flex items-center justify-between">
+          <label htmlFor="signin-password" className="text-xs font-medium text-foreground">
+            Password
+          </label>
+        </div>
         <div className="relative">
           <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-          <Input
+          <input
             id="signin-password"
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
@@ -463,7 +469,9 @@ function SignInForm() {
               setPassword(e.target.value);
               setFieldErrors((p) => ({ ...p, password: undefined }));
             }}
-            className={`pl-8 pr-9 h-9 text-xs ${fieldErrors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
+            className={`w-full pl-8 pr-9 h-9 text-xs rounded-md border border-input bg-transparent px-3 py-1 shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+              fieldErrors.password ? "border-destructive focus-visible:ring-destructive" : ""
+            }`}
           />
           <button
             type="button"
@@ -485,42 +493,39 @@ function SignInForm() {
         )}
       </div>
 
-      {/* Remember Me & Forgot Password */}
-      <div className="flex items-center justify-between pt-0.5">
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="signin-remember-me"
-            checked={rememberMe}
-            onCheckedChange={(checked) => setRememberMe(checked === true)}
-          />
-          <Label
-            htmlFor="signin-remember-me"
-            className="text-xs font-normal text-muted-foreground cursor-pointer select-none"
-          >
-            Remember me
-          </Label>
-        </div>
-        <button
-          type="button"
-          id="forgot-password-btn"
-          className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+      {/* Remember Me */}
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id="signin-remember-me"
+          checked={rememberMe}
+          onChange={(e) => setRememberMe(e.target.checked)}
+          className="h-4 w-4 rounded-sm border border-border text-foreground accent-foreground cursor-pointer focus:ring-1 focus:ring-ring"
+        />
+        <label
+          htmlFor="signin-remember-me"
+          className="text-xs font-normal text-muted-foreground cursor-pointer select-none"
         >
-          Forgot?
-        </button>
+          Remember my session for 30 days
+        </label>
       </div>
 
-      <Button
+      {/* Submit Button */}
+      <button
         id="signin-submit-btn"
         type="submit"
-        className="w-full h-9 text-xs font-medium mt-1"
         disabled={isLoading}
+        className="w-full flex items-center justify-center gap-2 h-9 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {isLoading ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
+          <>
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <span>Verifying Credentials…</span>
+          </>
         ) : (
-          "Authenticate Session"
+          "Authenticate & Enter"
         )}
-      </Button>
+      </button>
 
       <OrDivider />
 
@@ -534,6 +539,9 @@ function SignInForm() {
 // ============================================================
 
 function SignUpForm() {
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -541,14 +549,13 @@ function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [otpModalOpen, setOtpModalOpen] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState("");
   const [fieldErrors, setFieldErrors] = useState<{
     email?: string;
     password?: string;
     confirmPassword?: string;
   }>({});
-  const [otpModalOpen, setOtpModalOpen] = useState(false);
-  const navigate = useNavigate();
-  const dispatch = useAppDispatch();
 
   function validate(): boolean {
     const errs: {
@@ -563,7 +570,9 @@ function SignUpForm() {
     const passErr = validatePassword(password);
     if (passErr) errs.password = passErr;
 
-    if (password !== confirmPassword) {
+    if (!confirmPassword) {
+      errs.confirmPassword = "Confirm your password.";
+    } else if (password !== confirmPassword) {
       errs.confirmPassword = "Passwords do not match.";
     }
 
@@ -572,10 +581,11 @@ function SignUpForm() {
   }
 
   /**
-   * @description Registers a new user. The server sends an OTP to the given email address.
+   * @description Initiates signup by sending an OTP to the user's institutional email.
+   *              User account is not created until OTP is verified.
    * @param {{ email: string; password: string; confirmPassword: string; rememberMe?: boolean }} payload - Registration data
-   * @returns {Promise<AuthMessageResponse>} Server confirmation message
-   * @throws {Error} 400 (validation failure or user already exists) or 500 (server error)
+   * @returns {Promise<AuthMessageResponse>} OTP dispatch confirmation
+   * @throws {Error} 400 (validation / mismatch), 409 (user exists), or 500 (server error)
    */
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -602,10 +612,11 @@ function SignUpForm() {
       const data = (await response.json()) as AuthMessageResponse;
 
       if (!response.ok) {
-        setError(data.message ?? "Registration failed.");
+        setError(data.message ?? "Registration failed. Try again.");
         return;
       }
 
+      setSubmittedEmail(payload.email);
       setOtpModalOpen(true);
     } catch {
       setError("Network error. Please check your connection and try again.");
@@ -636,12 +647,12 @@ function SignUpForm() {
 
         {/* Email */}
         <div className="flex flex-col gap-1">
-          <Label htmlFor="signup-email" className="text-xs font-medium text-foreground">
+          <label htmlFor="signup-email" className="text-xs font-medium text-foreground">
             Email Address
-          </Label>
+          </label>
           <div className="relative">
             <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-            <Input
+            <input
               id="signup-email"
               type="email"
               autoComplete="email"
@@ -651,7 +662,9 @@ function SignUpForm() {
                 setEmail(e.target.value);
                 setFieldErrors((p) => ({ ...p, email: undefined }));
               }}
-              className={`pl-8 h-9 text-xs ${fieldErrors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
+              className={`w-full pl-8 h-9 text-xs rounded-md border border-input bg-transparent px-3 py-1 shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+                fieldErrors.email ? "border-destructive focus-visible:ring-destructive" : ""
+              }`}
             />
           </div>
           {fieldErrors.email && (
@@ -663,12 +676,12 @@ function SignUpForm() {
 
         {/* Password */}
         <div className="flex flex-col gap-1">
-          <Label htmlFor="signup-password" className="text-xs font-medium text-foreground">
+          <label htmlFor="signup-password" className="text-xs font-medium text-foreground">
             Password (min 8 chars)
-          </Label>
+          </label>
           <div className="relative">
             <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-            <Input
+            <input
               id="signup-password"
               type={showPassword ? "text" : "password"}
               autoComplete="new-password"
@@ -678,7 +691,9 @@ function SignUpForm() {
                 setPassword(e.target.value);
                 setFieldErrors((p) => ({ ...p, password: undefined }));
               }}
-              className={`pl-8 pr-9 h-9 text-xs ${fieldErrors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
+              className={`w-full pl-8 pr-9 h-9 text-xs rounded-md border border-input bg-transparent px-3 py-1 shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+                fieldErrors.password ? "border-destructive focus-visible:ring-destructive" : ""
+              }`}
             />
             <button
               type="button"
@@ -702,12 +717,12 @@ function SignUpForm() {
 
         {/* Confirm Password */}
         <div className="flex flex-col gap-1">
-          <Label htmlFor="signup-confirm-password" className="text-xs font-medium text-foreground">
+          <label htmlFor="signup-confirm-password" className="text-xs font-medium text-foreground">
             Confirm Password
-          </Label>
+          </label>
           <div className="relative">
             <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-            <Input
+            <input
               id="signup-confirm-password"
               type={showPassword ? "text" : "password"}
               autoComplete="new-password"
@@ -717,7 +732,9 @@ function SignUpForm() {
                 setConfirmPassword(e.target.value);
                 setFieldErrors((p) => ({ ...p, confirmPassword: undefined }));
               }}
-              className={`pl-8 h-9 text-xs ${fieldErrors.confirmPassword ? "border-destructive focus-visible:ring-destructive" : ""}`}
+              className={`w-full pl-8 h-9 text-xs rounded-md border border-input bg-transparent px-3 py-1 shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+                fieldErrors.confirmPassword ? "border-destructive focus-visible:ring-destructive" : ""
+              }`}
             />
           </div>
           {fieldErrors.confirmPassword && (
@@ -728,42 +745,47 @@ function SignUpForm() {
         </div>
 
         {/* Remember Me */}
-        <div className="flex items-center space-x-2 pt-0.5">
-          <Checkbox
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
             id="signup-remember-me"
             checked={rememberMe}
-            onCheckedChange={(checked) => setRememberMe(checked === true)}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            className="h-4 w-4 rounded-sm border border-border text-foreground accent-foreground cursor-pointer focus:ring-1 focus:ring-ring"
           />
-          <Label
+          <label
             htmlFor="signup-remember-me"
             className="text-xs font-normal text-muted-foreground cursor-pointer select-none"
           >
-            Remember me on this device
-          </Label>
+            Remember my session for 30 days
+          </label>
         </div>
 
-        <Button
+        {/* Submit Button */}
+        <button
           id="signup-submit-btn"
           type="submit"
-          className="w-full h-9 text-xs font-medium mt-1"
           disabled={isLoading}
+          className="w-full flex items-center justify-center gap-2 h-9 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {isLoading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>Dispatching OTP Token…</span>
+            </>
           ) : (
-            "Dispatch Verification Code"
+            "Dispatch Verification OTP"
           )}
-        </Button>
+        </button>
 
         <OrDivider />
 
         <GoogleButton label="Continue with Google Workspace" />
       </form>
 
-      {/* OTP Dialog */}
       <OtpModal
         open={otpModalOpen}
-        email={email}
+        email={submittedEmail}
         onClose={() => setOtpModalOpen(false)}
         onVerified={handleVerified}
       />
@@ -772,16 +794,18 @@ function SignUpForm() {
 }
 
 // ============================================================
-// Auth Page Component
+// Auth Page Root
 // ============================================================
 
 export default function AuthPage() {
+  const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
+
   return (
     <>
-      <title>Authentication // PortalAcademia</title>
+      <title>Sign In & Register — PortalAcademia</title>
       <meta
         name="description"
-        content="Access PortalAcademia with verified institutional credentials."
+        content="PortalAcademia unified login and registration for students, faculty, institutions, and corporate recruiters."
       />
 
       <div className="min-h-screen flex flex-col lg:flex-row bg-zinc-50 dark:bg-zinc-950">
@@ -838,7 +862,7 @@ export default function AuthPage() {
             </Link>
           </div>
 
-          <Card className="w-full max-w-sm rounded-md border border-border bg-card p-6 shadow-sm">
+          <div className="w-full max-w-sm rounded-md border border-border bg-card p-6 shadow-sm">
             {/* Header */}
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-border">
               <div className="flex items-center gap-2">
@@ -854,26 +878,37 @@ export default function AuthPage() {
               </span>
             </div>
 
-            {/* Tabs */}
-            <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="w-full h-8 mb-5 rounded-md bg-muted p-0.5">
-                <TabsTrigger
-                  id="signin-tab"
-                  value="signin"
-                  className="flex-1 rounded-sm text-xs font-medium"
-                >
-                  Sign In
-                </TabsTrigger>
-                <TabsTrigger
-                  id="signup-tab"
-                  value="signup"
-                  className="flex-1 rounded-sm text-xs font-medium"
-                >
-                  Sign Up
-                </TabsTrigger>
-              </TabsList>
+            {/* Direct Tabs Toggle */}
+            <div className="w-full h-8 mb-5 rounded-md bg-muted p-0.5 grid grid-cols-2">
+              <button
+                type="button"
+                id="signin-tab"
+                onClick={() => setActiveTab("signin")}
+                className={`rounded-sm text-xs font-medium transition-all ${
+                  activeTab === "signin"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                id="signup-tab"
+                onClick={() => setActiveTab("signup")}
+                className={`rounded-sm text-xs font-medium transition-all ${
+                  activeTab === "signup"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Sign Up
+              </button>
+            </div>
 
-              <TabsContent value="signin">
+            {/* Tab Content */}
+            {activeTab === "signin" ? (
+              <div>
                 <div className="mb-4">
                   <h2 className="text-sm font-semibold text-foreground">
                     Institutional Login
@@ -883,9 +918,9 @@ export default function AuthPage() {
                   </p>
                 </div>
                 <SignInForm />
-              </TabsContent>
-
-              <TabsContent value="signup">
+              </div>
+            ) : (
+              <div>
                 <div className="mb-4">
                   <h2 className="text-sm font-semibold text-foreground">
                     Register Account
@@ -895,8 +930,8 @@ export default function AuthPage() {
                   </p>
                 </div>
                 <SignUpForm />
-              </TabsContent>
-            </Tabs>
+              </div>
+            )}
 
             <p className="mt-5 text-center text-[11px] text-muted-foreground leading-relaxed">
               By continuing, you agree to PortalAcademia's{" "}
@@ -909,7 +944,7 @@ export default function AuthPage() {
               </Link>
               .
             </p>
-          </Card>
+          </div>
         </div>
       </div>
     </>

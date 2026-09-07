@@ -1,14 +1,6 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, HelpCircle, ChevronRight, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from "@/components/ui/accordion";
+import { Link } from "react-router-dom";
+import { ArrowLeft, HelpCircle, ChevronRight, ChevronDown, Search } from "lucide-react";
 
 interface FAQItem {
   id: string;
@@ -84,9 +76,9 @@ const FAQ_ITEMS: FAQItem[] = [
 ];
 
 export default function FAQPage() {
-  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const categories = ["All", "General", "Students", "Universities", "Industry"];
 
@@ -127,15 +119,13 @@ export default function FAQPage() {
               </span>
             </div>
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => navigate("/auth")}
-              className="h-8 px-3 text-xs"
+            <Link
+              to="/auth"
+              className="inline-flex items-center justify-center gap-1 h-8 px-3 text-xs font-medium rounded-md border border-border bg-background hover:bg-muted text-foreground transition-colors"
             >
               Sign In
               <ChevronRight className="w-3.5 h-3.5 ml-1" />
-            </Button>
+            </Link>
           </div>
         </header>
 
@@ -158,12 +148,12 @@ export default function FAQPage() {
             <div className="mt-6 flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
+                <input
                   type="text"
                   placeholder="Search questions (e.g., verification, assessment, placements)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 text-xs"
+                  className="w-full pl-9 h-9 text-xs rounded-md border border-input bg-transparent px-3 py-1 shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 />
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -193,29 +183,42 @@ export default function FAQPage() {
               </p>
             </div>
           ) : (
-            <Accordion type="single" collapsible className="w-full space-y-1">
-              {filteredItems.map((item) => (
-                <AccordionItem
-                  key={item.id}
-                  value={item.id}
-                  className="border border-border rounded-sm px-4 bg-card"
-                >
-                  <AccordionTrigger className="text-xs sm:text-sm py-3.5 hover:no-underline">
-                    <div className="flex items-center gap-2.5">
-                      <span className="font-mono text-[10px] text-muted-foreground uppercase px-1.5 py-0.5 rounded-sm bg-muted">
-                        {item.category}
-                      </span>
-                      <span className="font-medium text-foreground">
-                        {item.question}
-                      </span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="text-xs sm:text-sm text-muted-foreground pt-1 pb-4 leading-relaxed">
-                    {item.answer}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
+            <div className="w-full space-y-2">
+              {filteredItems.map((item) => {
+                const isOpen = openId === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    className="border border-border rounded-sm bg-card overflow-hidden"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setOpenId(isOpen ? null : item.id)}
+                      className="w-full flex items-center justify-between p-4 text-xs sm:text-sm font-medium text-left hover:bg-muted/40 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="font-mono text-[10px] text-muted-foreground uppercase px-1.5 py-0.5 rounded-sm bg-muted">
+                          {item.category}
+                        </span>
+                        <span className="font-medium text-foreground">
+                          {item.question}
+                        </span>
+                      </div>
+                      <ChevronDown
+                        className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
+                          isOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                    {isOpen && (
+                      <div className="px-4 pb-4 pt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed border-t border-border/50">
+                        {item.answer}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
 
           {/* Cross Links */}
