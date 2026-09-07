@@ -80,6 +80,62 @@ function getEmailCredentials(): {
 
 
 // =========================
+// Token & Cookie Helpers
+// =========================
+
+export function generateTokens(userId: string): {
+    accesstoken: string;
+    refreshtoken: string;
+} {
+    const secret = getJwtSecret();
+
+    const accesstoken = jwt.sign(
+        { id: userId },
+        secret,
+        { expiresIn: "1d" }
+    );
+
+    const refreshtoken = jwt.sign(
+        { id: userId, type: "refresh" },
+        secret,
+        { expiresIn: "30d" }
+    );
+
+    return { accesstoken, refreshtoken };
+}
+
+export function setAuthCookies(
+    res: Response,
+    accesstoken: string,
+    refreshtoken: string,
+    rememberMe: boolean = false
+): void {
+    const isProduction = process.env.NODE_ENV === "production";
+
+    const commonOptions = {
+        httpOnly: true,
+        sameSite: "lax" as const,
+        secure: isProduction,
+    };
+
+    const accessMaxAge = 24 * 60 * 60 * 1000; // 1 day
+    const refreshMaxAge = rememberMe
+        ? 30 * 24 * 60 * 60 * 1000 // 30 days
+        : 7 * 24 * 60 * 60 * 1000;  // 7 days
+
+    res.cookie("accesstoken", accesstoken, {
+        ...commonOptions,
+        maxAge: accessMaxAge,
+    });
+
+    res.cookie("refreshtoken", refreshtoken, {
+        ...commonOptions,
+        maxAge: refreshMaxAge,
+    });
+}
+
+
+// =========================
 // Sign In
 // =========================
 
@@ -119,23 +175,8 @@ export async function SignIn(
             });
         }
 
-        const accesstoken = jwt.sign(
-            {
-                id: String(searchEmail._id),
-            },
-            getJwtSecret()
-        );
-
-        if (rememberMe) {
-            res.cookie("accesstoken", accesstoken, {
-                httpOnly: true,
-                maxAge: 30 * 24 * 60 * 60 * 1000,
-            });
-        } else {
-            res.cookie("accesstoken", accesstoken, {
-                httpOnly: true,
-            });
-        }
+        const { accesstoken, refreshtoken } = generateTokens(String(searchEmail._id));
+        setAuthCookies(res, accesstoken, refreshtoken, !!rememberMe);
 
         return res.status(200).json({
             message: "Sign in successful",
@@ -376,23 +417,8 @@ export async function VerifyOtp(
             isOnboarded: false,
         });
 
-        const accesstoken = jwt.sign(
-            {
-                id: String(createUser._id),
-            },
-            getJwtSecret()
-        );
-
-        if (data.rememberMe) {
-            res.cookie("accesstoken", accesstoken, {
-                httpOnly: true,
-                maxAge: 30 * 24 * 60 * 60 * 1000,
-            });
-        } else {
-            res.cookie("accesstoken", accesstoken, {
-                httpOnly: true,
-            });
-        }
+        const { accesstoken, refreshtoken } = generateTokens(String(createUser._id));
+        setAuthCookies(res, accesstoken, refreshtoken, !!data.rememberMe);
 
         // OTP ko delete kar do
         OtpStorage.delete(normalizedEmail);
@@ -421,11 +447,15 @@ export function SignOut(
     res: Response
 ): Response {
     try {
-
-        res.clearCookie("accesstoken", {
+        const isProduction = process.env.NODE_ENV === "production";
+        const clearOptions = {
             httpOnly: true,
-            sameSite: "strict",
-        });
+            sameSite: "lax" as const,
+            secure: isProduction,
+        };
+
+        res.clearCookie("accesstoken", clearOptions);
+        res.clearCookie("refreshtoken", clearOptions);
 
         return res.status(200).json({
             message: "Logout done",
@@ -450,35 +480,47 @@ export async function checkAuth(
     res: Response
 ): Promise<Response> {
     try {
+        let accesstoken = req.cookies?.accesstoken;
+        const refreshtoken = req.cookies?.refreshtoken;
+        const secret = getJwtSecret();
 
-        const accesstoken = req.cookies?.accesstoken;
+        let userId: string | null = null;
 
-        if (!accesstoken) {
+        if (accesstoken) {
+            try {
+                const decoded = jwt.verify(accesstoken, secret) as JwtUserPayload;
+                if (typeof decoded !== "string" && decoded.id) {
+                    userId = decoded.id;
+                }
+            } catch (err) {
+                // accesstoken expired or invalid, will attempt refresh below
+            }
+        }
+
+        // If accesstoken is missing or expired, attempt refresh via refreshtoken
+        if (!userId && refreshtoken) {
+            try {
+                const decodedRefresh = jwt.verify(refreshtoken, secret) as JwtUserPayload;
+                if (typeof decodedRefresh !== "string" && decodedRefresh.id) {
+                    userId = decodedRefresh.id;
+
+                    // Automatically rotate & refresh both tokens
+                    const tokens = generateTokens(userId);
+                    setAuthCookies(res, tokens.accesstoken, tokens.refreshtoken, true);
+                }
+            } catch (err) {
+                // refreshtoken also invalid or expired
+            }
+        }
+
+        if (!userId) {
             return res.status(200).json({
                 valid: false,
             });
         }
-
-        const decoded = jwt.verify(
-            accesstoken,
-            getJwtSecret()
-        );
-
-        // jwt.verify can return string OR JwtPayload
-        if (
-            typeof decoded === "string" ||
-            !decoded.id ||
-            typeof decoded.id !== "string"
-        ) {
-            return res.status(200).json({
-                valid: false,
-            });
-        }
-
-        const verifyUser = decoded as JwtUserPayload;
 
         const user = await userModel
-            .findById(verifyUser.id)
+            .findById(userId)
             .select("_id email isVerified isOnboarded");
 
         if (!user) {
@@ -489,7 +531,6 @@ export async function checkAuth(
 
         return res.status(200).json({
             valid: true,
-
             user: {
                 id: String(user._id),
                 email: user.email,
@@ -507,9 +548,49 @@ export async function checkAuth(
     }
 }
 
+
+// =========================
+// Refresh Token Endpoint
+// =========================
+
+export async function RefreshToken(
+    req: Request,
+    res: Response
+): Promise<Response> {
+    try {
+        const refreshtoken = req.cookies?.refreshtoken;
+        if (!refreshtoken) {
+            return res.status(401).json({ message: "No refresh token provided" });
+        }
+
+        const secret = getJwtSecret();
+        const decoded = jwt.verify(refreshtoken, secret) as JwtUserPayload;
+
+        if (typeof decoded === "string" || !decoded.id) {
+            return res.status(401).json({ message: "Invalid refresh token" });
+        }
+
+        const user = await userModel.findById(decoded.id);
+        if (!user) {
+            return res.status(401).json({ message: "User not found" });
+        }
+
+        const tokens = generateTokens(String(user._id));
+        setAuthCookies(res, tokens.accesstoken, tokens.refreshtoken, true);
+
+        return res.status(200).json({
+            message: "Token refreshed successfully",
+            isOnboarded: user.isOnboarded,
+        });
+    } catch (err) {
+        return res.status(401).json({ message: "Invalid or expired refresh token" });
+    }
+}
+
 interface GoogleUser {
     _id: string;
     email: string;
+    isOnboarded?: boolean;
 }
 
 export const googleSuccess = async (
@@ -535,23 +616,14 @@ export const googleSuccess = async (
             });
         }
 
-        const jwtSecret = process.env.JWT_PASS_KEY;
+        const { accesstoken, refreshtoken } = generateTokens(String(user._id));
+        setAuthCookies(res, accesstoken, refreshtoken, true);
 
-        if (!jwtSecret) {
-            throw new Error("JWT_PASS_KEY is not defined");
-        }
-
-        const token = jwt.sign(
-            { id: user._id },
-            jwtSecret
-        );
-
-        res.cookie("token", token, {
-            httpOnly: true,
-        });
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const redirectPath = user.isOnboarded ? "/dashboard" : "/onboarding/select-type";
 
         return res.redirect(
-            `${process.env.FRONTEND_URL}/onboarding`
+            `${frontendUrl}${redirectPath}`
         );
 
     } catch (error) {

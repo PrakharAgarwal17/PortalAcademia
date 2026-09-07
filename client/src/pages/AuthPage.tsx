@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   Eye,
@@ -27,14 +27,14 @@ import {
 } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useAppDispatch } from "@/context/store";
+import { useAppDispatch, useAppSelector } from "@/context/store";
 import { checkAuthThunk } from "@/context/authSlice";
 
 // ============================================================
 // Constants
 // ============================================================
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL as string;
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
 const OTP_LENGTH = 6;
 
 // ============================================================
@@ -85,15 +85,17 @@ function validatePassword(password: string): string | null {
 // ============================================================
 
 function GoogleButton({ label }: { label: string }) {
+  const handleGoogleAuth = () => {
+    window.location.href = `${API_BASE}/api/auth/google`;
+  };
+
   return (
     <Button
       id={`google-${label.toLowerCase().replace(/\s+/g, "-")}-btn`}
       type="button"
       variant="outline"
-      className="w-full gap-2 h-9 text-xs font-medium"
-      onClick={() => {
-        alert("Google Sign-In is coming soon. Please use institutional email.");
-      }}
+      className="w-full gap-2 h-9 text-xs font-medium cursor-pointer"
+      onClick={handleGoogleAuth}
     >
       <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" aria-hidden>
         <path
@@ -773,6 +775,15 @@ function SignUpForm() {
 // ============================================================
 
 export default function AuthPage() {
+  const navigate = useNavigate();
+  const { isAuthenticated, user, isInitialized } = useAppSelector((s) => s.auth);
+
+  useEffect(() => {
+    if (isInitialized && isAuthenticated) {
+      navigate(user?.isOnboarded ? "/dashboard" : "/onboarding/select-type", { replace: true });
+    }
+  }, [isAuthenticated, isInitialized, user, navigate]);
+
   return (
     <>
       <title>Authentication // PortalAcademia</title>
