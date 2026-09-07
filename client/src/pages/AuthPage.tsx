@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   Eye,
@@ -13,7 +13,7 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
-import { useAppDispatch } from "@/context/store";
+import { useAppDispatch, useAppSelector } from "@/context/store";
 import { checkAuthThunk } from "@/context/authSlice";
 import { useTheme } from "@/context/theme";
 
@@ -21,7 +21,7 @@ import { useTheme } from "@/context/theme";
 // Constants
 // ============================================================
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL as string;
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
 const OTP_LENGTH = 6;
 
 // ============================================================
@@ -801,8 +801,20 @@ function SignUpForm() {
 // ============================================================
 
 export default function AuthPage() {
+  const navigate = useNavigate();
+  const { isAuthenticated, user, isInitialized } = useAppSelector((s) => s.auth);
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
+
+  useEffect(() => {
+    if (isInitialized && isAuthenticated) {
+      if (user?.isOnboarded) {
+        navigate("/dashboard", { replace: true });
+      } else {
+        navigate("/onboarding/select-type", { replace: true });
+      }
+    }
+  }, [isAuthenticated, isInitialized, user, navigate]);
 
   return (
     <>

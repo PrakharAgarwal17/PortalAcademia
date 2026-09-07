@@ -14,14 +14,14 @@ const app=express()
 connectDB()
 
 app.use(cors({
-    origin:process.env.FRONTEND_URL,
-    methods:["GET","POST","PUT","DELETE"],
-    credentials:true
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
 }))
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || "default_session_secret_portal_academia",
     resave: false,
     saveUninitialized: false,
   })
