@@ -19,9 +19,9 @@ interface ProtectedRouteProps {
 }
 
 function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading } = useAppSelector((s) => s.auth);
+  const { isAuthenticated, isLoading, isInitialized } = useAppSelector((s) => s.auth);
 
-  if (isLoading) {
+  if (!isInitialized || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-foreground" />
@@ -42,14 +42,14 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
 
 function AppShell() {
   const dispatch = useAppDispatch();
-  const { isLoading } = useAppSelector((s) => s.auth);
+  const { isLoading, isInitialized } = useAppSelector((s) => s.auth);
 
   useEffect(() => {
     dispatch(checkAuthThunk());
   }, [dispatch]);
 
   // Show a full-screen loader while the initial session check is in flight
-  if (isLoading) {
+  if (!isInitialized || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
@@ -84,6 +84,10 @@ function AppShell() {
             <OnboardingSelectType />
           </ProtectedRoute>
         }
+      />
+      <Route
+        path="/onboarding"
+        element={<Navigate to="/onboarding/select-type" replace />}
       />
 
       {/* Fallback */}
