@@ -7,6 +7,9 @@ import { checkAuthThunk } from "@/context/authSlice";
 // Lazy-loaded pages (keeps initial bundle small)
 import LandingPage from "@/pages/LandingPage";
 import AuthPage from "@/pages/AuthPage";
+import TermsPage from "@/pages/TermsPage";
+import PrivacyPage from "@/pages/PrivacyPage";
+import FAQPage from "@/pages/FAQPage";
 import DashboardPlaceholder from "@/pages/DashboardPlaceholder";
 import OnboardingSelectType from "@/pages/OnboardingSelectType";
 
@@ -67,6 +70,9 @@ function AppShell() {
       {/* Public routes */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/auth" element={<AuthPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/faq" element={<FAQPage />} />
 
       {/* Protected routes */}
       <Route
@@ -82,6 +88,14 @@ function AppShell() {
         element={
           <ProtectedRoute>
             <OnboardingSelectType />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/onboarding"
+        element={
+          <ProtectedRoute>
+            <Navigate to="/onboarding/select-type" replace />
           </ProtectedRoute>
         }
       />

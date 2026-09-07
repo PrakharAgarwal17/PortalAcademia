@@ -9,8 +9,6 @@ import {
   Lock,
   ArrowLeft,
   CheckCircle2,
-  ShieldCheck,
-  Server,
   KeyRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,7 +24,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useAppDispatch } from "@/context/store";
 import { checkAuthThunk } from "@/context/authSlice";
 
@@ -85,15 +82,21 @@ function validatePassword(password: string): string | null {
 // ============================================================
 
 function GoogleButton({ label }: { label: string }) {
+  /**
+   * @description Redirects the browser to the backend Google OAuth initiation endpoint.
+   *              Passport handles the OAuth handshake and redirects to /onboarding upon success.
+   */
+  function handleGoogleLogin() {
+    window.location.href = `${API_BASE}/api/auth/google`;
+  }
+
   return (
     <Button
       id={`google-${label.toLowerCase().replace(/\s+/g, "-")}-btn`}
       type="button"
       variant="outline"
       className="w-full gap-2 h-9 text-xs font-medium"
-      onClick={() => {
-        alert("Google Sign-In is coming soon. Please use institutional email.");
-      }}
+      onClick={handleGoogleLogin}
     >
       <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" aria-hidden>
         <path
@@ -782,67 +785,44 @@ export default function AuthPage() {
       />
 
       <div className="min-h-screen flex flex-col lg:flex-row bg-zinc-50 dark:bg-zinc-950">
-        {/* Left — Enterprise telemetry & architecture panel */}
+        {/* Left — Clean brand presentation panel */}
         <div className="hidden lg:flex lg:w-1/2 bg-zinc-900 text-zinc-100 border-r border-zinc-800 flex-col justify-between p-12">
-          <div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-sm bg-white text-zinc-900 flex items-center justify-center font-mono font-bold text-xs">
-                PA
-              </div>
-              <span className="font-mono text-xs uppercase tracking-wider text-zinc-300">
-                PortalAcademia // SIH-26044
-              </span>
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-sm bg-white text-zinc-900 flex items-center justify-center font-mono font-bold text-xs">
+              PA
             </div>
-
-            <div className="mt-14 max-w-md">
-              <span className="text-xs font-mono uppercase tracking-wider text-zinc-400">
-                Security Architecture
-              </span>
-              <h1 className="text-2xl font-semibold tracking-tight text-white mt-1">
-                Zero-Trust Credential &amp; Identity Gateway
-              </h1>
-              <p className="text-xs text-zinc-400 mt-3 leading-relaxed">
-                Production-grade identity management configured with strict HttpOnly session tokens, server-side cryptographic email verification, and deterministic stakeholder authorization matrices.
-              </p>
-            </div>
+            <span className="font-semibold text-sm text-white tracking-tight">
+              PortalAcademia
+            </span>
           </div>
 
-          {/* Structured Architecture Specs Card */}
-          <div className="w-full max-w-md rounded-md border border-zinc-800 bg-zinc-950/60 p-4 font-mono text-xs">
-            <div className="flex items-center justify-between pb-2 mb-3 border-b border-zinc-800">
-              <div className="flex items-center gap-2 text-zinc-300">
-                <Server className="w-3.5 h-3.5 text-emerald-400" />
-                <span>SESSION_ENCLAVE</span>
-              </div>
-              <Badge variant="outline" className="border-zinc-700 text-zinc-300 text-[9px] py-0">
-                STRICT-COOKIE
-              </Badge>
-            </div>
+          <div className="max-w-md">
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white leading-snug">
+              Bridging higher education directly to industry careers.
+            </h1>
+            <p className="text-xs sm:text-sm text-zinc-400 mt-3 leading-relaxed">
+              Join thousands of students, faculty members, and recruiters connecting through verified skill assessments, digital portfolios, and direct placement pipelines.
+            </p>
 
-            <div className="divide-y divide-zinc-800/80 text-[11px] tabular-nums">
-              <div className="flex justify-between py-1.5">
-                <span className="text-zinc-500">Token Exposure:</span>
-                <span className="text-zinc-300">None (HttpOnly Cookie)</span>
+            <div className="mt-8 space-y-3">
+              <div className="flex items-center gap-2.5 text-xs text-zinc-300">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Standardized skill assessments & gap diagnostics</span>
               </div>
-              <div className="flex justify-between py-1.5">
-                <span className="text-zinc-500">Validation Protocol:</span>
-                <span className="text-zinc-300">6-Digit Cryptographic OTP</span>
+              <div className="flex items-center gap-2.5 text-xs text-zinc-300">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Verified digital portfolios & ATS resume generation</span>
               </div>
-              <div className="flex justify-between py-1.5">
-                <span className="text-zinc-500">Transport Layer:</span>
-                <span className="text-zinc-300">TLS 1.3 / Strict-SameSite</span>
-              </div>
-              <div className="flex justify-between py-1.5">
-                <span className="text-zinc-500">Target Environment:</span>
-                <span className="text-zinc-300">Gov-Tech SIH 26044 Node</span>
+              <div className="flex items-center gap-2.5 text-xs text-zinc-300">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Faculty corporate internships & FDP workshops</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] font-mono text-zinc-500">
-            <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
-            <span>Encrypted Session Management Verified</span>
-          </div>
+          <p className="text-xs text-zinc-500 font-mono">
+            Smart India Hackathon 2026 • Problem Statement 26044
+          </p>
         </div>
 
         {/* Right — Auth Card Panel */}
@@ -918,8 +898,16 @@ export default function AuthPage() {
               </TabsContent>
             </Tabs>
 
-            <p className="mt-5 text-center text-[11px] text-muted-foreground">
-              By authenticating, you agree to academic compliance regulations and system telemetry logging.
+            <p className="mt-5 text-center text-[11px] text-muted-foreground leading-relaxed">
+              By continuing, you agree to PortalAcademia's{" "}
+              <Link to="/terms" className="underline hover:text-foreground">
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link to="/privacy" className="underline hover:text-foreground">
+                Privacy Policy
+              </Link>
+              .
             </p>
           </Card>
         </div>
