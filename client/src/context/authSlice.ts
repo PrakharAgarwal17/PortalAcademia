@@ -2,6 +2,12 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
 // ============================================================
+// Constants
+// ============================================================
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
+
+// ============================================================
 // Types
 // ============================================================
 
@@ -18,6 +24,7 @@ interface AuthState {
   token: null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isInitialized: boolean;
   error: string | null;
 }
 
@@ -48,22 +55,44 @@ export const checkAuthThunk = createAsyncThunk<
   void,
   { rejectValue: string }
 >("auth/checkAuth", async (_, { rejectWithValue }) => {
-  const response = await fetch(
-    `${import.meta.env.VITE_API_BASE_URL}/api/auth/checkAuth`,
-    {
-      method: "POST",
-      credentials: "include", // send httpOnly cookie
-      headers: { "Content-Type": "application/json" },
+  try {
+    const response = await fetch(
+      `${API_BASE}/api/auth/checkAuth`,
+      {
+        method: "POST",
+        credentials: "include", // send httpOnly cookie
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+
+    if (!response.ok) {
+      return rejectWithValue("Session check failed");
     }
-  );
 
-  if (!response.ok) {
-    return rejectWithValue("Session check failed");
+    const data = (await response.json()) as CheckAuthResponse;
+    return data;
+  } catch (err) {
+    return rejectWithValue("Network error during session check");
   }
-
-  const data = (await response.json()) as CheckAuthResponse;
-  return data;
 });
+
+/**
+ * @description Signs out the current user by clearing cookies on the server
+ *              and wiping state locally.
+ */
+export const signOutThunk = createAsyncThunk<void, void>(
+  "auth/signOut",
+  async () => {
+    try {
+      await fetch(`${API_BASE}/api/auth/SignOut`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Continue clearing local state even if network fails
+    }
+  }
+);
 
 // ============================================================
 // Initial State
@@ -73,7 +102,8 @@ const initialState: AuthState = {
   user: null,
   token: null,
   isAuthenticated: false,
-  isLoading: false,
+  isLoading: true, // starts loading while initial session telemetry is checked
+  isInitialized: false,
   error: null,
 };
 
@@ -111,6 +141,7 @@ const authSlice = createSlice({
       })
       .addCase(checkAuthThunk.fulfilled, (state, action) => {
         state.isLoading = false;
+        state.isInitialized = true;
         if (action.payload.valid && action.payload.user) {
           state.isAuthenticated = true;
           state.user = {
@@ -125,8 +156,19 @@ const authSlice = createSlice({
       })
       .addCase(checkAuthThunk.rejected, (state) => {
         state.isLoading = false;
+        state.isInitialized = true;
         state.isAuthenticated = false;
         state.user = null;
+      })
+      .addCase(signOutThunk.fulfilled, (state) => {
+        state.user = null;
+        state.isAuthenticated = false;
+        state.isLoading = false;
+      })
+      .addCase(signOutThunk.rejected, (state) => {
+        state.user = null;
+        state.isAuthenticated = false;
+        state.isLoading = false;
       });
   },
 });

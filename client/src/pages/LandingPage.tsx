@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useAppSelector } from "@/context/store";
 import {
   GraduationCap,
   Brain,
@@ -192,6 +193,7 @@ const landingFaqs = [
 
 function Navbar() {
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAppSelector((s) => s.auth);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background">
@@ -224,23 +226,37 @@ function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            id="nav-signin-btn"
-            onClick={() => navigate("/auth")}
-            className="h-8 px-3 text-xs font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            id="nav-getstarted-btn"
-            onClick={() => navigate("/auth")}
-            className="inline-flex items-center justify-center gap-1 h-8 px-3 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors"
-          >
-            Get Started
-            <ChevronRight className="w-3.5 h-3.5 ml-1" />
-          </button>
+          {isAuthenticated ? (
+            <button
+              type="button"
+              id="nav-console-btn"
+              onClick={() => navigate(user?.isOnboarded ? "/dashboard" : "/onboarding/select-type")}
+              className="inline-flex items-center justify-center gap-1 h-8 px-3 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors"
+            >
+              Console
+              <ChevronRight className="w-3.5 h-3.5 ml-1" />
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                id="nav-signin-btn"
+                onClick={() => navigate("/auth")}
+                className="h-8 px-3 text-xs font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                id="nav-getstarted-btn"
+                onClick={() => navigate("/auth")}
+                className="inline-flex items-center justify-center gap-1 h-8 px-3 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors"
+              >
+                Get Started
+                <ChevronRight className="w-3.5 h-3.5 ml-1" />
+              </button>
+            </>
+          )}
         </div>
       </div>
     </header>
@@ -254,7 +270,7 @@ function Hero() {
     <section className="border-b border-border bg-zinc-50 dark:bg-zinc-950 py-16 sm:py-24 px-4 sm:px-6">
       <div className="max-w-4xl mx-auto text-center flex flex-col items-center">
         <span className="mb-4 inline-flex items-center px-2.5 py-0.5 font-mono text-[11px] rounded-sm bg-muted text-muted-foreground border border-border">
-          SIH 2026 // Problem Statement 26044
+          Bridging the gap between campus skills and industry opportunities — turning potential into careers.
         </span>
 
         <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 max-w-3xl leading-[1.15]">

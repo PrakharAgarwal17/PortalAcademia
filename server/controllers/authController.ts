@@ -48,17 +48,58 @@ const OtpStorage = new Map<string, OtpData>();
 
 
 // =========================
-// Environment Variables
+// Environment Variables & Helpers
 // =========================
 
-function getJwtSecret(): string {
-    const secret = process.env.JWT_PASS_KEY;
+const ACCESS_TOKEN_EXPIRY = "15m";
+const REFRESH_TOKEN_EXPIRY = "7d";
+const REFRESH_TOKEN_REMEMBER_EXPIRY = "30d";
 
-    if (!secret) {
-        throw new Error("JWT_PASS_KEY is not defined");
-    }
+function getAccessSecret(): string {
+    return process.env.SECRET_ACCESS_TOKEN || process.env.JWT_PASS_KEY || "access_token_secret_key";
+}
 
-    return secret;
+function getRefreshSecret(): string {
+    return process.env.SECRET_REFRESH_TOKEN || process.env.JWT_REFRESH_KEY || process.env.JWT_PASS_KEY || "refresh_token_secret_key";
+}
+
+export function generateTokens(userId: string, rememberMe = false) {
+    const accesstoken = jwt.sign({ id: userId }, getAccessSecret(), {
+        expiresIn: ACCESS_TOKEN_EXPIRY,
+    });
+
+    const refreshtoken = jwt.sign({ id: userId }, getRefreshSecret(), {
+        expiresIn: rememberMe ? REFRESH_TOKEN_REMEMBER_EXPIRY : REFRESH_TOKEN_EXPIRY,
+    });
+
+    return { accesstoken, refreshtoken };
+}
+
+export function setAuthCookies(
+    res: Response,
+    accesstoken: string,
+    refreshtoken: string,
+    rememberMe = false
+) {
+    const isProd = process.env.NODE_ENV === "production";
+    const baseOptions = {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? ("none" as const) : ("lax" as const),
+        path: "/",
+    };
+
+    res.cookie("accesstoken", accesstoken, {
+        ...baseOptions,
+        maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+
+    res.cookie("refreshtoken", refreshtoken, {
+        ...baseOptions,
+        maxAge: rememberMe
+            ? 30 * 24 * 60 * 60 * 1000
+            : 7 * 24 * 60 * 60 * 1000,
+    });
 }
 
 function getEmailCredentials(): {
@@ -119,23 +160,12 @@ export async function SignIn(
             });
         }
 
-        const accesstoken = jwt.sign(
-            {
-                id: String(searchEmail._id),
-            },
-            getJwtSecret()
+        const { accesstoken, refreshtoken } = generateTokens(
+            String(searchEmail._id),
+            Boolean(rememberMe)
         );
 
-        if (rememberMe) {
-            res.cookie("accesstoken", accesstoken, {
-                httpOnly: true,
-                maxAge: 30 * 24 * 60 * 60 * 1000,
-            });
-        } else {
-            res.cookie("accesstoken", accesstoken, {
-                httpOnly: true,
-            });
-        }
+        setAuthCookies(res, accesstoken, refreshtoken, Boolean(rememberMe));
 
         return res.status(200).json({
             message: "Sign in successful",
@@ -376,23 +406,12 @@ export async function VerifyOtp(
             isOnboarded: false,
         });
 
-        const accesstoken = jwt.sign(
-            {
-                id: String(createUser._id),
-            },
-            getJwtSecret()
+        const { accesstoken, refreshtoken } = generateTokens(
+            String(createUser._id),
+            Boolean(data.rememberMe)
         );
 
-        if (data.rememberMe) {
-            res.cookie("accesstoken", accesstoken, {
-                httpOnly: true,
-                maxAge: 30 * 24 * 60 * 60 * 1000,
-            });
-        } else {
-            res.cookie("accesstoken", accesstoken, {
-                httpOnly: true,
-            });
-        }
+        setAuthCookies(res, accesstoken, refreshtoken, Boolean(data.rememberMe));
 
         // OTP ko delete kar do
         OtpStorage.delete(normalizedEmail);
@@ -421,11 +440,16 @@ export function SignOut(
     res: Response
 ): Response {
     try {
-
-        res.clearCookie("accesstoken", {
+        const isProd = process.env.NODE_ENV === "production";
+        const clearOptions = {
             httpOnly: true,
-            sameSite: "strict",
-        });
+            secure: isProd,
+            sameSite: isProd ? ("none" as const) : ("lax" as const),
+            path: "/",
+        };
+
+        res.clearCookie("accesstoken", clearOptions);
+        res.clearCookie("refreshtoken", clearOptions);
 
         return res.status(200).json({
             message: "Logout done",
@@ -450,52 +474,75 @@ export async function checkAuth(
     res: Response
 ): Promise<Response> {
     try {
-
         const accesstoken = req.cookies?.accesstoken;
+        const refreshtoken = req.cookies?.refreshtoken;
 
-        if (!accesstoken) {
-            return res.status(200).json({
-                valid: false,
-            });
+        // 1. First check accesstoken
+        if (accesstoken) {
+            try {
+                const decoded = jwt.verify(
+                    accesstoken,
+                    getAccessSecret()
+                ) as JwtUserPayload;
+
+                if (decoded && decoded.id && typeof decoded.id === "string") {
+                    const user = await userModel
+                        .findById(decoded.id)
+                        .select("_id email isVerified isOnboarded");
+
+                    if (user) {
+                        return res.status(200).json({
+                            valid: true,
+                            user: {
+                                id: String(user._id),
+                                email: user.email,
+                                isVerified: user.isVerified,
+                                isOnboarded: user.isOnboarded,
+                            },
+                        });
+                    }
+                }
+            } catch (tokenErr) {
+                // accesstoken expired or invalid, fall through to refreshtoken
+            }
         }
 
-        const decoded = jwt.verify(
-            accesstoken,
-            getJwtSecret()
-        );
+        // 2. If accesstoken is missing or expired, check refreshtoken
+        if (refreshtoken) {
+            try {
+                const decoded = jwt.verify(
+                    refreshtoken,
+                    getRefreshSecret()
+                ) as JwtUserPayload;
 
-        // jwt.verify can return string OR JwtPayload
-        if (
-            typeof decoded === "string" ||
-            !decoded.id ||
-            typeof decoded.id !== "string"
-        ) {
-            return res.status(200).json({
-                valid: false,
-            });
-        }
+                if (decoded && decoded.id && typeof decoded.id === "string") {
+                    const user = await userModel
+                        .findById(decoded.id)
+                        .select("_id email isVerified isOnboarded");
 
-        const verifyUser = decoded as JwtUserPayload;
+                    if (user) {
+                        // Re-issue both tokens
+                        const tokens = generateTokens(String(user._id), true);
+                        setAuthCookies(res, tokens.accesstoken, tokens.refreshtoken, true);
 
-        const user = await userModel
-            .findById(verifyUser.id)
-            .select("_id email isVerified isOnboarded");
-
-        if (!user) {
-            return res.status(200).json({
-                valid: false,
-            });
+                        return res.status(200).json({
+                            valid: true,
+                            user: {
+                                id: String(user._id),
+                                email: user.email,
+                                isVerified: user.isVerified,
+                                isOnboarded: user.isOnboarded,
+                            },
+                        });
+                    }
+                }
+            } catch (refreshErr) {
+                // refreshtoken also invalid or expired
+            }
         }
 
         return res.status(200).json({
-            valid: true,
-
-            user: {
-                id: String(user._id),
-                email: user.email,
-                isVerified: user.isVerified,
-                isOnboarded: user.isOnboarded,
-            },
+            valid: false,
         });
 
     } catch (err: unknown) {
@@ -507,9 +554,74 @@ export async function checkAuth(
     }
 }
 
+
+// =========================
+// Refresh Token
+// =========================
+
+export async function RefreshToken(
+    req: Request,
+    res: Response
+): Promise<Response> {
+    try {
+        const refreshtoken = req.cookies?.refreshtoken;
+
+        if (!refreshtoken) {
+            return res.status(401).json({
+                message: "Refresh token missing",
+            });
+        }
+
+        const decoded = jwt.verify(
+            refreshtoken,
+            getRefreshSecret()
+        ) as JwtUserPayload;
+
+        if (!decoded || !decoded.id || typeof decoded.id !== "string") {
+            return res.status(401).json({
+                message: "Invalid refresh token",
+            });
+        }
+
+        const user = await userModel
+            .findById(decoded.id)
+            .select("_id email isVerified isOnboarded");
+
+        if (!user) {
+            return res.status(401).json({
+                message: "User not found",
+            });
+        }
+
+        const tokens = generateTokens(String(user._id), true);
+        setAuthCookies(res, tokens.accesstoken, tokens.refreshtoken, true);
+
+        return res.status(200).json({
+            message: "Token refreshed successfully",
+            user: {
+                id: String(user._id),
+                email: user.email,
+                isVerified: user.isVerified,
+                isOnboarded: user.isOnboarded,
+            },
+        });
+
+    } catch (err) {
+        return res.status(401).json({
+            message: "Invalid or expired refresh token",
+        });
+    }
+}
+
+
+// =========================
+// Google OAuth Handlers
+// =========================
+
 interface GoogleUser {
     _id: string;
     email: string;
+    isOnboarded?: boolean;
 }
 
 export const googleSuccess = async (
@@ -519,7 +631,7 @@ export const googleSuccess = async (
     try {
         const user = req.user as GoogleUser;
 
-        if (!user) {
+        if (!user || !user._id) {
             return res.status(401).json({
                 success: false,
                 message: "Google Authentication Failed",
@@ -535,26 +647,17 @@ export const googleSuccess = async (
             });
         }
 
-        const jwtSecret = process.env.JWT_PASS_KEY;
+        // Generate ONLY accesstoken and refreshtoken (no third token name!)
+        const { accesstoken, refreshtoken } = generateTokens(String(user._id), true);
+        setAuthCookies(res, accesstoken, refreshtoken, true);
 
-        if (!jwtSecret) {
-            throw new Error("JWT_PASS_KEY is not defined");
-        }
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const redirectPath = user.isOnboarded ? "/dashboard" : "/onboarding/select-type";
 
-        const token = jwt.sign(
-            { id: user._id },
-            jwtSecret
-        );
-
-        res.cookie("token", token, {
-            httpOnly: true,
-        });
-
-        return res.redirect(
-            `${process.env.FRONTEND_URL}/onboarding`
-        );
+        return res.redirect(`${frontendUrl}${redirectPath}`);
 
     } catch (error) {
+        console.error("Google Auth error:", error);
         return res.status(500).json({
             success: false,
             message: "Something went wrong",
