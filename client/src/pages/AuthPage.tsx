@@ -10,9 +10,12 @@ import {
   ArrowLeft,
   CheckCircle2,
   KeyRound,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useAppDispatch } from "@/context/store";
 import { checkAuthThunk } from "@/context/authSlice";
+import { useTheme } from "@/context/theme";
 
 // ============================================================
 // Constants
@@ -798,6 +801,7 @@ function SignUpForm() {
 // ============================================================
 
 export default function AuthPage() {
+  const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
 
   return (
@@ -811,14 +815,19 @@ export default function AuthPage() {
       <div className="min-h-screen flex flex-col lg:flex-row bg-zinc-50 dark:bg-zinc-950">
         {/* Left — Clean brand presentation panel */}
         <div className="hidden lg:flex lg:w-1/2 bg-zinc-900 text-zinc-100 border-r border-zinc-800 flex-col justify-between p-12">
-          <div className="flex items-center gap-2.5">
+          <Link
+            to="/"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="flex items-center gap-2.5 hover:opacity-85 transition-opacity cursor-pointer group"
+            aria-label="PortalAcademia — Return to top"
+          >
             <div className="w-7 h-7 rounded-sm bg-white text-zinc-900 flex items-center justify-center font-mono font-bold text-xs">
               PA
             </div>
             <span className="font-semibold text-sm text-white tracking-tight">
               PortalAcademia
             </span>
-          </div>
+          </Link>
 
           <div className="max-w-md">
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white leading-snug">
@@ -851,7 +860,7 @@ export default function AuthPage() {
 
         {/* Right — Auth Card Panel */}
         <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">
-          <div className="w-full max-w-sm mb-4">
+          <div className="w-full max-w-sm mb-4 flex items-center justify-between">
             <Link
               to="/"
               id="back-to-home-link"
@@ -860,19 +869,39 @@ export default function AuthPage() {
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Return to Index</span>
             </Link>
+
+            <button
+              type="button"
+              id="auth-theme-toggle-btn"
+              onClick={toggleTheme}
+              aria-label="Toggle dark mode"
+              title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              className="w-8 h-8 rounded-md border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+            >
+              {theme === "dark" ? (
+                <Sun className="w-4 h-4 text-amber-400" />
+              ) : (
+                <Moon className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+              )}
+            </button>
           </div>
 
           <div className="w-full max-w-sm rounded-md border border-border bg-card p-6 shadow-sm">
             {/* Header */}
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-border">
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded-sm bg-zinc-900 text-zinc-100 flex items-center justify-center font-mono font-bold text-[10px]">
+              <Link
+                to="/"
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                className="flex items-center gap-2 hover:opacity-85 transition-opacity cursor-pointer group"
+                aria-label="PortalAcademia — Return to top"
+              >
+                <div className="w-5 h-5 rounded-sm bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 flex items-center justify-center font-mono font-bold text-[10px] transition-colors">
                   PA
                 </div>
                 <span className="font-semibold text-xs text-foreground tracking-tight">
                   PortalAcademia
                 </span>
-              </div>
+              </Link>
               <span className="font-mono text-[10px] text-muted-foreground uppercase">
                 Auth Gateway
               </span>

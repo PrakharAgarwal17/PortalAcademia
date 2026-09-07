@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/context/store";
 import { checkAuthThunk } from "@/context/authSlice";
+import { ThemeProvider } from "@/context/theme";
 
 // Lazy-loaded pages (keeps initial bundle small)
 import LandingPage from "@/pages/LandingPage";
@@ -112,8 +113,10 @@ function AppShell() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppShell />
-    </BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
+        <AppShell />
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }

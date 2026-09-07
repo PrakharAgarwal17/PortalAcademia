@@ -16,7 +16,12 @@ import {
   Briefcase,
   LineChart,
   Network,
+  Sun,
+  Moon,
+  Users,
+  Cpu,
 } from "lucide-react";
+import { useTheme } from "@/context/theme";
 
 // ============================================================
 // Data Models & Content
@@ -192,18 +197,27 @@ const landingFaqs = [
 
 function Navbar() {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-6 h-6 rounded-sm bg-zinc-900 text-zinc-100 flex items-center justify-center font-mono font-bold text-xs">
+        <button
+          type="button"
+          id="nav-logo-btn"
+          onClick={() => {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          className="flex items-center gap-2.5 text-left cursor-pointer hover:opacity-85 transition-opacity group"
+          aria-label="PortalAcademia — Return to top"
+        >
+          <div className="w-6 h-6 rounded-sm bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 flex items-center justify-center font-mono font-bold text-xs transition-colors">
             PA
           </div>
           <span className="font-semibold text-sm tracking-tight text-foreground">
             PortalAcademia
           </span>
-        </div>
+        </button>
 
         <nav className="hidden md:flex items-center gap-6 text-xs font-medium text-muted-foreground">
           <a href="#roles" className="hover:text-foreground transition-colors">
@@ -224,6 +238,22 @@ function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* Dark Mode Toggle */}
+          <button
+            type="button"
+            id="theme-toggle-btn"
+            onClick={toggleTheme}
+            aria-label="Toggle dark mode"
+            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            className="w-8 h-8 rounded-md border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+          >
+            {theme === "dark" ? (
+              <Sun className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Moon className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+            )}
+          </button>
+
           <button
             type="button"
             id="nav-signin-btn"
@@ -249,6 +279,42 @@ function Navbar() {
 
 function Hero() {
   const navigate = useNavigate();
+  const [activePillar, setActivePillar] = useState<number>(0);
+
+  const pillars = [
+    {
+      id: "stakeholders",
+      stat: "04",
+      title: "Verified Stakeholders",
+      subtitle: "Dual-Sided Unified Network",
+      badge: "Synchronized",
+      icon: Users,
+    },
+    {
+      id: "taxonomies",
+      stat: "180+",
+      title: "Competency Taxonomies",
+      subtitle: "Real-Time Gap Discovery",
+      badge: "Weekly Calibrated",
+      icon: Cpu,
+    },
+    {
+      id: "hiring",
+      stat: "Direct",
+      title: "Challenge-Based Hiring",
+      subtitle: "Bypass Resume Filters",
+      badge: "Zero Keyword Spam",
+      icon: Briefcase,
+    },
+    {
+      id: "accreditation",
+      stat: "NEP 2020",
+      title: "Accreditation Aligned",
+      subtitle: "Institutional Compliance",
+      badge: "OBE & ABC Ready",
+      icon: GraduationCap,
+    },
+  ];
 
   return (
     <section className="border-b border-border bg-zinc-50 dark:bg-zinc-950 py-16 sm:py-24 px-4 sm:px-6">
@@ -287,39 +353,401 @@ function Hero() {
           </button>
         </div>
 
-        {/* 4-Metric Grid */}
-        <div className="mt-12 w-full grid grid-cols-2 sm:grid-cols-4 border border-border rounded-md bg-card divide-y sm:divide-y-0 sm:divide-x divide-border shadow-sm text-left">
-          <div className="p-4">
-            <p className="font-mono text-2xl font-bold tabular-nums text-foreground">
-              04
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Verified Stakeholders
-            </p>
+        {/* Enhanced 4-Metric Pillars & Interactive Capabilities Console */}
+        <div className="mt-12 w-full max-w-4xl">
+          {/* 4 Cards Header */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 border border-border rounded-t-md bg-card divide-y sm:divide-y-0 sm:divide-x divide-border shadow-sm text-left">
+            {pillars.map((pillar, idx) => {
+              const Icon = pillar.icon;
+              const isActive = activePillar === idx;
+              return (
+                <button
+                  key={pillar.id}
+                  type="button"
+                  id={`pillar-tab-${idx}`}
+                  onClick={() => setActivePillar(idx)}
+                  className={`p-4 text-left transition-all relative flex flex-col justify-between group cursor-pointer ${
+                    isActive
+                      ? "bg-muted/50 dark:bg-zinc-900 text-foreground"
+                      : "hover:bg-muted/25 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {/* Top indicator line for active card */}
+                  {isActive && (
+                    <span className="absolute top-0 left-0 right-0 h-0.5 bg-foreground" />
+                  )}
+                  <div>
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <span className="font-mono text-2xl font-bold tabular-nums text-foreground group-hover:scale-105 transition-transform inline-block">
+                        {pillar.stat}
+                      </span>
+                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-foreground" : "text-muted-foreground"}`} />
+                    </div>
+                    <p className="text-xs font-medium text-foreground tracking-tight">
+                      {pillar.title}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
+                      {pillar.subtitle}
+                    </p>
+                  </div>
+                  <div className="mt-3 flex items-center gap-1.5">
+                    <span
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded-[3px] text-[10px] font-mono ${
+                        isActive
+                          ? "bg-foreground text-background font-semibold"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {isActive ? "● Active View" : pillar.badge}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
-          <div className="p-4">
-            <p className="font-mono text-2xl font-bold tabular-nums text-foreground">
-              180+
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Competency Taxonomies
-            </p>
-          </div>
-          <div className="p-4">
-            <p className="font-mono text-2xl font-bold tabular-nums text-foreground">
-              Direct
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Challenge-Based Hiring
-            </p>
-          </div>
-          <div className="p-4">
-            <p className="font-mono text-2xl font-bold tabular-nums text-foreground">
-              NEP 2020
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Accreditation Aligned
-            </p>
+
+          {/* Feature Intelligence Console underneath */}
+          <div className="border border-t-0 border-border rounded-b-md bg-card p-5 sm:p-6 text-left shadow-sm">
+            {/* Tab 0: Verified Stakeholders */}
+            {activePillar === 0 && (
+              <div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-border">
+                  <div>
+                    <span className="inline-flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Pillar 01 // Multi-Stakeholder Infrastructure
+                    </span>
+                    <h3 className="text-base sm:text-lg font-semibold tracking-tight text-foreground mt-0.5">
+                      Dedicated Workspaces for Every Higher Ed Stakeholder
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/auth")}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-foreground hover:underline shrink-0"
+                  >
+                    Enter Stakeholder Gateway
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                  <div className="p-3.5 rounded-md border border-border bg-background">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className="w-6 h-6 rounded-sm bg-muted flex items-center justify-center text-foreground shrink-0">
+                        <Brain className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-semibold text-xs text-foreground">Students & Job Seekers</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Standardized assessments generate an unalterable Skill Index. Match directly with live internships and roles bypassing ATS keyword rejections.
+                    </p>
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Skill Index</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Verified Repo</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">1-Click Apply</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-md border border-border bg-background">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className="w-6 h-6 rounded-sm bg-muted flex items-center justify-center text-foreground shrink-0">
+                        <GraduationCap className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-semibold text-xs text-foreground">Faculty & Educators</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Bridge curricula to market demand with real-time gap discovery telemetry, corporate sabbaticals, FDP badges, and industry R&D grants.
+                    </p>
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Gap Diagnostics</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Corporate FDPs</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Industry Grants</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-md border border-border bg-background">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className="w-6 h-6 rounded-sm bg-muted flex items-center justify-center text-foreground shrink-0">
+                        <Building2 className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-semibold text-xs text-foreground">Universities & Colleges</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Monitor departmental skill readiness in real time, integrate institutional SSO for batch cohorts, and export compliance audits for NAAC & NIRF.
+                    </p>
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">NAAC Criterion 1 & 2</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">SSO Batch Roster</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Placement Heatmap</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-md border border-border bg-background">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className="w-6 h-6 rounded-sm bg-muted flex items-center justify-center text-foreground shrink-0">
+                        <Building className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-semibold text-xs text-foreground">Corporate Recruiters</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Deploy real architectural problem statements and technical bounties. Evaluate candidates strictly on functional code pass rates, not resumes.
+                    </p>
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Automated Test Suites</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Pre-Screened Roster</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Avg 9-Day Hire</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 1: Competency Taxonomies */}
+            {activePillar === 1 && (
+              <div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-border">
+                  <div>
+                    <span className="inline-flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                      Pillar 02 // Real-Time Skill Intelligence
+                    </span>
+                    <h3 className="text-base sm:text-lg font-semibold tracking-tight text-foreground mt-0.5">
+                      Automated Curriculum-to-Industry Competency Matrix
+                    </h3>
+                  </div>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    Index: 50,000+ Live Tech Requisitions
+                  </span>
+                </div>
+
+                <div className="mt-4 p-4 rounded-md border border-border bg-background">
+                  <div className="flex items-center justify-between mb-3 text-xs font-mono text-muted-foreground">
+                    <span>COHORT TELEMETRY: CS & SYSTEMS (BATCH 2026)</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">● GAP RECONCILIATION ACTIVE</span>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="font-medium text-foreground">Distributed Systems & Cloud Orchestration</span>
+                        <span className="font-mono text-muted-foreground text-[11px]">
+                          Industry Demand: <strong className="text-foreground">96%</strong> | Syllabus: <span className="text-amber-500">48%</span>
+                        </span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-muted overflow-hidden flex">
+                        <div className="bg-amber-500 h-full" style={{ width: "48%" }} title="Legacy Syllabus Coverage" />
+                        <div className="bg-emerald-500 h-full" style={{ width: "48%" }} title="PortalAcademia Gap Bridge" />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1">
+                        <span>Focus: Docker, Kubernetes, gRPC, Redis, Kafka</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">+48% gap closed via PortalAcademia bridge</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="font-medium text-foreground">Applied Machine Learning & Vector Systems</span>
+                        <span className="font-mono text-muted-foreground text-[11px]">
+                          Industry Demand: <strong className="text-foreground">92%</strong> | Syllabus: <span className="text-amber-500">35%</span>
+                        </span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-muted overflow-hidden flex">
+                        <div className="bg-amber-500 h-full" style={{ width: "35%" }} title="Legacy Syllabus Coverage" />
+                        <div className="bg-emerald-500 h-full" style={{ width: "57%" }} title="PortalAcademia Gap Bridge" />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1">
+                        <span>Focus: PyTorch, Vector Embeddings, LLM RAG pipelines</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">+57% gap closed via hands-on labs</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="font-medium text-foreground">Modern Full-Stack & System Design</span>
+                        <span className="font-mono text-muted-foreground text-[11px]">
+                          Industry Demand: <strong className="text-foreground">89%</strong> | Syllabus: <span className="text-amber-500">52%</span>
+                        </span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-muted overflow-hidden flex">
+                        <div className="bg-amber-500 h-full" style={{ width: "52%" }} title="Legacy Syllabus Coverage" />
+                        <div className="bg-emerald-500 h-full" style={{ width: "37%" }} title="PortalAcademia Gap Bridge" />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1">
+                        <span>Focus: TypeScript, React 19, Redux, API Architecture</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">+37% gap closed via product bounties</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-4">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block" />
+                      Legacy Syllabus Coverage
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />
+                      PortalAcademia Gap Bridge
+                    </span>
+                  </div>
+                  <span className="font-mono text-[11px]">Updated every Sunday at 00:00 UTC</span>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 2: Challenge-Based Hiring */}
+            {activePillar === 2 && (
+              <div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-border">
+                  <div>
+                    <span className="inline-flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      Pillar 03 // Meritocratic Placement
+                    </span>
+                    <h3 className="text-base sm:text-lg font-semibold tracking-tight text-foreground mt-0.5">
+                      Direct Placement Driven by Proof-of-Work, Not Pedigree
+                    </h3>
+                  </div>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    Avg Placement Cycle: 9 Days
+                  </span>
+                </div>
+
+                <div className="mt-4 p-4 rounded-md border border-border bg-background">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-border">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-medium">
+                        ACTIVE BOUNTY // HIRING PIPELINE
+                      </span>
+                      <span className="text-xs text-muted-foreground font-mono">
+                        Challenge ID: #CH-8820
+                      </span>
+                    </div>
+                    <span className="text-xs font-semibold text-foreground">
+                      Stipend: ₹60,000 + Pre-Placement Offer (PPO)
+                    </span>
+                  </div>
+
+                  <h4 className="text-sm font-semibold text-foreground tracking-tight">
+                    High-Throughput Financial Transaction Reconciliation Service
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Build a resilient, idempotent transaction processor handling 50,000 req/sec with zero double-spends and p99 latency &lt; 15ms. Tested against live chaos failure simulations.
+                  </p>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 pt-3 border-t border-border/60 text-center font-mono">
+                    <div className="p-2 rounded bg-muted/40">
+                      <p className="text-xs text-muted-foreground">Submissions</p>
+                      <p className="text-sm font-bold text-foreground mt-0.5">384</p>
+                    </div>
+                    <div className="p-2 rounded bg-muted/40">
+                      <p className="text-xs text-muted-foreground">Test Pass Rate</p>
+                      <p className="text-sm font-bold text-emerald-500 mt-0.5">14.8%</p>
+                    </div>
+                    <div className="p-2 rounded bg-muted/40">
+                      <p className="text-xs text-muted-foreground">Direct Interviews</p>
+                      <p className="text-sm font-bold text-foreground mt-0.5">42</p>
+                    </div>
+                    <div className="p-2 rounded bg-muted/40">
+                      <p className="text-xs text-muted-foreground">ATS Keyword Weight</p>
+                      <p className="text-sm font-bold text-emerald-500 mt-0.5">0.0% (Code Only)</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className="text-muted-foreground">
+                    Top 10% benchmarked code submissions automatically bypass HR resume screens and unlock technical interview rounds.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/auth")}
+                    className="font-medium text-foreground hover:underline inline-flex items-center gap-1"
+                  >
+                    View Live Challenges
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 3: NEP 2020 Accreditation Aligned */}
+            {activePillar === 3 && (
+              <div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-border">
+                  <div>
+                    <span className="inline-flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                      Pillar 04 // Statutory & Institutional Compliance
+                    </span>
+                    <h3 className="text-base sm:text-lg font-semibold tracking-tight text-foreground mt-0.5">
+                      Institutional Alignment with NEP 2020 & NAAC/NIRF
+                    </h3>
+                  </div>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    OBE & ABC Compliant
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                  <div className="p-3.5 rounded-md border border-border bg-background">
+                    <div className="flex items-center gap-2 mb-1">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span className="font-semibold text-xs text-foreground">Academic Bank of Credits (ABC)</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Converts verified industry certifications and hackathon bounties into accredited academic credits recognized across statutory universities.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-md border border-border bg-background">
+                    <div className="flex items-center gap-2 mb-1">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span className="font-semibold text-xs text-foreground">Outcome-Based Education (OBE)</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Direct automated mapping of student technical competencies to Course Outcomes (CO) and Program Outcomes (PO) required for NBA accreditation.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-md border border-border bg-background">
+                    <div className="flex items-center gap-2 mb-1">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span className="font-semibold text-xs text-foreground">Mandatory AICTE Internship Tracking</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Verifiable logging of remote and on-site industry internship hours, mentor evaluations, and project deliverables with unalterable audit logs.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-md border border-border bg-background">
+                    <div className="flex items-center gap-2 mb-1">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span className="font-semibold text-xs text-foreground">1-Click NIRF & NAAC Audit Exports</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Export comprehensive cohort telemetry reports for NAAC Criteria 1, 2, and 5 with verified median salaries and placement rates.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3.5 pt-3 border-t border-border flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className="text-muted-foreground">
+                    100% audit-proof institutional telemetry compliant with Ministry of Education regulations.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/auth")}
+                    className="font-medium text-foreground hover:underline inline-flex items-center gap-1"
+                  >
+                    Request Institutional Audit Suite
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
