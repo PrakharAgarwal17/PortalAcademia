@@ -20,7 +20,6 @@ const userSchema: Schema<UserSchema> = new Schema(
 
         password: {
             type: String,
-            required: true,
         },
 
         provider: {

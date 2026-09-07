@@ -1,5 +1,7 @@
 import express from "express"
 import { SignIn , SignOut , SignUp , VerifyOtp , checkAuth } from "../controllers/authController.js"
+import passport from "passport";
+import {googleSuccess,googleFailure} from "../controllers/authController.js";
 
 const router=express.Router()
 
@@ -8,5 +10,10 @@ router.post("/signup",SignUp)
 router.post("/verifyotp",VerifyOtp)
 router.post("/SignOut",SignOut)
 router.post("/checkAuth",checkAuth)
+router.get("/google",passport.authenticate("google", {scope: ["profile", "email"],}));
+
+router.get("/google/callback",passport.authenticate("google", {failureRedirect: "/api/auth/google/failure",}),googleSuccess);
+
+router.get("/google/failure", googleFailure);
 
 export default router

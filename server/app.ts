@@ -6,6 +6,9 @@ import connectDB from './config/connectDB.js'
 import authRoute from "./routes/authRoute.js"
 import cookieParser from "cookie-parser"
 import cors from "cors"
+import "./config/Passport.js"
+import session from "express-session";
+import passport from "passport"
 
 const app=express()
 connectDB()
@@ -15,6 +18,17 @@ app.use(cors({
     methods:["GET","POST","PUT","DELETE"],
     credentials:true
 }))
+
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+
+app.use(passport.initialize())
+app.use(passport.session())
 
 app.use(cookieParser())
 app.use(express.json())

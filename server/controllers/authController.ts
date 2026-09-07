@@ -506,3 +506,68 @@ export async function checkAuth(
         });
     }
 }
+
+interface GoogleUser {
+    _id: string;
+    email: string;
+}
+
+export const googleSuccess = async (
+    req: Request,
+    res: Response
+): Promise<Response | void> => {
+    try {
+        const user = req.user as GoogleUser;
+
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: "Google Authentication Failed",
+            });
+        }
+
+        const email = user.email;
+
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: "Email not found",
+            });
+        }
+
+        const jwtSecret = process.env.JWT_PASS_KEY;
+
+        if (!jwtSecret) {
+            throw new Error("JWT_PASS_KEY is not defined");
+        }
+
+        const token = jwt.sign(
+            { id: user._id },
+            jwtSecret
+        );
+
+        res.cookie("token", token, {
+            httpOnly: true,
+        });
+
+        return res.redirect(
+            `${process.env.FRONTEND_URL}/onboarding`
+        );
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Something went wrong",
+        });
+    }
+};
+
+export const googleFailure = (
+    req: Request,
+    res: Response
+): Response => {
+    return res.status(401).json({
+        success: false,
+        message: "Google Authentication Failed",
+    });
+};
