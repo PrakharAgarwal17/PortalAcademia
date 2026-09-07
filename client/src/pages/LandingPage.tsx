@@ -1,455 +1,325 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   GraduationCap,
   Brain,
-  ArrowRight,
-  ShieldCheck,
-  ChevronRight,
   Building2,
-  Lightbulb,
-  CheckCircle2,
   Building,
-  Target,
-  FileCheck,
+  ArrowRight,
+  ChevronRight,
+  ChevronDown,
+  CheckCircle2,
+  XCircle,
+  HelpCircle,
+  ShieldCheck,
+  Award,
+  Briefcase,
+  LineChart,
+  Network,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // ============================================================
-// Types
+// Data Models & Content
 // ============================================================
 
-interface StakeholderDetail {
-  id: string;
-  role: string;
-  tagline: string;
-  primaryProblem: string;
-  solutionCapabilities: {
-    title: string;
-    description: string;
-    tag: string;
-  }[];
-}
-
-interface CollaborativeActivity {
-  title: string;
-  category: string;
-  description: string;
-  deliverable: string;
-}
-
-// ============================================================
-// Structured Context Data (Extracted from Platform Blueprint)
-// ============================================================
-
-const stakeholders: StakeholderDetail[] = [
+const roles = [
   {
-    id: "students",
-    role: "Students & Learners",
-    tagline: "Bridging the curriculum-to-competency gap with verifiable proof of skill.",
-    primaryProblem:
-      "Students lack objective measurement of their technical and soft skills against live industry benchmarks, leading to mismatched applications and unrecognized career deficits.",
-    solutionCapabilities: [
-      {
-        title: "Objective Skill Assessment & Gap Diagnostics",
-        description:
-          "Industry-standard evaluation questionnaires and technical benchmarks pinpointing exact curriculum deficits and strengths.",
-        tag: "DIAGNOSTICS",
-      },
-      {
-        title: "Curated Remediation & Adaptive Learning Paths",
-        description:
-          "Personalized course recommendations, training modules, and certifications directly targeting identified skill gaps.",
-        tag: "CURRICULUM",
-      },
-      {
-        title: "Dynamic Career Roadmap & Market Trends",
-        description:
-          "Continuous telemetry tracking emerging tech stacks and demand trends to guide personalized career trajectories.",
-        tag: "ROADMAP",
-      },
-      {
-        title: "Verified Digital Portfolio & ATS Resume Builder",
-        description:
-          "Tamper-evident portfolio showcasing verified skills, certifications, and live projects with auto-generated role-specific resumes.",
-        tag: "CREDENTIALS",
-      },
-      {
-        title: "Skill-Matched Internship & Job Desk",
-        description:
-          "Direct dispatch to vetted company openings filtered by verifiable competency scores rather than random keyword matching.",
-        tag: "PLACEMENT",
-      },
-      {
-        title: "Peer Community & AI Career HelpBot",
-        description:
-          "Collaborative discussion forums for cohort problem solving, hackathons, and guided automated career orientation.",
-        tag: "COMMUNITY",
-      },
+    icon: <Brain className="w-5 h-5 text-foreground" />,
+    title: "Students",
+    subtitle: "Career Readiness & Placement",
+    features: [
+      "Objective skill assessments & competency gap diagnostics",
+      "Curated learning paths aligned with active industry demand",
+      "Verified digital portfolio with cryptographically signed badges",
+      "Direct internship & graduate hiring application pipeline",
     ],
   },
   {
-    id: "faculty",
-    role: "Faculty & Academicians",
-    tagline: "Direct industrial immersion, domain sabbaticals, and curriculum co-development.",
-    primaryProblem:
-      "Academicians have restricted access and visibility into corporate internships, practical domain training, and emerging industry workflows, isolating classroom teaching from production realities.",
-    solutionCapabilities: [
-      {
-        title: "Domain-Specific Faculty Internships",
-        description:
-          "Direct visibility and placement into dedicated corporate internships and industrial sabbaticals for teaching personnel.",
-        tag: "SABBATICALS",
-      },
-      {
-        title: "Faculty Development Programs (FDPs)",
-        description:
-          "Centralized catalog of certified industry upskilling workshops, pedagogical refreshers, and advanced technology seminars.",
-        tag: "UPSKILLING",
-      },
-      {
-        title: "Collaborative Research & Consultancy Desk",
-        description:
-          "Direct engagement channels connecting university researchers with enterprise R&D problems, live projects, and paid consulting.",
-        tag: "RESEARCH",
-      },
-      {
-        title: "Curriculum Modernization Telemetry",
-        description:
-          "Access to real-world corporate case studies, dataset repositories, and industry workflows to integrate into lectures.",
-        tag: "ALIGNMENT",
-      },
+    icon: <GraduationCap className="w-5 h-5 text-foreground" />,
+    title: "Faculty",
+    subtitle: "Industrial Training & Research",
+    features: [
+      "Access to domain corporate internships & sabbatical programs",
+      "Certified Faculty Development Programs (FDPs) and bootcamps",
+      "Industry-sponsored research grants, consultancy & R&D projects",
+      "Real-world enterprise case studies for classroom curricula",
     ],
   },
   {
-    id: "institutions",
-    role: "Universities & Institutions",
-    tagline: "Complete governance, cohort readiness telemetry, and automated placement analytics.",
-    primaryProblem:
-      "Institutions lack centralized visibility into the longitudinal competency development of their student cohorts, unable to quantify placement readiness or track industry demand curves.",
-    solutionCapabilities: [
-      {
-        title: "Cohort Skill Evolution Telemetry",
-        description:
-          "Real-time analytical dashboards mapping institutional competency distributions, readiness curves, and syllabus gaps.",
-        tag: "ANALYTICS",
-      },
-      {
-        title: "Student & Alumni Lifecycle Management",
-        description:
-          "Unified tracking database monitoring current undergraduate/postgraduate cohorts and long-term alumni career milestones.",
-        tag: "GOVERNANCE",
-      },
-      {
-        title: "Live Industry Demand Monitoring",
-        description:
-          "Predictive market telemetry alerting academic boards to regional and national shifts in employer technical requirements.",
-        tag: "TELEMETRY",
-      },
-      {
-        title: "Consolidated Placement & Internship Desking",
-        description:
-          "End-to-end recruitment funnel analytics: application volume, shortlisting conversion rates, and offer distributions.",
-        tag: "PLACEMENTS",
-      },
+    icon: <Building className="w-5 h-5 text-foreground" />,
+    title: "Institutions",
+    subtitle: "Governance & Telemetry",
+    features: [
+      "Real-time cohort skill readiness telemetry & benchmarking",
+      "Dynamic curriculum alignment with live enterprise hiring data",
+      "Automated placement audits & NEP 2020 accreditation reporting",
+      "Comprehensive alumni tracking & institutional outcome metrics",
     ],
   },
   {
-    id: "industry",
-    role: "Industry & Enterprise",
-    tagline: "Direct access to pre-assessed, verified candidate pipelines and campus partnerships.",
-    primaryProblem:
-      "Enterprises spend exorbitant budgets filtering thousands of unverified resumes, struggling to identify candidates with genuine practical skills matching job requirements.",
-    solutionCapabilities: [
-      {
-        title: "Direct Opportunity & Project Dispatch",
-        description:
-          "Publish internships, apprenticeships, entry-level jobs, and live challenge statements with precise technical prerequisites.",
-        tag: "DISPATCH",
-      },
-      {
-        title: "Algorithmic Candidate Discovery & Shortlisting",
-        description:
-          "Screen applicants through objective competency vectors and standardized assessment scores, eliminating manual resume sift.",
-        tag: "MATCHING",
-      },
-      {
-        title: "Corporate Learning & Pre-Skilling Programs",
-        description:
-          "Sponsor custom training modules, technical challenges, and certification bootcamps to prepare students before hiring.",
-        tag: "PRE-SKILLING",
-      },
-      {
-        title: "University & Faculty Co-Innovation",
-        description:
-          "Collaborate directly with institutional departments on applied research, guest lectures, and innovation labs.",
-        tag: "PARTNERSHIP",
-      },
+    icon: <Building2 className="w-5 h-5 text-foreground" />,
+    title: "Industry",
+    subtitle: "Targeted Talent Acquisition",
+    features: [
+      "Post verified internships, full-time jobs, and live challenges",
+      "Filter candidates by objective skill scores rather than keywords",
+      "Sponsor pre-skilling bootcamps for custom talent incubation",
+      "Direct campus R&D partnerships and funded faculty fellowships",
     ],
   },
 ];
 
-const collaborativeActivities: CollaborativeActivity[] = [
+const capabilities = [
   {
-    title: "Innovation Challenges & Hackathons",
-    category: "COMPETITION",
-    description: "Enterprise sponsors post production problem statements for multi-disciplinary student teams to solve.",
-    deliverable: "Working prototypes & direct fast-track interview offers",
+    icon: <Brain className="w-4 h-4 text-foreground" />,
+    title: "Automated Skill Diagnostics",
+    desc: "Multi-dimensional evaluations benchmarked against Bloom's Taxonomy, measuring conceptual depth, practical coding agility, and system design logic.",
   },
   {
-    title: "Live Industry Micro-Projects",
-    category: "EXPERIENTIAL",
-    description: "Students earn formal academic credits and industry stipends by executing scoped engineering projects under company mentors.",
-    deliverable: "Code repository commits & verified project credential",
+    icon: <LineChart className="w-4 h-4 text-foreground" />,
+    title: "Curriculum Gap Telemetry",
+    desc: "Algorithmic syllabus analysis continuously compared against thousands of active industry requisitions to flag outdated topics and recommend updates.",
   },
   {
-    title: "Executive Seminars & Guest Masterclasses",
-    category: "KNOWLEDGE_TRANSFER",
-    description: "Automated booking desk enabling industry veterans to conduct domain lectures, workshops, and lab demonstrations.",
-    deliverable: "Verified attendance telemetry & recorded curriculum assets",
+    icon: <Award className="w-4 h-4 text-foreground" />,
+    title: "Verified Digital Portfolios",
+    desc: "Tamper-proof digital credentials capturing real code commits, benchmark percentiles, and faculty-approved capstones ready for one-click ATS export.",
   },
   {
-    title: "1-on-1 Structured Mentorship Tracks",
-    category: "MENTORSHIP",
-    description: "Dedicated pairings between senior engineering practitioners and high-potential students navigating target career tracks.",
-    deliverable: "Bi-weekly milestone evaluations & portfolio reviews",
+    icon: <Briefcase className="w-4 h-4 text-foreground" />,
+    title: "Pre-Skilling Bootcamps",
+    desc: "Industry-sponsored micro-curricula that train students on proprietary enterprise stacks with guaranteed interview shortlists upon completion.",
   },
   {
-    title: "Joint Research & Technology Transfer",
-    category: "R&D_COLLABORATION",
-    description: "Universities and corporate research divisions co-author papers, file patents, and transition prototypes to commercial pilot.",
-    deliverable: "Intellectual property filings & research publications",
+    icon: <Network className="w-4 h-4 text-foreground" />,
+    title: "Campus R&D Exchange",
+    desc: "A collaborative portal where corporations post real engineering bottlenecks with grant funding, engaging faculty and student research teams.",
+  },
+  {
+    icon: <ShieldCheck className="w-4 h-4 text-foreground" />,
+    title: "Accreditation Reporting",
+    desc: "Out-of-the-box telemetry exports aligned with NAAC, NBA, and NEP 2020 parameters, quantifying student skill acquisition and placement velocity.",
   },
 ];
 
-const lifecycleSteps = [
+const comparisonRows = [
   {
-    phase: "01",
-    code: "AUTHENTICATE",
-    title: "Institutional Domain Verification",
-    desc: "Rigorous email domain verification via 6-digit cryptographic OTP, assigning explicit RBAC privileges with zero client-token exposure.",
+    dimension: "Skill Assessment",
+    traditional: "Self-declared keywords on static PDF resumes",
+    portal: "Calibrated evaluations & verified coding benchmarks",
   },
   {
-    phase: "02",
-    code: "DIAGNOSE",
-    title: "Objective Competency Profiling",
-    desc: "Students execute standardized aptitude and technical evaluations mapped directly against current industry requirement matrices.",
+    dimension: "Curriculum Alignment",
+    traditional: "Static 4-year syllabi revised once every decade",
+    portal: "Real-time industry demand telemetry & gap discovery",
   },
   {
-    phase: "03",
-    code: "REMEDIATE",
-    title: "Targeted Gap Elimination",
-    desc: "Automated routing into industry-published learning modules, certifications, and live projects to close identified curriculum deficits.",
+    dimension: "Recruitment Screening",
+    traditional: "Arbitrary GPA filtering and random ATS rejections",
+    portal: "Objective competency ranking & direct challenge hiring",
   },
   {
-    phase: "04",
-    code: "EXECUTE",
-    title: "Verified Placement & Telemetry",
-    desc: "Algorithmically shortlisting verified profiles for corporate hiring while streaming aggregate placement metrics to institutional dashboards.",
+    dimension: "Faculty Enablement",
+    traditional: "Isolated theoretical pedagogy without corporate exposure",
+    portal: "Corporate sabbaticals, sponsored FDPs & funded R&D grants",
+  },
+  {
+    dimension: "Institutional Governance",
+    traditional: "Manual placement spreadsheets and anecdotal reports",
+    portal: "Centralized cohort analytics & audit-ready accreditation logs",
+  },
+];
+
+const steps = [
+  {
+    num: "01",
+    title: "Verify Identity",
+    desc: "Sign up with your institutional email or Google Workspace to secure verified role-based access as a student, faculty member, university admin, or recruiter.",
+  },
+  {
+    num: "02",
+    title: "Diagnose Skill Gaps",
+    desc: "Benchmark your technical and domain skills against live enterprise requirements to identify exact competency deficits and target areas.",
+  },
+  {
+    num: "03",
+    title: "Bridge Gaps with Accredited Training",
+    desc: "Follow curated learning paths, complete accredited industry challenges, and build an unalterable digital portfolio verified by academic supervisors.",
+  },
+  {
+    num: "04",
+    title: "Direct Placement & Corporate Engagement",
+    desc: "Apply to vetted corporate opportunities with verified credentials, while employers discover pre-evaluated talent without conventional recruitment friction.",
+  },
+];
+
+const landingFaqs = [
+  {
+    id: "faq-1",
+    q: "How does PortalAcademia verify student skills and credentials?",
+    a: "PortalAcademia uses standardized technical assessments, code evaluations, and faculty-verified project submissions to benchmark competencies directly against active industry job taxonomies.",
+  },
+  {
+    id: "faq-2",
+    q: "How do universities track student placement readiness?",
+    a: "University administrators and faculty gain access to an institutional telemetry dashboard showing aggregate cohort skill benchmarks, curriculum-to-industry gaps, and placement outcomes.",
+  },
+  {
+    id: "faq-3",
+    q: "Can corporate recruiters hire directly through the platform?",
+    a: "Yes. Industry partners post verified internships, full-time requisitions, and live challenges, and filter applicants by objective skill scores rather than self-reported resume claims.",
+  },
+  {
+    id: "faq-4",
+    q: "Is institutional onboarding required for students to join?",
+    a: "Any student can sign up individually. However, using an authorized institutional email automatically connects the student's profile to their university's cohort analytics and verified campus placement drives.",
+  },
+  {
+    id: "faq-5",
+    q: "How does the platform align with National Education Policy (NEP 2020)?",
+    a: "PortalAcademia directly operationalizes NEP 2020 mandates by enabling vocational micro-credentials, multi-disciplinary skill credit accumulation, and verifiable industry internships with audit logs.",
+  },
+  {
+    id: "faq-6",
+    q: "What data security measures protect student and institutional records?",
+    a: "All authentication tokens use encrypted HttpOnly cookies, passwords enforce cryptographic salted bcrypt hashing, and candidate profiles are never exposed to recruiters without explicit student application consent.",
   },
 ];
 
 // ============================================================
-// Navigation Header
+// Page Sections
 // ============================================================
 
-function Header() {
+function Navbar() {
   const navigate = useNavigate();
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background">
-      {/* Top Telemetry Ribbon */}
-      <div className="border-b border-border/80 bg-zinc-100 dark:bg-zinc-900 px-4 py-1 text-[11px] font-mono text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-1">
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400" />
-          <span>NATIONAL COLLABORATION NODE // SIH-26044 // MINISTRY OF AYUSH</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span>HTTPONLY SESSION SECURITY</span>
-          <span className="hidden md:inline-block">•</span>
-          <span className="hidden md:inline-block">4-SIDED ECOSYSTEM ACTIVE</span>
-        </div>
-      </div>
-
-      {/* Primary Nav */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-sm bg-zinc-900 text-zinc-100 flex items-center justify-center font-mono font-bold text-xs">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded-sm bg-zinc-900 text-zinc-100 flex items-center justify-center font-mono font-bold text-xs">
             PA
           </div>
-          <div className="flex flex-col">
-            <span className="font-semibold text-sm tracking-tight text-foreground leading-tight">
-              PortalAcademia
-            </span>
-            <span className="text-[10px] font-mono text-muted-foreground leading-tight">
-              Academia–Industry Collaboration
-            </span>
-          </div>
+          <span className="font-semibold text-sm tracking-tight text-foreground">
+            PortalAcademia
+          </span>
         </div>
 
-        <nav className="hidden lg:flex items-center gap-6 text-xs font-medium text-muted-foreground">
-          <a href="#disconnect" className="hover:text-foreground transition-colors">
-            The Problem
+        <nav className="hidden md:flex items-center gap-6 text-xs font-medium text-muted-foreground">
+          <a href="#roles" className="hover:text-foreground transition-colors">
+            Stakeholders
           </a>
-          <a href="#stakeholders" className="hover:text-foreground transition-colors">
-            Four Stakeholders
+          <a href="#comparison" className="hover:text-foreground transition-colors">
+            Why PortalAcademia
           </a>
-          <a href="#lifecycle" className="hover:text-foreground transition-colors">
-            Lifecycle Flow
+          <a href="#features" className="hover:text-foreground transition-colors">
+            Capabilities
           </a>
-          <a href="#collaboration" className="hover:text-foreground transition-colors">
-            Collaborative Hub
+          <a href="#how-it-works" className="hover:text-foreground transition-colors">
+            Workflow
+          </a>
+          <a href="#faq" className="hover:text-foreground transition-colors">
+            FAQ
           </a>
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button
+          <button
+            type="button"
             id="nav-signin-btn"
-            variant="ghost"
-            size="sm"
             onClick={() => navigate("/auth")}
-            className="h-8 px-3 text-xs"
+            className="h-8 px-3 text-xs font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             Sign In
-          </Button>
-          <Button
-            id="nav-enter-btn"
-            size="sm"
+          </button>
+          <button
+            type="button"
+            id="nav-getstarted-btn"
             onClick={() => navigate("/auth")}
-            className="h-8 px-3 text-xs font-medium"
+            className="inline-flex items-center justify-center gap-1 h-8 px-3 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors"
           >
-            Launch Console
+            Get Started
             <ChevronRight className="w-3.5 h-3.5 ml-1" />
-          </Button>
+          </button>
         </div>
       </div>
     </header>
   );
 }
 
-// ============================================================
-// Hero Section
-// ============================================================
-
 function Hero() {
   const navigate = useNavigate();
 
   return (
-    <section className="border-b border-border bg-zinc-50 dark:bg-zinc-950 py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto flex flex-col items-center text-center">
-        {/* Purpose Tag */}
-        <Badge
-          variant="outline"
-          className="mb-6 px-3 py-1 font-mono text-xs text-muted-foreground bg-background border-border rounded-sm"
-        >
-          SIH 2026 // Problem Statement 26044 // Centralized Collaboration Gateway
-        </Badge>
+    <section className="border-b border-border bg-zinc-50 dark:bg-zinc-950 py-16 sm:py-24 px-4 sm:px-6">
+      <div className="max-w-4xl mx-auto text-center flex flex-col items-center">
+        <span className="mb-4 inline-flex items-center px-2.5 py-0.5 font-mono text-[11px] rounded-sm bg-muted text-muted-foreground border border-border">
+          SIH 2026 // Problem Statement 26044
+        </span>
 
-        {/* Master Headline */}
-        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 max-w-4xl leading-[1.15]">
-          Closing the divide between academic curriculum and industry competency.
+        <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 max-w-3xl leading-[1.15]">
+          Where higher education meets live industry demand.
         </h1>
 
-        {/* Dense Subheading */}
-        <p className="text-sm sm:text-base text-muted-foreground max-w-3xl leading-relaxed mt-5">
-          Universities educate; corporations innovate. Yet students struggle with unverified skill gaps,
-          faculty face restricted industry exposure, and recruiters waste hundreds of hours screening unqualified resumes.
-          PortalAcademia unites <strong>Students, Faculty, Institutions, and Industry</strong> onto a single deterministic platform.
+        <p className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-relaxed mt-4">
+          A unified collaboration infrastructure connecting students, faculty, universities, and enterprise employers through verified skill diagnostics, automated curriculum alignment, and direct talent placements.
         </p>
 
-        {/* CTAs */}
-        <div className="flex flex-wrap items-center justify-center gap-3 mt-8">
-          <Button
+        <div className="flex flex-wrap items-center justify-center gap-3 mt-7">
+          <button
+            type="button"
             id="hero-primary-cta"
-            size="lg"
             onClick={() => navigate("/auth")}
-            className="h-9 px-5 text-xs font-medium"
+            className="inline-flex items-center justify-center gap-1.5 h-9 px-4 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors"
           >
-            Access Role-Based Workspace
-            <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-          </Button>
-          <Button
+            Get Started Free
+            <ArrowRight className="w-3.5 h-3.5 ml-1" />
+          </button>
+          <button
+            type="button"
             id="hero-secondary-cta"
-            variant="outline"
-            size="lg"
             onClick={() => {
-              document
-                .getElementById("stakeholders")
-                ?.scrollIntoView({ behavior: "smooth" });
+              document.getElementById("roles")?.scrollIntoView({ behavior: "smooth" });
             }}
-            className="h-9 px-5 text-xs font-medium"
+            className="inline-flex items-center justify-center h-9 px-4 text-xs font-medium rounded-md border border-border bg-background hover:bg-muted text-foreground transition-colors"
           >
-            Review Stakeholder Architecture
-          </Button>
+            Explore Ecosystem
+          </button>
         </div>
 
-        {/* 4 Pillars Summary Grid */}
-        <div className="mt-14 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border border-border rounded-md bg-card divide-y sm:divide-y-0 sm:divide-x divide-border shadow-sm text-left">
-          <div className="p-4 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-foreground font-semibold text-xs mb-1">
-                <Brain className="w-4 h-4 text-zinc-900 dark:text-zinc-100" />
-                <span>Students</span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-normal mt-1">
-                Standardized skill assessments, gap analysis, dynamic roadmaps, and verified ATS resumes.
-              </p>
-            </div>
-            <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider mt-3">
-              [TALENT PIPELINE]
-            </span>
+        {/* 4-Metric Grid */}
+        <div className="mt-12 w-full grid grid-cols-2 sm:grid-cols-4 border border-border rounded-md bg-card divide-y sm:divide-y-0 sm:divide-x divide-border shadow-sm text-left">
+          <div className="p-4">
+            <p className="font-mono text-2xl font-bold tabular-nums text-foreground">
+              04
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Verified Stakeholders
+            </p>
           </div>
-
-          <div className="p-4 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-foreground font-semibold text-xs mb-1">
-                <GraduationCap className="w-4 h-4 text-zinc-900 dark:text-zinc-100" />
-                <span>Faculty</span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-normal mt-1">
-                Domain corporate internships, accredited FDP programs, and sponsored research consultancy.
-              </p>
-            </div>
-            <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider mt-3">
-              [FACULTY IMMERSION]
-            </span>
+          <div className="p-4">
+            <p className="font-mono text-2xl font-bold tabular-nums text-foreground">
+              180+
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Competency Taxonomies
+            </p>
           </div>
-
-          <div className="p-4 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-foreground font-semibold text-xs mb-1">
-                <Building className="w-4 h-4 text-zinc-900 dark:text-zinc-100" />
-                <span>Institutions</span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-normal mt-1">
-                Cohort competency telemetry, real-time market demand tracking, and placement funnel analytics.
-              </p>
-            </div>
-            <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider mt-3">
-              [GOVERNANCE & TELEMETRY]
-            </span>
+          <div className="p-4">
+            <p className="font-mono text-2xl font-bold tabular-nums text-foreground">
+              Direct
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Challenge-Based Hiring
+            </p>
           </div>
-
-          <div className="p-4 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-foreground font-semibold text-xs mb-1">
-                <Building2 className="w-4 h-4 text-zinc-900 dark:text-zinc-100" />
-                <span>Industry</span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-normal mt-1">
-                Direct vacancy dispatch, candidate shortlisting by verified score, and corporate pre-skilling.
-              </p>
-            </div>
-            <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider mt-3">
-              [CANDIDATE DISCOVERY]
-            </span>
+          <div className="p-4">
+            <p className="font-mono text-2xl font-bold tabular-nums text-foreground">
+              NEP 2020
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Accreditation Aligned
+            </p>
           </div>
         </div>
       </div>
@@ -457,209 +327,96 @@ function Hero() {
   );
 }
 
-// ============================================================
-// Section: The Core Problem (The Systemic Disconnect)
-// ============================================================
-
-function DisconnectSection() {
-  const problems = [
-    {
-      role: "Student Crisis",
-      headline: "The Guesswork Dilemma",
-      body: "Students study standardized academic syllabi without knowing what live roles actually demand. Without objective technical and soft skill tests, they apply blindly with generic resumes and struggle to pass automated screening.",
-      stats: "Unclear market direction & unverified skills",
-    },
-    {
-      role: "Faculty Isolation",
-      headline: "The Industrial Exposure Vacuum",
-      body: "University professors have near-zero visibility into industrial internships, live enterprise technology stacks, or funded research consultancy. Classroom teaching remains theoretical rather than aligned with actual production code.",
-      stats: "Restricted visibility into corporate sabbaticals",
-    },
-    {
-      role: "Institutional Blind Spot",
-      headline: "Telemetry & Governance Deficits",
-      body: "Colleges and placement cells cannot measure cohort competency in real time. They lack data on which specific technologies are surging in demand, leading to sluggish curriculum revisions and declining campus placement rates.",
-      stats: "No aggregate student skill telemetry",
-    },
-    {
-      role: "Enterprise Inefficiency",
-      headline: "Exorbitant Hiring & Screening Overhead",
-      body: "Recruiters are overwhelmed by thousands of low-quality, keyword-stuffed resumes. Finding candidates with genuine verified competence requires expensive multi-round testing that should have occurred in the university phase.",
-      stats: "Inefficient discovery & unverified claims",
-    },
-  ];
-
+function ComparisonSection() {
   return (
-    <section id="disconnect" className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 border-b border-border bg-background">
-      <div className="max-w-7xl mx-auto">
-        <div className="max-w-3xl mb-12">
-          <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
-            Systemic Problem Statement // PS-26044
+    <section id="comparison" className="py-16 px-4 sm:px-6 border-b border-border bg-background">
+      <div className="max-w-5xl mx-auto">
+        <div className="text-center max-w-xl mx-auto mb-10">
+          <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1">
+            Systemic Transformation
           </span>
-          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground mt-1.5">
-            The Structural Disconnect in Higher Technical Education
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
+            Bridging the Academia-Industry Disconnect
           </h2>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-2 leading-relaxed">
-            India's engineering and university ecosystem produces millions of graduates, yet industry consistently reports a severe lack of job-ready talent. Here is why the existing model fails each stakeholder:
+          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+            How PortalAcademia replaces outdated legacy processes with objective, verifiable infrastructure.
+          </p>
+        </div>
+
+        <div className="border border-border rounded-md bg-card overflow-hidden shadow-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-border bg-muted/40 text-xs font-mono font-semibold text-muted-foreground p-3 sm:px-4">
+            <div>DIMENSION</div>
+            <div className="hidden sm:block text-destructive/80">LEGACY CAMPUS MODEL</div>
+            <div className="hidden sm:block text-foreground">PORTALACADEMIA BRIDGE</div>
+          </div>
+          <div className="divide-y divide-border text-xs">
+            {comparisonRows.map((row, idx) => (
+              <div
+                key={idx}
+                className="grid grid-cols-1 sm:grid-cols-3 p-3.5 sm:px-4 gap-2 sm:gap-4 hover:bg-muted/20 transition-colors"
+              >
+                <div className="font-medium text-foreground sm:col-span-1 flex items-center gap-1.5">
+                  <span className="font-mono text-[10px] text-muted-foreground">0{idx + 1}.</span>
+                  {row.dimension}
+                </div>
+                <div className="text-muted-foreground flex items-start gap-2">
+                  <XCircle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />
+                  <span>{row.traditional}</span>
+                </div>
+                <div className="text-foreground flex items-start gap-2 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <span>{row.portal}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function RolesSection() {
+  return (
+    <section id="roles" className="py-16 px-4 sm:px-6 border-b border-border bg-zinc-50 dark:bg-zinc-950">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center max-w-lg mx-auto mb-10">
+          <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1">
+            Stakeholder Ecosystem
+          </span>
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
+            Dedicated Tools for Every Participant
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+            Eliminating guesswork with tailored interfaces built specifically for students, faculty, institutions, and corporate recruiters.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {problems.map((p) => (
-            <Card key={p.role} className="rounded-md border border-border bg-card p-5 shadow-sm">
-              <div className="flex items-center justify-between pb-3 mb-2 border-b border-border">
-                <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-                  {p.role}
-                </span>
-                <Badge variant="secondary" className="font-mono text-[10px] rounded-sm">
-                  CRITICAL DEFICIT
-                </Badge>
-              </div>
-              <h3 className="text-sm font-semibold text-foreground">{p.headline}</h3>
-              <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                {p.body}
-              </p>
-              <div className="mt-4 pt-3 border-t border-border flex items-center gap-2 text-[11px] font-mono text-zinc-500">
-                <Target className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
-                <span>{p.stats}</span>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ============================================================
-// Section: The Four-Pillar Solution Architecture
-// ============================================================
-
-function StakeholdersSection() {
-  const [activeTab, setActiveTab] = useState("students");
-  const activeStakeholder = stakeholders.find((s) => s.id === activeTab) ?? stakeholders[0];
-
-  return (
-    <section id="stakeholders" className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 border-b border-border bg-zinc-50 dark:bg-zinc-950">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 pb-4 border-b border-border gap-4">
-          <div>
-            <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
-              Deterministic Modules
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground mt-1">
-              Four-Sided Stakeholder Architecture
-            </h2>
-          </div>
-          <p className="text-xs text-muted-foreground max-w-md font-mono">
-            Click to inspect role-specific capabilities formulated from the Ministry blueprint.
-          </p>
-        </div>
-
-        {/* Stakeholder Selector Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full grid grid-cols-2 md:grid-cols-4 h-10 p-1 bg-muted rounded-md mb-8">
-            {stakeholders.map((s) => (
-              <TabsTrigger
-                key={s.id}
-                value={s.id}
-                className="rounded-sm text-xs font-medium tracking-tight"
-              >
-                {s.role}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          {/* Active Stakeholder View */}
-          <div className="rounded-md border border-border bg-card p-6 shadow-sm">
-            <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 mb-6 border-b border-border gap-4">
-              <div>
-                <Badge variant="outline" className="font-mono text-[10px] rounded-sm mb-2">
-                  STAKEHOLDER WORKSPACE // {activeStakeholder.role.toUpperCase()}
-                </Badge>
-                <h3 className="text-lg font-semibold text-foreground">
-                  {activeStakeholder.tagline}
-                </h3>
-                <p className="text-xs text-muted-foreground mt-1 max-w-2xl leading-relaxed">
-                  <strong>Challenge Solved:</strong> {activeStakeholder.primaryProblem}
-                </p>
-              </div>
-            </div>
-
-            {/* Grid of Capabilities */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {activeStakeholder.solutionCapabilities.map((cap) => (
-                <div
-                  key={cap.title}
-                  className="rounded-md border border-border bg-background p-4 flex flex-col justify-between"
-                >
+          {roles.map((r) => (
+            <div key={r.title} className="rounded-md border border-border bg-card p-5 shadow-sm">
+              <div className="pb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-sm bg-muted border border-border flex items-center justify-center shrink-0">
+                    {r.icon}
+                  </div>
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <Badge variant="secondary" className="font-mono text-[9px] rounded-sm">
-                        {cap.tag}
-                      </Badge>
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                    <h4 className="text-xs font-semibold text-foreground leading-snug">
-                      {cap.title}
-                    </h4>
-                    <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
-                      {cap.description}
-                    </p>
+                    <h3 className="text-sm font-semibold text-foreground tracking-tight">{r.title}</h3>
+                    <p className="text-[11px] text-muted-foreground font-mono">{r.subtitle}</p>
                   </div>
                 </div>
-              ))}
+              </div>
+              <div className="pt-3 border-t border-border">
+                <ul className="space-y-2">
+                  {r.features.map((feat) => (
+                    <li key={feat} className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
-          </div>
-        </Tabs>
-      </div>
-    </section>
-  );
-}
-
-// ============================================================
-// Section: Collaborative Activity Hub (Beyond Just Job Boards)
-// ============================================================
-
-function CollaborationSection() {
-  return (
-    <section id="collaboration" className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 border-b border-border bg-background">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 pb-4 border-b border-border gap-4">
-          <div>
-            <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
-              Ecosystem Exchange
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground mt-1">
-              Active Industry–Academia Collaboration Desks
-            </h2>
-          </div>
-          <p className="text-xs text-muted-foreground max-w-md">
-            PortalAcademia is not just a static job board — it is an active cooperative sandbox where academia and industry build together.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {collaborativeActivities.map((act) => (
-            <Card key={act.title} className="rounded-md border border-border bg-card p-5 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between pb-3 mb-3 border-b border-border">
-                  <Badge variant="secondary" className="font-mono text-[9px] rounded-sm">
-                    {act.category}
-                  </Badge>
-                  <Lightbulb className="w-3.5 h-3.5 text-muted-foreground" />
-                </div>
-                <h3 className="text-sm font-semibold text-foreground">{act.title}</h3>
-                <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                  {act.description}
-                </p>
-              </div>
-
-              <div className="mt-5 pt-3 border-t border-border flex items-start gap-2 text-[11px] font-mono text-zinc-600 dark:text-zinc-400">
-                <FileCheck className="w-3.5 h-3.5 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Deliverable: {act.deliverable}</span>
-              </div>
-            </Card>
           ))}
         </div>
       </div>
@@ -667,42 +424,80 @@ function CollaborationSection() {
   );
 }
 
-// ============================================================
-// Section: End-to-End Operational Lifecycle
-// ============================================================
-
-function LifecycleSection() {
+function CapabilitiesSection() {
   return (
-    <section id="lifecycle" className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 border-b border-border bg-zinc-50 dark:bg-zinc-950">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-10 pb-4 border-b border-border flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          <div>
-            <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
-              Sequential Workflow
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground mt-1">
-              Deterministic User Lifecycle
-            </h2>
-          </div>
-          <p className="text-xs text-muted-foreground font-mono">
-            Rigorous verification from enrollment through corporate hiring.
+    <section id="features" className="py-16 px-4 sm:px-6 border-b border-border bg-background">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center max-w-xl mx-auto mb-10">
+          <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1">
+            Platform Architecture
+          </span>
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
+            End-to-End Collaboration Infrastructure
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+            Six architectural pillars powering objective talent assessment, syllabus optimization, and direct placement.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border border-border rounded-md bg-card divide-y sm:divide-y-0 sm:divide-x divide-border shadow-sm">
-          {lifecycleSteps.map((s) => (
-            <div key={s.phase} className="p-5 flex flex-col justify-between">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {capabilities.map((c) => (
+            <div
+              key={c.title}
+              className="rounded-md border border-border bg-card p-5 shadow-sm flex flex-col justify-between"
+            >
               <div>
-                <div className="flex items-center justify-between text-xs font-mono text-muted-foreground mb-4">
-                  <span className="font-semibold text-foreground text-sm">{s.phase}</span>
-                  <Badge variant="outline" className="font-mono text-[9px] rounded-sm py-0">
-                    {s.code}
-                  </Badge>
+                <div className="w-7 h-7 rounded-sm bg-muted border border-border flex items-center justify-center mb-3">
+                  {c.icon}
                 </div>
-                <h3 className="text-xs sm:text-sm font-semibold text-foreground">
+                <h3 className="text-sm font-semibold text-foreground tracking-tight mb-2">
+                  {c.title}
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {c.desc}
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-border/50 text-[10px] font-mono text-muted-foreground uppercase">
+                Enterprise Calibrated
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HowItWorksSection() {
+  return (
+    <section id="how-it-works" className="py-16 px-4 sm:px-6 border-b border-border bg-zinc-50 dark:bg-zinc-950">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center max-w-lg mx-auto mb-10">
+          <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1">
+            Operational Lifecycle
+          </span>
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
+            How the Platform Works
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+            A deterministic 4-stage pipeline that transitions candidates from enrollment to verified career placements.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {steps.map((s) => (
+            <div
+              key={s.num}
+              className="rounded-md border border-border bg-card p-5 shadow-sm flex flex-col justify-between"
+            >
+              <div>
+                <span className="font-mono text-xs font-bold text-muted-foreground block mb-2">
+                  {s.num} // STEP
+                </span>
+                <h3 className="text-sm font-semibold text-foreground tracking-tight mb-2">
                   {s.title}
                 </h3>
-                <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   {s.desc}
                 </p>
               </div>
@@ -714,93 +509,88 @@ function LifecycleSection() {
   );
 }
 
-// ============================================================
-// Section: Enterprise Security & Institutional Compliance
-// ============================================================
-
-function GovernanceSection() {
-  const specs = [
-    { label: "Authentication Standard", value: "HttpOnly SameSite Strict JWT Sessions" },
-    { label: "Identity Verification", value: "Cryptographic 6-Digit Domain OTP" },
-    { label: "Token Storage", value: "Zero Client-Side Storage (No LocalStorage)" },
-    { label: "Authorization Matrix", value: "Role-Based Access Control (4 Stakeholders)" },
-    { label: "Design Discipline", value: "Swiss Typographic Grid & Anti-Slop System" },
-    { label: "Problem Authority", value: "Smart India Hackathon 2026 // PS 26044" },
-  ];
+function FAQSection() {
+  const [openFaq, setOpenFaq] = useState<string | null>("faq-1");
 
   return (
-    <section className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 border-b border-border bg-background">
+    <section id="faq" className="py-16 px-4 sm:px-6 border-b border-border bg-background">
       <div className="max-w-4xl mx-auto">
-        <Card className="rounded-md border border-border bg-card p-6 shadow-sm">
-          <CardHeader className="p-0 pb-4 mb-4 border-b border-border">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
-                  System Architecture &amp; Compliance Specification
-                </span>
-              </div>
-              <Badge variant="secondary" className="font-mono text-[9px] rounded-sm">
-                GOV-TECH SPEC
-              </Badge>
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+          <div>
+            <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>Institutional Knowledge Base</span>
             </div>
-          </CardHeader>
+            <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
+              Frequently Asked Questions
+            </h2>
+          </div>
+          <Link
+            to="/faq"
+            className="text-xs font-medium text-foreground hover:underline flex items-center gap-1 shrink-0"
+          >
+            <span>View all questions</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
 
-          <CardContent className="p-0">
-            <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-              PortalAcademia is architected as an institutional-grade platform with hardened security protocols. All identity verification occurs server-side with strict session binding:
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
-              {specs.map((s) => (
-                <div
-                  key={s.label}
-                  className="flex items-center justify-between p-2.5 rounded-sm border border-border bg-zinc-50 dark:bg-zinc-900/60"
+        <div className="w-full space-y-2">
+          {landingFaqs.map((faq) => {
+            const isOpen = openFaq === faq.id;
+            return (
+              <div
+                key={faq.id}
+                className="border border-border rounded-sm bg-card overflow-hidden"
+              >
+                <button
+                  type="button"
+                  onClick={() => setOpenFaq(isOpen ? null : faq.id)}
+                  className="w-full flex items-center justify-between p-4 text-xs sm:text-sm font-medium text-left hover:bg-muted/40 transition-colors"
                 >
-                  <span className="text-muted-foreground text-[11px]">{s.label}:</span>
-                  <span className="text-foreground font-medium text-[11px] text-right">
-                    {s.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                  <span className="font-medium text-foreground">{faq.q}</span>
+                  <ChevronDown
+                    className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+                {isOpen && (
+                  <div className="px-4 pb-4 pt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed border-t border-border/50">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
   );
 }
 
-// ============================================================
-// Section: Final Action Banner
-// ============================================================
-
-function CallToAction() {
+function CTABanner() {
   const navigate = useNavigate();
 
   return (
-    <section className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-zinc-50 dark:bg-zinc-950 border-b border-border">
-      <div className="max-w-4xl mx-auto">
-        <div className="rounded-md border border-zinc-800 bg-zinc-900 text-zinc-100 p-8 sm:p-12 text-center shadow-sm">
-          <Badge variant="outline" className="border-zinc-700 text-zinc-300 font-mono text-[10px] rounded-sm mb-3">
-            INITIALIZE SESSION GATEWAY
-          </Badge>
-          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white">
-            Unify Your Institutional Talent Pipeline
+    <section className="py-16 px-4 sm:px-6 border-b border-border bg-zinc-50 dark:bg-zinc-950">
+      <div className="max-w-3xl mx-auto text-center">
+        <div className="rounded-md border border-zinc-800 bg-zinc-900 text-zinc-100 p-8 sm:p-12 shadow-sm">
+          <h2 className="text-xl sm:text-3xl font-semibold tracking-tight text-white leading-snug">
+            Ready to bridge the higher education gap?
           </h2>
-          <p className="text-zinc-400 text-xs sm:text-sm max-w-xl mx-auto mt-2 leading-relaxed">
-            Whether you are a student evaluating competency gaps, a faculty member pursuing industrial research, an institution managing placement funnels, or an enterprise seeking verified candidates — PortalAcademia connects your workflows.
+          <p className="text-xs sm:text-sm text-zinc-400 max-w-lg mx-auto mt-3 leading-relaxed">
+            Create an institutional or student account today to assess competencies, unlock verified portfolios, and accelerate corporate placement.
           </p>
-
-          <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
-            <Button
+          <div className="mt-6 flex justify-center">
+            <button
+              type="button"
               id="cta-enter-btn"
               onClick={() => navigate("/auth")}
-              className="bg-white text-zinc-900 hover:bg-zinc-100 h-9 px-5 text-xs font-medium"
+              className="inline-flex items-center justify-center gap-1.5 bg-white text-zinc-900 hover:bg-zinc-100 h-9 px-5 text-xs font-medium rounded-md transition-colors"
             >
-              Enter PortalAcademia Gateway
-              <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-            </Button>
+              Get Started Free
+              <ArrowRight className="w-3.5 h-3.5 ml-1" />
+            </button>
           </div>
         </div>
       </div>
@@ -808,26 +598,126 @@ function CallToAction() {
   );
 }
 
-// ============================================================
-// Footer
-// ============================================================
-
 function Footer() {
   return (
-    <footer className="py-8 px-4 sm:px-6 lg:px-8 bg-background">
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground font-mono">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-sm bg-zinc-900 text-zinc-100 flex items-center justify-center font-bold text-[9px]">
-            PA
+    <footer className="border-t border-border bg-background py-10 px-4 sm:px-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10 text-xs">
+          {/* Col 1: Brand */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-sm bg-zinc-900 text-zinc-100 flex items-center justify-center font-mono font-bold text-[10px]">
+                PA
+              </div>
+              <span className="font-semibold text-sm tracking-tight text-foreground">
+                PortalAcademia
+              </span>
+            </div>
+            <p className="text-muted-foreground leading-relaxed text-xs">
+              Unified academia-industry collaboration infrastructure. Skill diagnostics, verified portfolios, and direct career placements.
+            </p>
+            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-sm border border-border bg-muted/40 font-mono text-[10px] text-muted-foreground">
+              <span>SIH 2026</span>
+              <span className="text-zinc-400">•</span>
+              <span>PS 26044</span>
+            </div>
           </div>
-          <span className="font-semibold text-foreground">PortalAcademia</span>
-          <span>// Smart India Hackathon 2026</span>
+
+          {/* Col 2: Platform */}
+          <div className="space-y-2.5">
+            <h4 className="font-semibold text-foreground tracking-tight">Platform</h4>
+            <ul className="space-y-2 text-muted-foreground">
+              <li>
+                <a href="#roles" className="hover:text-foreground transition-colors">
+                  Stakeholder Ecosystem
+                </a>
+              </li>
+              <li>
+                <a href="#comparison" className="hover:text-foreground transition-colors">
+                  Legacy vs. Portal
+                </a>
+              </li>
+              <li>
+                <a href="#features" className="hover:text-foreground transition-colors">
+                  Core Capabilities
+                </a>
+              </li>
+              <li>
+                <a href="#how-it-works" className="hover:text-foreground transition-colors">
+                  Operational Workflow
+                </a>
+              </li>
+              <li>
+                <Link to="/auth" className="hover:text-foreground transition-colors">
+                  Role-Based Sign In
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Col 3: Knowledge & Support */}
+          <div className="space-y-2.5">
+            <h4 className="font-semibold text-foreground tracking-tight">Resources</h4>
+            <ul className="space-y-2 text-muted-foreground">
+              <li>
+                <Link to="/faq" className="hover:text-foreground transition-colors">
+                  Frequently Asked Questions
+                </Link>
+              </li>
+              <li>
+                <a href="#faq" className="hover:text-foreground transition-colors">
+                  Quick FAQ Section
+                </a>
+              </li>
+              <li>
+                <span className="text-muted-foreground/70">Institutional Docs (2026)</span>
+              </li>
+              <li>
+                <span className="text-muted-foreground/70">API Reference (v1.0)</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Col 4: Legal & Compliance */}
+          <div className="space-y-2.5">
+            <h4 className="font-semibold text-foreground tracking-tight">Governance</h4>
+            <ul className="space-y-2 text-muted-foreground">
+              <li>
+                <Link to="/terms" className="hover:text-foreground transition-colors">
+                  Terms & Conditions
+                </Link>
+              </li>
+              <li>
+                <Link to="/privacy" className="hover:text-foreground transition-colors">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <span className="font-mono text-[11px] text-muted-foreground">DPDP & GDPR Standards</span>
+              </li>
+              <li>
+                <span className="font-mono text-[11px] text-muted-foreground">NEP 2020 Aligned</span>
+              </li>
+            </ul>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 text-[11px] tabular-nums">
-          <span>Problem ID: 26044</span>
-          <span>Ministry of Ayush</span>
-          <span>© {new Date().getFullYear()} National Collaboration Portal</span>
+        {/* Bottom Bar */}
+        <div className="pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground font-mono">
+          <span>© {new Date().getFullYear()} PortalAcademia. All rights reserved.</span>
+          <div className="flex items-center gap-4">
+            <Link to="/terms" className="hover:text-foreground transition-colors">
+              Terms
+            </Link>
+            <span>•</span>
+            <Link to="/privacy" className="hover:text-foreground transition-colors">
+              Privacy
+            </Link>
+            <span>•</span>
+            <Link to="/faq" className="hover:text-foreground transition-colors">
+              FAQ
+            </Link>
+          </div>
         </div>
       </div>
     </footer>
@@ -835,27 +725,27 @@ function Footer() {
 }
 
 // ============================================================
-// Root Landing Page
+// Landing Page Root
 // ============================================================
 
 export default function LandingPage() {
   return (
     <>
-      <title>PortalAcademia — Centralized Academia-Industry Collaboration Portal</title>
+      <title>PortalAcademia — Academia-Industry Collaboration Platform</title>
       <meta
         name="description"
-        content="National collaboration platform bridging academia and industry. Standardized skill assessments, verified digital portfolios, faculty industrial sabbaticals, and institutional telemetry."
+        content="Connect students, faculty, universities, and industry on a unified collaboration platform with skill assessments, verified portfolios, and direct placements."
       />
       <div className="flex flex-col min-h-screen">
-        <Header />
+        <Navbar />
         <main className="flex-1">
           <Hero />
-          <DisconnectSection />
-          <StakeholdersSection />
-          <CollaborationSection />
-          <LifecycleSection />
-          <GovernanceSection />
-          <CallToAction />
+          <ComparisonSection />
+          <RolesSection />
+          <CapabilitiesSection />
+          <HowItWorksSection />
+          <FAQSection />
+          <CTABanner />
         </main>
         <Footer />
       </div>
