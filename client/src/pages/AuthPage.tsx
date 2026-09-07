@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -43,12 +44,14 @@ const OTP_LENGTH = 6;
 interface SignInPayload {
   email: string;
   password: string;
+  rememberMe?: boolean;
 }
 
 interface SignUpPayload {
   email: string;
   password: string;
   confirmPassword: string;
+  rememberMe?: boolean;
 }
 
 interface VerifyOtpPayload {
@@ -336,6 +339,7 @@ function SignInForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -357,7 +361,7 @@ function SignInForm() {
   /**
    * @description Signs in an existing user with email and password.
    *              The server validates credentials and sets an httpOnly cookie on success.
-   * @param {{ email: string; password: string }} payload - User credentials
+   * @param {{ email: string; password: string; rememberMe?: boolean }} payload - User credentials
    * @returns {Promise<AuthMessageResponse>} Success message and isOnboarded flag
    * @throws {Error} 400 (invalid credentials) or 500 (server error)
    */
@@ -365,7 +369,11 @@ function SignInForm() {
     e.preventDefault();
     if (!validate()) return;
 
-    const payload: SignInPayload = { email: email.trim().toLowerCase(), password };
+    const payload: SignInPayload = {
+      email: email.trim().toLowerCase(),
+      password,
+      rememberMe,
+    };
 
     setIsLoading(true);
     setError(null);
@@ -437,18 +445,9 @@ function SignInForm() {
 
       {/* Password */}
       <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="signin-password" className="text-xs font-medium text-foreground">
-            Password
-          </Label>
-          <button
-            type="button"
-            id="forgot-password-btn"
-            className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
-          >
-            Forgot?
-          </button>
-        </div>
+        <Label htmlFor="signin-password" className="text-xs font-medium text-foreground">
+          Password
+        </Label>
         <div className="relative">
           <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
           <Input
@@ -483,6 +482,30 @@ function SignInForm() {
         )}
       </div>
 
+      {/* Remember Me & Forgot Password */}
+      <div className="flex items-center justify-between pt-0.5">
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="signin-remember-me"
+            checked={rememberMe}
+            onCheckedChange={(checked) => setRememberMe(checked === true)}
+          />
+          <Label
+            htmlFor="signin-remember-me"
+            className="text-xs font-normal text-muted-foreground cursor-pointer select-none"
+          >
+            Remember me
+          </Label>
+        </div>
+        <button
+          type="button"
+          id="forgot-password-btn"
+          className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+        >
+          Forgot?
+        </button>
+      </div>
+
       <Button
         id="signin-submit-btn"
         type="submit"
@@ -511,6 +534,7 @@ function SignUpForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -546,7 +570,7 @@ function SignUpForm() {
 
   /**
    * @description Registers a new user. The server sends an OTP to the given email address.
-   * @param {{ email: string; password: string; confirmPassword: string }} payload - Registration data
+   * @param {{ email: string; password: string; confirmPassword: string; rememberMe?: boolean }} payload - Registration data
    * @returns {Promise<AuthMessageResponse>} Server confirmation message
    * @throws {Error} 400 (validation failure or user already exists) or 500 (server error)
    */
@@ -558,6 +582,7 @@ function SignUpForm() {
       email: email.trim().toLowerCase(),
       password,
       confirmPassword,
+      rememberMe,
     };
 
     setIsLoading(true);
@@ -697,6 +722,21 @@ function SignUpForm() {
               {fieldErrors.confirmPassword}
             </p>
           )}
+        </div>
+
+        {/* Remember Me */}
+        <div className="flex items-center space-x-2 pt-0.5">
+          <Checkbox
+            id="signup-remember-me"
+            checked={rememberMe}
+            onCheckedChange={(checked) => setRememberMe(checked === true)}
+          />
+          <Label
+            htmlFor="signup-remember-me"
+            className="text-xs font-normal text-muted-foreground cursor-pointer select-none"
+          >
+            Remember me on this device
+          </Label>
         </div>
 
         <Button
