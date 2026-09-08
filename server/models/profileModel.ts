@@ -16,16 +16,28 @@ export interface IEducation {
 }
 
 export interface ICertification {
+    _id?: mongoose.Types.ObjectId;
     title: string;
     description?: string;
-    upload?: string; // Cloudinary URL
+    issuer?: string;
+    credentialUrl?: string;
+    upload?: string; // Cloudinary URL or file link
+    isVerified?: boolean;
+    verifiedBy?: mongoose.Types.ObjectId;
+    verifiedAt?: Date;
+    verificationNotes?: string;
 }
 
 export interface IPastExperience {
+    _id?: mongoose.Types.ObjectId;
     title: string;
     timeline?: string;
     description?: string;
+    organization?: string;
     uploadImage?: string; // Cloudinary URL
+    isVerified?: boolean;
+    verifiedBy?: mongoose.Types.ObjectId;
+    verifiedAt?: Date;
 }
 
 export interface IProfile extends Document {
@@ -92,9 +104,15 @@ const certificationSubSchema = new Schema<ICertification>(
     {
         title: { type: String, required: true },
         description: { type: String, default: "" },
+        issuer: { type: String, default: "" },
+        credentialUrl: { type: String, default: "" },
         upload: { type: String, default: "" },
+        isVerified: { type: Boolean, default: false },
+        verifiedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+        verifiedAt: { type: Date, default: null },
+        verificationNotes: { type: String, default: "" },
     },
-    { _id: false }
+    { _id: true }
 );
 
 const pastExperienceSubSchema = new Schema<IPastExperience>(
@@ -102,9 +120,13 @@ const pastExperienceSubSchema = new Schema<IPastExperience>(
         title: { type: String, required: true },
         timeline: { type: String, default: "" },
         description: { type: String, default: "" },
+        organization: { type: String, default: "" },
         uploadImage: { type: String, default: "" },
+        isVerified: { type: Boolean, default: false },
+        verifiedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+        verifiedAt: { type: Date, default: null },
     },
-    { _id: false }
+    { _id: true }
 );
 
 const profileSchema = new Schema<IProfile>(

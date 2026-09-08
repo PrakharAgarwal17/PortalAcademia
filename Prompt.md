@@ -71,3 +71,11 @@ remove SIH
 100%
 
 Cookie-based Security
+
+
+
+
+I think you should make four separate pages 4 1 to manage 4 differ Types like  one for individual one for organisation one for faculty one for Institution As listed in Platform spec You will need To have Them to manage their self And their rules And what do you want to do You need to assign Everyone Their rule and load them according to that Think about it yourself and implement it See contour axle draw for More ideas and I think now you can Add some things on the server side back end
+
+
+What I think you should do also is You are hard coding everything into the front end right now so you are now fully accessed to use the back end Now make the back end as good as you want cause you have to do everything right now front and back end and everything so you can make everything that you need according To our vision that we have to make like Explained in the Excel draw info read all of the documents md files To get a clear and better understanding And make everything So at everything would work reliably do not crashes Ask me if you need any kind of api keys I will update those And I was thinking about implementing Lang Chain As we need to it to be there As in the help board If the help what we are thinking of using Grock api keys So I think length chain will be needed in typescript version I think also have langchain So do everything and please don't **** anything Update course it has to be a working website which contain Opportunities created by the industry Maintain by the By the institution The role of the faculties also mentioned there you can see that and the student who will be Getting the benefit from all of these Think about it and first give me an implementation file What you are thinking of
