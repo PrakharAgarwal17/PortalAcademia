@@ -55,8 +55,33 @@ const DEFAULT_INSTITUTIONS = [
     { name: "Thapar Institute of Engineering and Technology", aisheCode: "U-0388", state: "Punjab" },
 ];
 
-// @ts-ignore
-import { search as searchAishe } from "aishe-institutions-list";
+// Safe AISHE dataset loader
+import { createRequire } from "module";
+const esmRequire = createRequire(import.meta.url);
+
+let aisheDataSet: Array<{ name?: string; aishe_code?: string; state?: string; district?: string }> = [];
+try {
+    aisheDataSet = esmRequire("aishe-institutions-list/data/institutions.json");
+} catch {
+    aisheDataSet = [];
+}
+
+function searchAishe(query: string, limit = 25) {
+    if (!query || !aisheDataSet.length) return [];
+    const cleanQuery = query.toLowerCase().trim();
+    const words = cleanQuery.split(/\s+/).filter(Boolean);
+    const results = [];
+    for (const inst of aisheDataSet) {
+        const name = (inst.name || "").toLowerCase();
+        const code = (inst.aishe_code || "").toLowerCase();
+        const state = (inst.state || "").toLowerCase();
+        if (code.includes(cleanQuery) || words.every((w) => name.includes(w) || state.includes(w))) {
+            results.push(inst);
+            if (results.length >= limit) break;
+        }
+    }
+    return results;
+}
 
 export async function searchInstitutions(req: Request, res: Response): Promise<Response> {
     try {

@@ -18,6 +18,7 @@ desktop.ini
 .agents/
 docker-compose.yml
 docker-compose.override.yml
+Idea.excalidraw
 
 logs/
 *.log
