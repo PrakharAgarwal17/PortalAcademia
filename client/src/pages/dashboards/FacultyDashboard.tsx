@@ -277,7 +277,7 @@ export default function FacultyDashboard() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-base font-bold text-foreground tracking-tight">
-                    {profile?.name || "Dr. Rajesh Kulkarni"}
+                    {profile?.name || "Faculty Scholar"}
                   </h1>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3" />
@@ -285,7 +285,7 @@ export default function FacultyDashboard() {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {profile?.designation || "Associate Professor"} • {profile?.department || "Computer Science"} • {profile?.institution || "IIT Bombay"}
+                  {profile?.designation || "Faculty Member"} • {profile?.department || "Department Not Specified"} • {profile?.institution || "Institution Pending"}
                 </p>
               </div>
             </div>
@@ -307,7 +307,9 @@ export default function FacultyDashboard() {
               <div className="px-3 py-1.5 rounded-md bg-background border border-border">
                 <span className="text-muted-foreground block text-[10px]">Joint Research Grants</span>
                 <span className="font-bold text-primary tabular-nums text-sm">
-                  ₹15.0 L
+                  {opportunities.filter((o) => o.category === "research").length > 0
+                    ? `₹${(opportunities.filter((o) => o.category === "research").length * 15).toFixed(1)} L`
+                    : "₹0.0 L"}
                 </span>
               </div>
             </div>
@@ -317,26 +319,34 @@ export default function FacultyDashboard() {
           <div className="mt-4 pt-4 border-t border-border flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-muted-foreground mr-1">Expertise:</span>
-              {(profile?.expertise || ["Distributed Systems", "Cloud Security", "Applied ML"]).map((exp, idx) => (
-                <span
-                  key={idx}
-                  className="px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground border border-border font-mono"
-                >
-                  {exp}
-                </span>
-              ))}
+              {profile?.expertise && profile.expertise.length > 0 ? (
+                profile.expertise.map((exp, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground border border-border font-mono"
+                  >
+                    {exp}
+                  </span>
+                ))
+              ) : (
+                <span className="text-muted-foreground italic font-mono">No expertise tags added</span>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-muted-foreground mr-1">Research Focus:</span>
-              {(profile?.researchInterests || ["Ayurvedic Medical Informatics", "Consensus"]).map((res, idx) => (
-                <span
-                  key={idx}
-                  className="px-2 py-0.5 rounded-md bg-background border border-border text-foreground font-mono"
-                >
-                  {res}
-                </span>
-              ))}
+              {profile?.researchInterests && profile.researchInterests.length > 0 ? (
+                profile.researchInterests.map((res, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-0.5 rounded-md bg-background border border-border text-foreground font-mono"
+                  >
+                    {res}
+                  </span>
+                ))
+              ) : (
+                <span className="text-muted-foreground italic font-mono">General Research</span>
+              )}
             </div>
           </div>
         </section>
@@ -460,43 +470,27 @@ export default function FacultyDashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
-            <div className="p-3 rounded-md bg-background border border-border space-y-1.5">
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-secondary text-foreground font-bold">
-                TCS Cloud Case Study
-              </span>
-              <h4 className="text-xs font-bold text-foreground">
-                High-Concurrency Telemetry Architecture
-              </h4>
-              <p className="text-[11px] text-muted-foreground">
-                Real-world operational telemetry covering 400k req/s database clustering and microservices.
-              </p>
+          {opportunities.length === 0 ? (
+            <div className="py-6 text-center text-xs text-muted-foreground border border-dashed border-border rounded-md">
+              No classroom case studies or enterprise datasets published yet.
             </div>
-
-            <div className="p-3 rounded-md bg-background border border-border space-y-1.5">
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-secondary text-foreground font-bold">
-                Ministry of Ayush Dataset
-              </span>
-              <h4 className="text-xs font-bold text-foreground">
-                Ayurvedic Clinical Trial Informatics
-              </h4>
-              <p className="text-[11px] text-muted-foreground">
-                Standardized herbal constituent ontologies for computer science and bioinformatics classrooms.
-              </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+              {opportunities.slice(0, 3).map((opp) => (
+                <div key={opp._id} className="p-3 rounded-md bg-background border border-border space-y-1.5">
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-secondary text-foreground font-bold uppercase">
+                    {opp.organization} • {opp.category}
+                  </span>
+                  <h4 className="text-xs font-bold text-foreground line-clamp-1">
+                    {opp.title}
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground line-clamp-2">
+                    {opp.description}
+                  </p>
+                </div>
+              ))}
             </div>
-
-            <div className="p-3 rounded-md bg-background border border-border space-y-1.5">
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-secondary text-foreground font-bold">
-                DRDO Robotics Report
-              </span>
-              <h4 className="text-xs font-bold text-foreground">
-                Fault-Tolerant Drone Mesh Networks
-              </h4>
-              <p className="text-[11px] text-muted-foreground">
-                Autonomous drone collision avoidance mathematics and Linux socket benchmark routines.
-              </p>
-            </div>
-          </div>
+          )}
         </section>
       </main>
 

@@ -27,6 +27,7 @@ interface UserProfile {
   category?: "individual" | "organization";
   accountType: string;
   institution?: string;
+  institutionName?: string;
   institutionEmail?: string;
   isEmailVerified?: boolean;
   skills?: string[];
@@ -452,7 +453,7 @@ export default function StudentDashboard() {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {profile?.institution || "Indian Institute of Technology Bombay"} • {profile?.institutionEmail || "student@portalacademia.ac.in"}
+                  {profile?.institution || profile?.institutionName || "Affiliated Institution Pending"} • {profile?.institutionEmail || "Email not verified"}
                 </p>
               </div>
             </div>
@@ -474,7 +475,9 @@ export default function StudentDashboard() {
               <div className="px-3 py-1.5 rounded-md bg-background border border-border">
                 <span className="text-muted-foreground block text-[10px]">Readiness Index</span>
                 <span className="font-bold text-primary tabular-nums text-sm">
-                  {Math.min(98, Math.max(50, (profile?.skills?.length || 3) * 16))}%
+                  {profile?.skills && profile.skills.length > 0
+                    ? `${Math.min(100, profile.skills.length * 15)}%`
+                    : "0%"}
                 </span>
               </div>
             </div>
