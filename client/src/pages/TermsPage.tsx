@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft, ShieldCheck, FileText, ChevronRight } from "lucide-react";
+import { ArrowLeft, ShieldCheck, FileText, ChevronRight, Sun, Moon } from "lucide-react";
+import { useTheme } from "@/context/theme";
 
 export default function TermsPage() {
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <>
@@ -22,22 +24,44 @@ export default function TermsPage() {
               <span>Back to Overview</span>
             </Link>
 
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-sm bg-zinc-900 text-zinc-100 flex items-center justify-center font-mono font-bold text-[10px]">
+            <Link
+              to="/"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="flex items-center gap-2 hover:opacity-85 transition-opacity cursor-pointer group"
+              aria-label="PortalAcademia — Return to top"
+            >
+              <div className="w-5 h-5 rounded-sm bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 flex items-center justify-center font-mono font-bold text-[10px] transition-colors">
                 PA
               </div>
               <span className="font-semibold text-xs tracking-tight text-foreground hidden sm:inline">
                 PortalAcademia Legal
               </span>
-            </div>
-
-            <Link
-              to="/auth"
-              className="inline-flex items-center justify-center gap-1 h-8 px-3 text-xs font-medium rounded-md border border-border bg-background hover:bg-muted text-foreground transition-colors"
-            >
-              Sign In
-              <ChevronRight className="w-3.5 h-3.5 ml-1" />
             </Link>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                id="terms-theme-toggle-btn"
+                onClick={toggleTheme}
+                aria-label="Toggle dark mode"
+                title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                className="w-8 h-8 rounded-md border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+              >
+                {theme === "dark" ? (
+                  <Sun className="w-4 h-4 text-amber-400" />
+                ) : (
+                  <Moon className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                )}
+              </button>
+
+              <Link
+                to="/auth"
+                className="inline-flex items-center justify-center gap-1 h-8 px-3 text-xs font-medium rounded-md border border-border bg-background hover:bg-muted text-foreground transition-colors"
+              >
+                Sign In
+                <ChevronRight className="w-3.5 h-3.5 ml-1" />
+              </Link>
+            </div>
           </div>
         </header>
 

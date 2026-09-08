@@ -1,53 +1,73 @@
 @Info.md
 
-Role & Scope:
-You are strictly an expert Client-Side Frontend Engineer operating entirely inside the `/client` directory (Vite + React + TypeScript + Tailwind CSS + shadcn/ui).
-The scope is 100% limited to the browser runtime.
+Role & Operating Scope:
+You are strictly an expert Client-Side Frontend Engineer working inside `/client` (Vite + React + TypeScript + Tailwind CSS + shadcn/ui).
+Phase 1 (Redux, Cookie-based Auth, Landing, and Auth pages) is complete and fully functional. 
 
-Hard Backend & Architectural Restrictions:
-- DO NOT inspect, edit, or create files inside `/server`.
-- ZERO backend code: No Node.js, Express, databases, models, Prisma, or backend schemas.
-- NO Mock Servers: Do not install or implement MSW (Mock Service Worker), json-server, or local proxy endpoints.
-- Treat the backend as an external, black-box REST API consumed via native browser `fetch`.
-- In-File Network Calls: Do NOT create any centralized `src/api/` or `src/services/` directories. Any API function must be written directly inside the component/slice that calls it, preceded by the standard JSDoc block.
+Phase 2 Objective: 
+Build the Multi-Step Onboarding Flow. Do NOT build the final user dashboards yet (keep `/dashboard` as a placeholder route).
 
-Phase 1 Objective:
-Build ONLY the foundation, routing, authentication flow, and landing page. Do NOT build student, faculty, recruiter, or admin dashboards yet.
+Architecture Rules:
+1. Continue using the existing Redux setup (`authSlice`) and shadcn/ui components.
+2. If new shadcn components are needed (e.g., Select, Accordion, Checkbox), install and configure them.
+3. API Contracts: Write all `fetch` calls directly inside the consuming components with `credentials: "include"`, preceded by the standard JSDoc block.
 
-Deliverables:
+Phase 2 UI Flow to Implement:
 
-1. Global Setup & State (`client/src/context/` & `client/src/App.tsx`):
-   - Configure Redux Toolkit store in `src/context/store.ts` and authentication slice in `src/context/authSlice.ts`.
-   - Manage state: `user: { email: string; role: 'STUDENT' | 'FACULTY' | 'RECRUITER' | 'INSTITUTION_ADMIN' } | null`, `token: string | null`, `isAuthenticated: boolean`, `isLoading: boolean`, `error: string | null`.
-   - Export typed hooks: `useAppDispatch` and `useAppSelector`.
-   - Configure `react-router-dom` in `src/App.tsx` with routes for `/` (LandingPage) and `/auth` (AuthPage).
+1. Screen A: Account Type Selector (`src/pages/onboarding/SelectAccountType.tsx`):
+   - A clean layout presenting two large, clickable cards:
+     1. "Individual" (Subtext: Students & Faculty)
+     2. "Organization" (Subtext: Institutions & Industry)
+   - Clicking an option stores the selection in local state and navigates to the respective next step.
 
-2. Shared Layout (`client/src/components/`):
-   - `Navbar.tsx`: Responsive navigation with logo, platform links, and a CTA button routing to `/auth`.
-   - `Footer.tsx`: Standard footer displaying platform branding and links.
+2. Screen B: Individual Onboarding (`src/pages/onboarding/IndividualOnboarding.tsx`):
+   - Profile Image upload preview circle.
+   - Full Name input (required).
+   - Role Selector toggle/tabs: "Student" or "Faculty".
+   - Institution Email input & Institution Name dropdown selector.
+   - "Verify Email" button triggering a mock OTP flow. Once verified, display a green checkmark badge (like LinkedIn).
+   - Accordion / Collapsible section labeled "Optional Data (Too much to fill at start)":
+     - Education: Degree/Course, Timeline, Description, "+ Add Education" button.
+     - Past Experience: Title, Timeline, Description, Image Upload.
+     - Certifications: Upload certificate file, Title, Description.
+     - Skills tag selector (allow typing a skill and pressing enter to add as a badge).
+   - "Submit / Complete Onboarding" button at the bottom.
 
-3. Landing Page (`client/src/pages/LandingPage.tsx`):
-   - Hero section communicating the value proposition of bridging academia and industry.
-   - Core pillar cards (Skill Gap Analysis, Verified Portfolios, Internships/Jobs, Faculty Training) built with shadcn/ui `<Card>`.
-   - Clear CTA button redirecting to `/auth`.
+3. Screen C: Organization Onboarding (`src/pages/onboarding/OrganizationOnboarding.tsx`):
+   - Organization Type toggle/tabs: "Institution" or "Industry".
+   - If Institution:
+     - Institution Name input (dropdown with "AISHE database reference" subtext).
+     - Official institutional domain email selector/crawler dropdown.
+     - "Send OTP" button & read-only OTP verification badge.
+     - Location dropdown.
+   - If Industry:
+     - Industry Type & Company Name inputs.
+     - Official Website URL input.
+     - Work Email with "Send OTP" / OTP verification flow.
+     - Company Location & Employee size bracket dropdown.
+   - "Submit / Complete Onboarding" button at the bottom.
 
-4. Authentication Page (`client/src/pages/AuthPage.tsx`):
-   - Centered shadcn `<Card>` with tabs toggling between "Login" and "Register".
-   - State-driven view transition:
-     * Mode 1: "login" (Email, Password, "Continue with Google" button, link to switch to register).
-     * Mode 2: "register" (Full Name, Email, Password, Role Selector dropdown/radio for Student, Faculty, Recruiter, Institution Admin).
-     * Mode 3: "otp-verify" (Triggered after successful register/login submission; displays a 6-digit OTP input field, email recipient notice, "Verify OTP" button, and "Resend OTP" link).
-   - Use shadcn/ui components (`@/components/ui/button`, `@/components/ui/input`, `@/components/ui/card`, `@/components/ui/tabs`, `@/components/ui/label`, `@/components/ui/badge`).
-   - Every fetch function (`loginApi`, `registerApi`, `verifyOtpApi`, `googleAuthApi`) must be declared directly inside `AuthPage.tsx` and preceded by the exact JSDoc contract:
-     /**
-      * @description What this network call does
-      * @param {ExpectedType} payload - Input payload
-      * @returns {Promise<ExpectedResponseType>} Output response
-      * @throws {Error} HTTP status handling
-      */
+4. Onboarding Submission Contract:
+   - When the user clicks "Complete Onboarding" on either Screen B or C, write a `submitOnboarding` fetch function.
+   - For now, if the backend route doesn't fully exist for onboarding details, mock a successful response `Promise.resolve({ success: true })`.
+   - On success, dispatch an action to update Redux `user.isOnboarded = true`, and navigate the user to `/dashboard`.
 
-Quality & Types:
-- Strict TypeScript: Define interfaces for all payloads, form states, and component props. Zero `any`.
-- Implement visible loading indicators (`isLoading`) on buttons and display clear error message banners (`error`) if a call fails.
-
+Ensure strict TypeScript (no `any`), full loading/error states for submissions, and pixel-accurate alignment with the Excalidraw design. Proceed with generating Phase 2.
 Generate the complete code for Phase 1 now.
+
+
+
+
+
+addd remember meee
+AI hai bro 
+sgin up me vefiry otp ka page
+UseNavigation use krna signup pr aur jo email ko navigate krke state me bhejoge verifyotp pr usko readOnly pr rkhna
+
+remove SIH
+
+26044 Project
+
+100%
+
+Cookie-based Security
