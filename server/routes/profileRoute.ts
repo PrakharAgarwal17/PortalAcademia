@@ -4,7 +4,9 @@ import {
     createOrUpdateProfile,
     getProfileById,
 } from "../controllers/profileController.js";
+import { verifyCredential } from "../controllers/verificationController.js";
 import isloggedIn from "../middleware/isloggedIn.js";
+import { isInstitution } from "../middleware/rbacMiddleware.js";
 
 const router = express.Router();
 
@@ -17,7 +19,11 @@ router.post("/", isloggedIn, createOrUpdateProfile);
 // Update profile anytime later (skills, experience, certifications, bio, etc.)
 router.put("/", isloggedIn, createOrUpdateProfile);
 
+// Institution verifies student credential directly on profile
+router.put("/verify-credential/:studentId/:credentialId", isloggedIn, isInstitution, verifyCredential);
+
 // Public profile view by user ID or profile ID
 router.get("/:id", isloggedIn, getProfileById);
 
 export default router;
+

@@ -33,6 +33,7 @@ interface CheckAuthResponse {
   user?: {
     id: string;
     email: string;
+    role?: string;
     isVerified: boolean;
     isOnboarded: boolean;
   };
@@ -70,6 +71,24 @@ export const checkAuthThunk = createAsyncThunk<
     }
 
     const data = (await response.json()) as CheckAuthResponse;
+
+    if (data.valid && data.user && data.user.isOnboarded) {
+      try {
+        const profileRes = await fetch(`${API_BASE}/api/profile/me`, {
+          method: "GET",
+          credentials: "include",
+        });
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          if (profileData.success && profileData.profile?.accountType) {
+            data.user.role = profileData.profile.accountType;
+          }
+        }
+      } catch {
+        // Fallback gracefully if profile lookup encounters network blip
+      }
+    }
+
     return data;
   } catch (err) {
     return rejectWithValue("Network error during session check");
@@ -148,6 +167,7 @@ const authSlice = createSlice({
             email: action.payload.user.email,
             isVerified: action.payload.user.isVerified,
             isOnboarded: action.payload.user.isOnboarded,
+            role: action.payload.user.role,
           };
         } else {
           state.isAuthenticated = false;

@@ -66,7 +66,66 @@ The platform provides a dedicated collaborative sandbox bridging academia and en
 
 ## 4. Architectural & Security Safeguards
 
-- **Role-Based Access Control (RBAC):** Strict deterministic boundaries separating Student, Faculty, Institution Admin, and Recruiter workspaces.
+- **Role-Based Access Control (RBAC):** Strict deterministic boundaries separating Student, Faculty, Institution Admin, and Recruiter workspaces via `rbacMiddleware.ts`.
 - **HttpOnly Cookie Authentication:** Zero client-side JWT token storage; session state maintained strictly via encrypted, SameSite cookies.
 - **Cryptographic OTP Verification:** Mandatory institutional email verification for academic domain legitimacy.
 - **Deterministic State Machines:** Redux Toolkit-backed state management ensuring explicit loading, error, and empty state coverage.
+
+---
+
+## 5. Technical Data Models & Schemas
+
+### Core Relational Models (MongoDB / Mongoose)
+1. **`User` (`userModel.ts`)**: Authentication identity, credential hashes, provider, verification status, and onboarding flag.
+2. **`Profile` (`profileModel.ts`)**: Unified stakeholder metadata, biography, institution link, verified skills, and nested arrays for education, certifications, and experience.
+3. **`Opportunity` (`opportunityModel.ts`)**: Listings published by Industry/Institutions (internships, hackathons, workshops, FDPs, sabbaticals) with prerequisite skill vectors, compensation, duration, and college endorsement arrays.
+4. **`Application` (`applicationModel.ts`)**: Submissions linked to opportunities with calculated vector match score, status progression (`Applied`, `Under Review`, `Shortlisted`, `Technical Interview`, `Offered`), and recruiter notes.
+5. **`Assessment` (`assessmentModel.ts`)**: Standardized question banks, aptitude benchmarks, technical MCQ/coding prompts mapped to target skill vectors (e.g. Python, Cloud, Data Structures).
+6. **`AssessmentResult` (`assessmentResultModel.ts`)**: Student test attempts, objective percentage scores, badge awards, and verified competency weights feeding directly into application shortlisting algorithms.
+7. **`AiLog` (`aiLogModel.ts`)**: Audit log of Grok/LangChain HelpBOT queries with MongoDB TTL / scheduled cleanup to prevent memory exhaustion.
+
+---
+
+## 6. Real-Time Telemetry & Aggregation Pipelines (`analyticsController.ts`)
+
+Instead of in-memory client-side calculations, high-density telemetry is computed via MongoDB native aggregation pipelines:
+1. **Cohort Competency Aggregation (`/api/analytics/institution/cohort`)**:
+   - Computes distribution of verified student skills across departments via `$unwind`, `$group`, and `$project`.
+   - Generates readiness score curves and identifies systemic curricular deficits.
+2. **Industry Hiring Demand Trends (`/api/analytics/industry/market-trends`)**:
+   - Aggregates live opportunity skill requirements vs applicant supply to compute market deficit percentages.
+3. **Student Gap Quantification (`/api/analytics/student/gap`)**:
+   - Computes real mathematical vector distance between a student's verified skills (from assessment results) and top trending industry postings.
+
+---
+
+## 7. Credential Verification Gate (`verificationController.ts`)
+
+1. **Tamper-Evident Digital Portfolio**:
+   - Students upload certificates and project URLs with proof of work.
+   - Status defaults to `isVerified: false` (Pending Institutional Review).
+2. **Institution Verification Queue**:
+   - Placement cells and academic authorities access a dedicated queue to review submitted credentials.
+   - Route `PUT /api/profile/verify-credential/:studentId/:credentialId` flips `isVerified: true`, granting an official institutional cryptographic badge.
+
+---
+
+## 8. Role-Based Access Control (`rbacMiddleware.ts`)
+
+Strict deterministic guards enforcing endpoint boundaries:
+- `isStudent`: Only students can attempt skill assessments (`/api/assessments/:id/submit`) and submit applications (`/api/applications`).
+- `isFaculty`: Access to faculty sabbaticals and research collaboration submissions.
+- `isInstitution`: Access to credential verification queue (`/api/verification/pending`), credential approval (`/api/profile/verify-credential/...`), cohort telemetry aggregation (`/api/analytics/institution/cohort`), and opportunity endorsements.
+- `isIndustry`: Access to candidate shortlisting pipeline (`/api/applications/opportunity/:id`), applicant status progression (`/api/applications/:id/status`), and publishing opportunities (`POST /api/opportunities`).
+
+---
+
+## 9. Contextual AI Career Guide & Free MongoDB Protection (`aiController.ts`, `aiLogModel.ts`)
+
+1. **Profile Context Injection**:
+   - Every AI prompt dynamically injects the user's live profile, degree, verified skill tags from assessment scores, and recent application status into the hidden `SystemMessage`.
+2. **Free MongoDB Storage Safeguard (TTL & Pruning)**:
+   - Chat interactions are logged to `AiLog` with a native MongoDB TTL index (`expires: 60 * 60 * 24 * 7`) to automatically expire records after 7 days.
+   - A threshold cleaner verifies total document count does not exceed 500 documents, pruning the oldest entries to strictly respect MongoDB Atlas free-tier storage limits (512MB).
+
+
