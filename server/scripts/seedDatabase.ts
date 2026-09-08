@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import bcrypt from "bcrypt";
 import userModel from "../models/userModel.js";
 import profileModel from "../models/profileModel.js";
 import opportunityModel from "../models/opportunityModel.js";
@@ -9,9 +10,9 @@ import applicationModel from "../models/applicationModel.js";
 dotenv.config();
 
 const MONGO_URI =
-    process.env.MONGODB_URI ||
-    process.env.DB_URI ||
-    "mongodb://root:rootpassword@localhost:27017/PortalAcademia?authSource=admin";
+    process.env.MONGO_URL
+        ? `${process.env.MONGO_URL}/PortalAcademia`
+        : process.env.MONGODB_URI || "mongodb://root:rootpassword@localhost:27017/PortalAcademia";
 
 async function seed() {
     try {
@@ -19,46 +20,41 @@ async function seed() {
         await mongoose.connect(MONGO_URI);
         console.log("Connected to MongoDB successfully.");
 
-        // 1. Ensure test users exist
-        let studentUser = await userModel.findOne({ email: "student.test@portalacademia.ac.in" });
-        if (!studentUser) {
-            studentUser = await userModel.create({
-                email: "student.test@portalacademia.ac.in",
-                isVerified: true,
-                isOnboarded: true,
-                provider: "local",
-            });
+        const hashedPassword = await bcrypt.hash("Password123!", 10);
+
+        // 1. Ensure test users exist with hashed password
+        const usersToSeed = [
+            { email: "student.test@portalacademia.ac.in", isOnboarded: true },
+            { email: "industry.test@company.com", isOnboarded: true },
+            { email: "iitb.admin@portalacademia.ac.in", isOnboarded: true },
+            { email: "faculty.test@portalacademia.ac.in", isOnboarded: true },
+            { email: "new.student@portalacademia.ac.in", isOnboarded: false },
+        ];
+
+        const seededUserDocs: Record<string, any> = {};
+        for (const u of usersToSeed) {
+            let doc = await userModel.findOne({ email: u.email });
+            if (!doc) {
+                doc = await userModel.create({
+                    email: u.email,
+                    password: hashedPassword,
+                    isVerified: true,
+                    isOnboarded: u.isOnboarded,
+                    provider: "local",
+                });
+            } else {
+                doc.password = hashedPassword;
+                doc.isVerified = true;
+                doc.isOnboarded = u.isOnboarded;
+                await doc.save();
+            }
+            seededUserDocs[u.email] = doc;
         }
 
-        let industryUser = await userModel.findOne({ email: "industry.test@company.com" });
-        if (!industryUser) {
-            industryUser = await userModel.create({
-                email: "industry.test@company.com",
-                isVerified: true,
-                isOnboarded: true,
-                provider: "local",
-            });
-        }
-
-        let institutionUser = await userModel.findOne({ email: "iitb.admin@portalacademia.ac.in" });
-        if (!institutionUser) {
-            institutionUser = await userModel.create({
-                email: "iitb.admin@portalacademia.ac.in",
-                isVerified: true,
-                isOnboarded: true,
-                provider: "local",
-            });
-        }
-
-        let facultyUser = await userModel.findOne({ email: "faculty.test@portalacademia.ac.in" });
-        if (!facultyUser) {
-            facultyUser = await userModel.create({
-                email: "faculty.test@portalacademia.ac.in",
-                isVerified: true,
-                isOnboarded: true,
-                provider: "local",
-            });
-        }
+        const studentUser = seededUserDocs["student.test@portalacademia.ac.in"];
+        const industryUser = seededUserDocs["industry.test@company.com"];
+        const institutionUser = seededUserDocs["iitb.admin@portalacademia.ac.in"];
+        const facultyUser = seededUserDocs["faculty.test@portalacademia.ac.in"];
 
         // 2. Ensure Profiles exist
         await profileModel.findOneAndUpdate(
