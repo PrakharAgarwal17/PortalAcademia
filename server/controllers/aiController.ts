@@ -119,9 +119,18 @@ Deliver concrete, structured advice formatted with markdown headers and bullet p
         let modelUsed = "local-expert-rag";
         let tokensUsed = 120;
 
-        const apiKey = process.env.GROK_API_KEY || process.env.OPENAI_API_KEY;
-        const apiBaseUrl = process.env.GROK_API_KEY ? "https://api.x.ai/v1" : "https://api.openai.com/v1";
-        const modelName = process.env.GROK_API_KEY ? "grok-2-1212" : "gpt-4o-mini";
+        let apiKey = process.env.GROQ_API_KEY || process.env.GROK_API_KEY || process.env.OPENAI_API_KEY;
+        let apiBaseUrl = "https://api.openai.com/v1";
+        let modelName = "gpt-4o-mini";
+
+        if (process.env.GROQ_API_KEY || (apiKey && apiKey.startsWith("gsk_"))) {
+            apiKey = process.env.GROQ_API_KEY || apiKey;
+            apiBaseUrl = "https://api.groq.com/openai/v1";
+            modelName = "groq/compound-mini";
+        } else if (process.env.GROK_API_KEY) {
+            apiBaseUrl = "https://api.x.ai/v1";
+            modelName = "grok-2-1212";
+        }
 
         if (apiKey) {
             try {

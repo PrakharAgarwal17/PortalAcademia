@@ -267,22 +267,7 @@ export default function IndustryDashboard() {
           </span>
         </div>
 
-        {/* Quick Persona Navigation Bar */}
-        <div className="hidden md:flex items-center gap-1 text-xs font-medium">
-          <span className="text-muted-foreground mr-1 text-[11px]">Role Views:</span>
-          <Link to="/dashboard/student" className="px-2 py-1 rounded-md hover:bg-secondary text-foreground">
-            Student
-          </Link>
-          <Link to="/dashboard/faculty" className="px-2 py-1 rounded-md hover:bg-secondary text-foreground">
-            Faculty
-          </Link>
-          <Link to="/dashboard/institution" className="px-2 py-1 rounded-md hover:bg-secondary text-foreground">
-            Institution
-          </Link>
-          <Link to="/dashboard/industry" className="px-2 py-1 rounded-md bg-primary text-primary-foreground font-semibold">
-            Industry
-          </Link>
-        </div>
+
 
         <div className="flex items-center gap-2">
           <button

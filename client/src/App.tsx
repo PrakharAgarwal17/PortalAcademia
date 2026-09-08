@@ -20,8 +20,10 @@ import OnboardingSelectType from "@/pages/OnboardingSelectType";
 import OnboardingIndividual from "@/pages/onboarding/OnboardingIndividual";
 import OnboardingOrganization from "@/pages/onboarding/OnboardingOrganization";
 
+import { useState } from "react";
+
 // ============================================================
-// Protected Route
+// Protected Route (General Authenticated)
 // ============================================================
 
 interface ProtectedRouteProps {
@@ -29,7 +31,7 @@ interface ProtectedRouteProps {
 }
 
 function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, isInitialized } = useAppSelector((s) => s.auth);
+  const { isAuthenticated, isLoading, isInitialized, user } = useAppSelector((s) => s.auth);
 
   if (isLoading || !isInitialized) {
     return (
@@ -41,6 +43,114 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
+  }
+
+  if (!user?.isOnboarded) {
+    return <Navigate to="/onboarding/select-type" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+// ============================================================
+// Strict Role-Protected Route
+// Prevents any individual from intercepting or accessing other consoles
+// ============================================================
+
+interface RoleProtectedRouteProps {
+  allowedRole: "student" | "faculty" | "institution" | "industry";
+  children: React.ReactNode;
+}
+
+function RoleProtectedRoute({ allowedRole, children }: RoleProtectedRouteProps) {
+  const { isAuthenticated, isLoading, isInitialized, user } = useAppSelector((s) => s.auth);
+  const [resolvedRole, setResolvedRole] = useState<string | null>(user?.role || null);
+  const [isResolving, setIsResolving] = useState(!user?.role && isAuthenticated && !!user?.isOnboarded);
+
+  useEffect(() => {
+    if (user?.role) {
+      setResolvedRole(user.role);
+      setIsResolving(false);
+      return;
+    }
+
+    let isMounted = true;
+    async function resolveRole() {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:3000"}/api/profile/me`, {
+          method: "GET",
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data.success && data.profile?.accountType) {
+            setResolvedRole(data.profile.accountType);
+          }
+        }
+      } catch (err) {
+        console.error("Role resolution error:", err);
+      } finally {
+        if (isMounted) setIsResolving(false);
+      }
+    }
+
+    if (isAuthenticated && user?.isOnboarded) {
+      resolveRole();
+    } else {
+      setIsResolving(false);
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, user?.role, user?.isOnboarded]);
+
+  if (isLoading || !isInitialized || isResolving) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-foreground" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (!user?.isOnboarded) {
+    return <Navigate to="/onboarding/select-type" replace />;
+  }
+
+  // Strictly lock individual to their assigned stakeholder console
+  if (resolvedRole && resolvedRole !== allowedRole) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+// ============================================================
+// Onboarding Route Guard
+// ============================================================
+
+function OnboardingRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading, isInitialized, user } = useAppSelector((s) => s.auth);
+
+  if (isLoading || !isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-foreground" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Already onboarded users shouldn't re-enter onboarding
+  if (user?.isOnboarded) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -81,7 +191,7 @@ function AppShell() {
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/faq" element={<FAQPage />} />
 
-      {/* Protected Stakeholder Dashboards */}
+      {/* Dynamic Authorized Dashboard Resolver */}
       <Route
         path="/dashboard"
         element={
@@ -90,68 +200,72 @@ function AppShell() {
           </ProtectedRoute>
         }
       />
+
+      {/* Role-Locked Stakeholder Dashboards */}
       <Route
         path="/dashboard/student"
         element={
-          <ProtectedRoute>
+          <RoleProtectedRoute allowedRole="student">
             <StudentDashboard />
-          </ProtectedRoute>
+          </RoleProtectedRoute>
         }
       />
       <Route
         path="/dashboard/faculty"
         element={
-          <ProtectedRoute>
+          <RoleProtectedRoute allowedRole="faculty">
             <FacultyDashboard />
-          </ProtectedRoute>
+          </RoleProtectedRoute>
         }
       />
       <Route
         path="/dashboard/institution"
         element={
-          <ProtectedRoute>
+          <RoleProtectedRoute allowedRole="institution">
             <InstitutionDashboard />
-          </ProtectedRoute>
+          </RoleProtectedRoute>
         }
       />
       <Route
         path="/dashboard/industry"
         element={
-          <ProtectedRoute>
+          <RoleProtectedRoute allowedRole="industry">
             <IndustryDashboard />
-          </ProtectedRoute>
+          </RoleProtectedRoute>
         }
       />
+
+      {/* Protected Onboarding Wizard */}
       <Route
         path="/onboarding/select-type"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <OnboardingSelectType />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
       <Route
         path="/onboarding/individual"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <OnboardingIndividual />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
       <Route
         path="/onboarding/organization"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <OnboardingOrganization />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
       <Route
         path="/onboarding"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <Navigate to="/onboarding/select-type" replace />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
 
