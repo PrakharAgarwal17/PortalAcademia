@@ -1,27 +1,16 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   BookOpenCheck,
-  Building2,
-  Briefcase,
   CheckCircle2,
   Clock,
-  MapPin,
   Bot,
-  Search,
-  ExternalLink,
-  ChevronRight,
   Send,
   X,
   Loader2,
   Sun,
   Moon,
   LogOut,
-  Layers,
-  Sparkles,
   FileText,
-  Users,
-  Compass,
-  Award,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppDispatch } from "@/context/store";
@@ -217,6 +206,17 @@ export default function FacultyDashboard() {
       return opp.category === selectedTab;
     });
   }, [opportunities, selectedTab]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-7 h-7 animate-spin text-primary" />
+        <p className="text-xs font-mono text-muted-foreground">
+          Loading faculty academic immersion telemetry…
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">

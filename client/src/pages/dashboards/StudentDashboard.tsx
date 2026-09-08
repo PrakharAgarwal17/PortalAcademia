@@ -1,26 +1,17 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
-  GraduationCap,
   Award,
   CheckCircle2,
   Clock,
-  MapPin,
   Bot,
   Search,
-  ExternalLink,
-  ChevronRight,
   Send,
   X,
   Loader2,
   Sun,
   Moon,
   LogOut,
-  Building2,
   Briefcase,
-  Layers,
-  Sparkles,
-  HelpCircle,
-  TrendingUp,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppDispatch } from "@/context/store";
@@ -112,7 +103,6 @@ export default function StudentDashboard() {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   // Filters
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -223,7 +213,7 @@ export default function StudentDashboard() {
   useEffect(() => {
     setIsLoading(true);
     Promise.all([fetchProfile(), fetchOpportunities(), fetchAssessments(), fetchApplications()])
-      .catch((err) => setError(err.message))
+      .catch((err) => console.error("Initial load error:", err))
       .finally(() => setIsLoading(false));
   }, [fetchProfile, fetchOpportunities, fetchAssessments, fetchApplications]);
 
@@ -383,6 +373,17 @@ export default function StudentDashboard() {
       return matchesCategory && matchesSearch;
     });
   }, [opportunities, selectedCategory, searchQuery]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-7 h-7 animate-spin text-primary" />
+        <p className="text-xs font-mono text-muted-foreground">
+          Loading student verified profile & opportunity marketplace…
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">

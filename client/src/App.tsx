@@ -11,7 +11,11 @@ import AuthPage from "@/pages/AuthPage";
 import TermsPage from "@/pages/TermsPage";
 import PrivacyPage from "@/pages/PrivacyPage";
 import FAQPage from "@/pages/FAQPage";
-import DashboardPlaceholder from "@/pages/DashboardPlaceholder";
+import DashboardRouter from "@/pages/dashboards/DashboardRouter";
+import StudentDashboard from "@/pages/dashboards/StudentDashboard";
+import FacultyDashboard from "@/pages/dashboards/FacultyDashboard";
+import InstitutionDashboard from "@/pages/dashboards/InstitutionDashboard";
+import IndustryDashboard from "@/pages/dashboards/IndustryDashboard";
 import OnboardingSelectType from "@/pages/OnboardingSelectType";
 import OnboardingIndividual from "@/pages/onboarding/OnboardingIndividual";
 import OnboardingOrganization from "@/pages/onboarding/OnboardingOrganization";
@@ -77,12 +81,44 @@ function AppShell() {
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/faq" element={<FAQPage />} />
 
-      {/* Protected routes */}
+      {/* Protected Stakeholder Dashboards */}
       <Route
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <DashboardPlaceholder />
+            <DashboardRouter />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/student"
+        element={
+          <ProtectedRoute>
+            <StudentDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/faculty"
+        element={
+          <ProtectedRoute>
+            <FacultyDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/institution"
+        element={
+          <ProtectedRoute>
+            <InstitutionDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/industry"
+        element={
+          <ProtectedRoute>
+            <IndustryDashboard />
           </ProtectedRoute>
         }
       />
