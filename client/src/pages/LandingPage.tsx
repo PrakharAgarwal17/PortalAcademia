@@ -382,11 +382,10 @@ function Hero() {
                   type="button"
                   id={`pillar-tab-${idx}`}
                   onClick={() => setActivePillar(idx)}
-                  className={`p-4 text-left transition-all relative flex flex-col justify-between group cursor-pointer ${
-                    isActive
+                  className={`p-4 text-left transition-all relative flex flex-col justify-between group cursor-pointer ${isActive
                       ? "bg-muted/50 dark:bg-zinc-900 text-foreground"
                       : "hover:bg-muted/25 text-muted-foreground hover:text-foreground"
-                  }`}
+                    }`}
                 >
                   {/* Top indicator line for active card */}
                   {isActive && (
@@ -408,11 +407,10 @@ function Hero() {
                   </div>
                   <div className="mt-3 flex items-center gap-1.5">
                     <span
-                      className={`inline-flex items-center px-1.5 py-0.5 rounded-[3px] text-[10px] font-mono ${
-                        isActive
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded-[3px] text-[10px] font-mono ${isActive
                           ? "bg-foreground text-background font-semibold"
                           : "bg-muted text-muted-foreground"
-                      }`}
+                        }`}
                     >
                       {isActive ? "● Active View" : pillar.badge}
                     </span>
@@ -993,9 +991,8 @@ function FAQSection() {
                 >
                   <span className="font-medium text-foreground">{faq.q}</span>
                   <ChevronDown
-                    className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
-                      isOpen ? "rotate-180" : ""
-                    }`}
+                    className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""
+                      }`}
                   />
                 </button>
                 {isOpen && (
