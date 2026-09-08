@@ -13,12 +13,19 @@ import "./config/Passport.js"
 import session from "express-session";
 import passport from "passport"
 
+import opportunityRoute from "./routes/opportunityRoute.js"
+import applicationRoute from "./routes/applicationRoute.js"
+import assessmentRoute from "./routes/assessmentRoute.js"
+import verificationRoute from "./routes/verificationRoute.js"
+import analyticsRoute from "./routes/analyticsRoute.js"
+import aiRoute from "./routes/aiRoute.js"
+
 const app=express()
 connectDB()
 
 app.use(cors({
     origin: process.env.FRONTEND_URL || "http://localhost:5173",
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true
 }))
 
@@ -44,6 +51,12 @@ app.use("/api/auth",authRoute)
 app.use("/api/profile",profileRoute)
 app.use("/api/onboarding",onboardingRoute)
 app.use("/api/upload",uploadRoute)
+app.use("/api/opportunities",opportunityRoute)
+app.use("/api/applications",applicationRoute)
+app.use("/api/assessments",assessmentRoute)
+app.use("/api/verification",verificationRoute)
+app.use("/api/analytics",analyticsRoute)
+app.use("/api/ai",aiRoute)
 
 app.listen(3000,()=>{
     console.log("Server is working")
