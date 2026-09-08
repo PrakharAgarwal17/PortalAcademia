@@ -4,6 +4,9 @@ dotenv.config()
 
 import connectDB from './config/connectDB.js'
 import authRoute from "./routes/authRoute.js"
+import profileRoute from "./routes/profileRoute.js"
+import onboardingRoute from "./routes/onboardingRoute.js"
+import uploadRoute from "./routes/uploadRoute.js"
 import cookieParser from "cookie-parser"
 import cors from "cors"
 import "./config/Passport.js"
@@ -38,6 +41,9 @@ app.get('/',(req,res)=>{
     res.send("Working website")
 })
 app.use("/api/auth",authRoute)
+app.use("/api/profile",profileRoute)
+app.use("/api/onboarding",onboardingRoute)
+app.use("/api/upload",uploadRoute)
 
 app.listen(3000,()=>{
     console.log("Server is working")
