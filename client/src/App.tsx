@@ -13,6 +13,8 @@ import PrivacyPage from "@/pages/PrivacyPage";
 import FAQPage from "@/pages/FAQPage";
 import DashboardPlaceholder from "@/pages/DashboardPlaceholder";
 import OnboardingSelectType from "@/pages/OnboardingSelectType";
+import OnboardingIndividual from "@/pages/onboarding/OnboardingIndividual";
+import OnboardingOrganization from "@/pages/onboarding/OnboardingOrganization";
 
 // ============================================================
 // Protected Route
@@ -89,6 +91,22 @@ function AppShell() {
         element={
           <ProtectedRoute>
             <OnboardingSelectType />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/onboarding/individual"
+        element={
+          <ProtectedRoute>
+            <OnboardingIndividual />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/onboarding/organization"
+        element={
+          <ProtectedRoute>
+            <OnboardingOrganization />
           </ProtectedRoute>
         }
       />
