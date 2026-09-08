@@ -19,6 +19,8 @@ desktop.ini
 docker-compose.yml
 docker-compose.override.yml
 Idea.excalidraw
+dummy_accounts.txt
+*dummy_accounts*.txt
 
 logs/
 *.log
