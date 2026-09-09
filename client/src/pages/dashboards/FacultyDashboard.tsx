@@ -11,6 +11,8 @@ import {
   Moon,
   LogOut,
   FileText,
+  Sparkles,
+  HelpCircle,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppDispatch } from "@/context/store";
@@ -49,6 +51,114 @@ interface Opportunity {
   deadline: string;
   recommendedToFacultyBy?: string[];
   applicantCount: number;
+}
+
+const FACULTY_CONCERN_CHIPS = [
+  "How are IP rights handled during industry sabbaticals?",
+  "Which corporate immersion projects grant MHRD CAS credits?",
+  "How do I align my course syllabus with industry deficits?",
+  "How can I initiate a corporate research collaboration?",
+];
+
+function formatAiMessage(content: string) {
+  const lines = content.split("\n");
+  const elements: React.ReactNode[] = [];
+  let inList = false;
+  let listItems: React.ReactNode[] = [];
+
+  const flushList = (key: string) => {
+    if (inList && listItems.length > 0) {
+      elements.push(
+        <ul key={key} className="space-y-1 my-1.5 pl-1">
+          {listItems}
+        </ul>
+      );
+      listItems = [];
+      inList = false;
+    }
+  };
+
+  const renderInline = (text: string): React.ReactNode => {
+    const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return (
+          <strong key={i} className="font-semibold text-foreground">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      if (part.startsWith("`") && part.endsWith("`")) {
+        return (
+          <code key={i} className="font-mono text-[10.5px] bg-secondary px-1 py-0.5 rounded text-primary font-medium">
+            {part.slice(1, -1)}
+          </code>
+        );
+      }
+      return part;
+    });
+  };
+
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      flushList(`flush-${idx}`);
+      return;
+    }
+
+    if (trimmed.startsWith("### ") || trimmed.startsWith("## ")) {
+      flushList(`flush-${idx}`);
+      const headingText = trimmed.replace(/^#+\s*/, "");
+      elements.push(
+        <h4 key={idx} className="font-bold text-foreground text-xs mt-3 mb-1 tracking-tight border-b border-border/40 pb-0.5">
+          {renderInline(headingText)}
+        </h4>
+      );
+    } else if (trimmed.startsWith("#### ")) {
+      flushList(`flush-${idx}`);
+      elements.push(
+        <h5 key={idx} className="font-semibold text-foreground text-[11px] mt-2 mb-0.5">
+          {renderInline(trimmed.slice(5))}
+        </h5>
+      );
+    } else if (trimmed.startsWith("• ") || trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      inList = true;
+      listItems.push(
+        <li key={idx} className="text-xs leading-relaxed text-foreground/90 flex items-start gap-1.5">
+          <span className="text-primary font-mono text-[10px] mt-0.5">•</span>
+          <span>{renderInline(trimmed.slice(2))}</span>
+        </li>
+      );
+    } else if (/^\d+[\.\)]\s/.test(trimmed)) {
+      flushList(`flush-${idx}`);
+      elements.push(
+        <div key={idx} className="text-xs leading-relaxed text-foreground/90 my-1 flex items-start gap-1.5">
+          <span className="font-mono text-[10px] font-semibold text-primary mt-0.5">{trimmed.match(/^\d+[\.\)]/)?.[0]}</span>
+          <span>{renderInline(trimmed.replace(/^\d+[\.\)]\s*/, ""))}</span>
+        </div>
+      );
+    } else if (trimmed.startsWith("> ")) {
+      flushList(`flush-${idx}`);
+      elements.push(
+        <blockquote key={idx} className="border-l-2 border-primary/60 pl-2.5 my-1.5 italic text-muted-foreground text-[11px] bg-secondary/30 py-1 rounded-r">
+          {renderInline(trimmed.slice(2))}
+        </blockquote>
+      );
+    } else if (trimmed.startsWith("---") || trimmed.startsWith("***")) {
+      flushList(`flush-${idx}`);
+      elements.push(<hr key={idx} className="border-border my-2" />);
+    } else {
+      flushList(`flush-${idx}`);
+      elements.push(
+        <p key={idx} className="text-xs leading-relaxed text-foreground/90 my-1">
+          {renderInline(trimmed)}
+        </p>
+      );
+    }
+  });
+
+  flushList("final-flush");
+  return elements;
 }
 
 export default function FacultyDashboard() {
@@ -172,6 +282,47 @@ export default function FacultyDashboard() {
         credentials: "include",
         body: JSON.stringify({
           query: userText,
+          history: aiChatHistory,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAiChatHistory((prev) => [
+          ...prev,
+          { role: "assistant", content: data.data.response },
+        ]);
+      } else {
+        setAiChatHistory((prev) => [
+          ...prev,
+          { role: "assistant", content: "Apologies, I encountered an issue analyzing academic telemetry." },
+        ]);
+      }
+    } catch (err) {
+      setAiChatHistory((prev) => [
+        ...prev,
+        { role: "assistant", content: "Network error connecting to AI advisor." },
+      ]);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  /**
+   * @description Send one-click concern starter query to AI
+   */
+  const handleSendChipMessage = async (text: string) => {
+    if (isAiLoading || !text.trim()) return;
+    setAiQuery("");
+    setAiChatHistory((prev) => [...prev, { role: "user", content: text }]);
+    setIsAiLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/ai/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          query: text,
           history: aiChatHistory,
         }),
       });
@@ -577,8 +728,11 @@ export default function FacultyDashboard() {
             <div className="flex items-center gap-2">
               <Bot className="w-4 h-4 text-primary" />
               <div>
-                <h3 className="text-xs font-bold text-foreground">AI Academic Immersion Guide</h3>
-                <p className="text-[10px] text-muted-foreground font-mono">SIH 26044 Faculty Consultation</p>
+                <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <span>AI Academic Immersion Guide</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono font-normal">SIH 26044</span>
+                </h3>
+                <p className="text-[10px] text-muted-foreground font-mono">Faculty Sabbaticals & Research Telemetry</p>
               </div>
             </div>
             <button
@@ -591,6 +745,32 @@ export default function FacultyDashboard() {
           </div>
 
           <div className="flex-1 p-4 overflow-y-auto space-y-3">
+            {aiChatHistory.length <= 1 && (
+              <div className="p-3.5 bg-secondary/40 border border-border rounded-md space-y-2.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  <span>Academic Advisory Prompts</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Explore policies on corporate sabbaticals, AICTE/MHRD CAS credit alignment, and IP frameworks:
+                </p>
+                <div className="pt-1 flex flex-col gap-1.5">
+                  {FACULTY_CONCERN_CHIPS.map((chip, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSendChipMessage(chip)}
+                      disabled={isAiLoading}
+                      className="text-[11px] text-left px-2.5 py-1.5 rounded bg-card hover:bg-secondary text-foreground border border-border transition-colors flex items-center justify-between group disabled:opacity-50"
+                    >
+                      <span className="truncate pr-2">{chip}</span>
+                      <span className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity font-mono shrink-0">Ask →</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {aiChatHistory.map((msg, idx) => (
               <div
                 key={idx}
@@ -598,19 +778,35 @@ export default function FacultyDashboard() {
                   "p-3 rounded-md text-xs leading-relaxed",
                   msg.role === "user"
                     ? "bg-primary text-primary-foreground ml-6"
-                    : "bg-background border border-border text-foreground mr-6 whitespace-pre-wrap font-sans"
+                    : "bg-background border border-border text-foreground mr-4 font-sans space-y-1"
                 )}
               >
-                {msg.content}
+                {msg.role === "user" ? msg.content : formatAiMessage(msg.content)}
               </div>
             ))}
             {isAiLoading && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground p-3 bg-background border border-border rounded-md mr-6">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground p-3 bg-background border border-border rounded-md mr-4">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
                 <span>Consulting research telemetry and corporate partnerships…</span>
               </div>
             )}
           </div>
+
+          {aiChatHistory.length > 1 && (
+            <div className="px-3 py-1.5 border-t border-border/60 bg-muted/20 flex gap-1.5 overflow-x-auto text-[10px]">
+              {FACULTY_CONCERN_CHIPS.slice(0, 3).map((chip, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleSendChipMessage(chip)}
+                  disabled={isAiLoading}
+                  className="whitespace-nowrap px-2 py-0.5 rounded bg-background hover:bg-secondary text-muted-foreground hover:text-foreground border border-border transition-colors"
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+          )}
 
           <form onSubmit={handleSendAiMessage} className="p-3 border-t border-border flex gap-2">
             <input
