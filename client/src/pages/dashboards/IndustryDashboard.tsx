@@ -81,14 +81,14 @@ export default function IndustryDashboard() {
     title: "",
     description: "",
     category: "internship",
-    domain: "Software Engineering & Cloud Systems",
-    location: "Bengaluru, KA",
+    domain: "",
+    location: "",
     mode: "Hybrid",
-    duration: "6 Months",
-    stipendOrPrize: "₹45,000 / mo",
-    requiredSkills: "React, Node.js, TypeScript",
-    eligibility: "Pre-final and final year B.Tech / M.Tech students.",
-    deadline: "2026-11-30",
+    duration: "",
+    stipendOrPrize: "",
+    requiredSkills: "",
+    eligibility: "",
+    deadline: "",
   });
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishFeedback, setPublishFeedback] = useState<string | null>(null);
@@ -311,14 +311,14 @@ export default function IndustryDashboard() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-base font-bold text-foreground tracking-tight">
-                    {profile?.companyName || "Tata Consultancy Services"}
+                    {profile?.companyName || profile?.name || "Corporate Partner"}
                   </h1>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold">
                     Verified Industry Partner
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {profile?.industryType || "IT & Digital Transformation"} • {profile?.location || "Mumbai, India"} • {profile?.workEmail || "recruiter@tcs.com"}
+                  {profile?.industryType || "Enterprise Partner"} • {profile?.location || "Location pending"} • {profile?.workEmail || profile?.officialWebsite || "Email not specified"}
                 </p>
               </div>
             </div>

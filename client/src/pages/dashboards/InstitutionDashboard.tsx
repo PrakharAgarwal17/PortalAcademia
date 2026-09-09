@@ -286,15 +286,15 @@ export default function InstitutionDashboard() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-base font-bold text-foreground tracking-tight">
-                    {profile?.institutionName || "Indian Institute of Technology Bombay"}
+                    {profile?.institutionName || profile?.name || "Academic Institution"}
                   </h1>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 font-bold">
                     <ShieldCheck className="w-3 h-3" />
-                    AISHE Code: {profile?.aisheCode || "U-0306"}
+                    AISHE Code: {profile?.aisheCode || "Registry Pending"}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Training & Placement Office • {profile?.officialEmail || "iitb.admin@portalacademia.ac.in"} • {profile?.location || "Powai, Mumbai"}
+                  Training & Placement Office • {profile?.officialEmail || profile?.contact || "Email unverified"} • {profile?.location || "Location pending"}
                 </p>
               </div>
             </div>
@@ -304,13 +304,13 @@ export default function InstitutionDashboard() {
               <div className="px-3 py-1.5 rounded-md bg-background border border-border">
                 <span className="text-muted-foreground block text-[10px]">Cohort Readiness</span>
                 <span className="font-bold text-primary tabular-nums text-sm">
-                  {telemetry?.averageReadinessScore || 78}%
+                  {telemetry ? `${telemetry.averageReadinessScore}%` : "0%"}
                 </span>
               </div>
               <div className="px-3 py-1.5 rounded-md bg-background border border-border">
                 <span className="text-muted-foreground block text-[10px]">Verification Rate</span>
                 <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums text-sm">
-                  {telemetry?.verificationRate || 64}%
+                  {telemetry ? `${telemetry.verificationRate}%` : "0%"}
                 </span>
               </div>
               <div className="px-3 py-1.5 rounded-md bg-background border border-border">
@@ -452,7 +452,7 @@ export default function InstitutionDashboard() {
               <div className="bg-card border border-border rounded-md p-4 space-y-1">
                 <span className="text-[11px] font-mono text-muted-foreground">Total Cohort Tracked</span>
                 <p className="text-xl font-bold text-foreground font-mono tabular-nums">
-                  {telemetry?.totalStudents || 128}
+                  {telemetry?.totalStudents ?? 0}
                 </p>
                 <span className="text-[10px] text-muted-foreground">Active AISHE registrations</span>
               </div>
@@ -460,7 +460,7 @@ export default function InstitutionDashboard() {
               <div className="bg-card border border-border rounded-md p-4 space-y-1">
                 <span className="text-[11px] font-mono text-muted-foreground">Average Readiness Rating</span>
                 <p className="text-xl font-bold text-primary font-mono tabular-nums">
-                  {telemetry?.averageReadinessScore || 78}%
+                  {telemetry?.averageReadinessScore ?? 0}%
                 </p>
                 <span className="text-[10px] text-muted-foreground">Derived from verified skill tests</span>
               </div>
@@ -468,17 +468,17 @@ export default function InstitutionDashboard() {
               <div className="bg-card border border-border rounded-md p-4 space-y-1">
                 <span className="text-[11px] font-mono text-muted-foreground">Audited Credentials</span>
                 <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">
-                  {telemetry?.totalVerifiedCredentials || 42}
+                  {telemetry?.totalVerifiedCredentials ?? 0}
                 </p>
                 <span className="text-[10px] text-muted-foreground">Tamper-evident portfolio items</span>
               </div>
 
               <div className="bg-card border border-border rounded-md p-4 space-y-1">
-                <span className="text-[11px] font-mono text-muted-foreground">Placement Conversion Index</span>
+                <span className="text-[11px] font-mono text-muted-foreground">Verification Rate</span>
                 <p className="text-xl font-bold text-foreground font-mono tabular-nums">
-                  84.2%
+                  {telemetry?.verificationRate ?? 0}%
                 </p>
-                <span className="text-[10px] text-muted-foreground">Shortlist-to-Interview conversion</span>
+                <span className="text-[10px] text-muted-foreground">Audited portfolio ratio</span>
               </div>
             </div>
 
@@ -491,25 +491,26 @@ export default function InstitutionDashboard() {
                   Cohort Competency Distribution (MongoDB Native Aggregation)
                 </h3>
                 <div className="space-y-2 pt-1">
-                  {(telemetry?.topSkillsDistribution || [
-                    { skill: "python", studentCount: 84, percentage: 66 },
-                    { skill: "react", studentCount: 72, percentage: 56 },
-                    { skill: "docker", studentCount: 38, percentage: 30 },
-                    { skill: "typescript", studentCount: 46, percentage: 36 },
-                  ]).map((item, idx) => (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs font-mono">
-                        <span className="text-foreground uppercase font-semibold">{item.skill}</span>
-                        <span className="text-muted-foreground">{item.studentCount} students ({item.percentage}%)</span>
-                      </div>
-                      <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded-full"
-                          style={{ width: `${item.percentage}%` }}
-                        />
-                      </div>
+                  {!telemetry?.topSkillsDistribution || telemetry.topSkillsDistribution.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-muted-foreground border border-dashed border-border rounded-md">
+                      No cohort skill data aggregated yet.
                     </div>
-                  ))}
+                  ) : (
+                    telemetry.topSkillsDistribution.map((item, idx) => (
+                      <div key={idx} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs font-mono">
+                          <span className="text-foreground uppercase font-semibold">{item.skill}</span>
+                          <span className="text-muted-foreground">{item.studentCount} students ({item.percentage}%)</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full"
+                            style={{ width: `${item.percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -520,23 +521,25 @@ export default function InstitutionDashboard() {
                   Systemic Curriculum Deficits vs Live Industry Demand
                 </h3>
                 <div className="space-y-2 pt-1">
-                  {(telemetry?.curriculumDeficits || [
-                    { skill: "CLOUD ARCHITECTURE", marketDemandIndex: 28, cohortProficiencyCount: 12, curriculumDeficitPercent: 78 },
-                    { skill: "DOCKER & KUBERNETES", marketDemandIndex: 24, cohortProficiencyCount: 16, curriculumDeficitPercent: 68 },
-                    { skill: "FASTAPI & MICROSERVICES", marketDemandIndex: 18, cohortProficiencyCount: 8, curriculumDeficitPercent: 82 },
-                  ]).map((item, idx) => (
-                    <div key={idx} className="p-2.5 rounded-md bg-background border border-border space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-foreground font-mono">{item.skill}</span>
-                        <span className="text-[10px] font-mono text-red-500 font-bold">
-                          {item.curriculumDeficitPercent}% Curriculum Deficit
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground">
-                        Industry Demand Index: {item.marketDemandIndex} • Cohort Proficiency: {item.cohortProficiencyCount} students
-                      </p>
+                  {!telemetry?.curriculumDeficits || telemetry.curriculumDeficits.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-muted-foreground border border-dashed border-border rounded-md">
+                      No curriculum deficits detected across active market opportunities.
                     </div>
-                  ))}
+                  ) : (
+                    telemetry.curriculumDeficits.map((item, idx) => (
+                      <div key={idx} className="p-2.5 rounded-md bg-background border border-border space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-foreground font-mono">{item.skill}</span>
+                          <span className="text-[10px] font-mono text-red-500 font-bold">
+                            {item.curriculumDeficitPercent}% Curriculum Deficit
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Industry Demand Index: {item.marketDemandIndex} • Cohort Proficiency: {item.cohortProficiencyCount} students
+                        </p>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>

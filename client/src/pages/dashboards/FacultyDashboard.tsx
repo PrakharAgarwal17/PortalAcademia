@@ -11,6 +11,8 @@ import {
   Moon,
   LogOut,
   FileText,
+  Sparkles,
+  HelpCircle,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppDispatch } from "@/context/store";
@@ -49,6 +51,114 @@ interface Opportunity {
   deadline: string;
   recommendedToFacultyBy?: string[];
   applicantCount: number;
+}
+
+const FACULTY_CONCERN_CHIPS = [
+  "How are IP rights handled during industry sabbaticals?",
+  "Which corporate immersion projects grant MHRD CAS credits?",
+  "How do I align my course syllabus with industry deficits?",
+  "How can I initiate a corporate research collaboration?",
+];
+
+function formatAiMessage(content: string) {
+  const lines = content.split("\n");
+  const elements: React.ReactNode[] = [];
+  let inList = false;
+  let listItems: React.ReactNode[] = [];
+
+  const flushList = (key: string) => {
+    if (inList && listItems.length > 0) {
+      elements.push(
+        <ul key={key} className="space-y-1 my-1.5 pl-1">
+          {listItems}
+        </ul>
+      );
+      listItems = [];
+      inList = false;
+    }
+  };
+
+  const renderInline = (text: string): React.ReactNode => {
+    const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return (
+          <strong key={i} className="font-semibold text-foreground">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      if (part.startsWith("`") && part.endsWith("`")) {
+        return (
+          <code key={i} className="font-mono text-[10.5px] bg-secondary px-1 py-0.5 rounded text-primary font-medium">
+            {part.slice(1, -1)}
+          </code>
+        );
+      }
+      return part;
+    });
+  };
+
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      flushList(`flush-${idx}`);
+      return;
+    }
+
+    if (trimmed.startsWith("### ") || trimmed.startsWith("## ")) {
+      flushList(`flush-${idx}`);
+      const headingText = trimmed.replace(/^#+\s*/, "");
+      elements.push(
+        <h4 key={idx} className="font-bold text-foreground text-xs mt-3 mb-1 tracking-tight border-b border-border/40 pb-0.5">
+          {renderInline(headingText)}
+        </h4>
+      );
+    } else if (trimmed.startsWith("#### ")) {
+      flushList(`flush-${idx}`);
+      elements.push(
+        <h5 key={idx} className="font-semibold text-foreground text-[11px] mt-2 mb-0.5">
+          {renderInline(trimmed.slice(5))}
+        </h5>
+      );
+    } else if (trimmed.startsWith("• ") || trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      inList = true;
+      listItems.push(
+        <li key={idx} className="text-xs leading-relaxed text-foreground/90 flex items-start gap-1.5">
+          <span className="text-primary font-mono text-[10px] mt-0.5">•</span>
+          <span>{renderInline(trimmed.slice(2))}</span>
+        </li>
+      );
+    } else if (/^\d+[\.\)]\s/.test(trimmed)) {
+      flushList(`flush-${idx}`);
+      elements.push(
+        <div key={idx} className="text-xs leading-relaxed text-foreground/90 my-1 flex items-start gap-1.5">
+          <span className="font-mono text-[10px] font-semibold text-primary mt-0.5">{trimmed.match(/^\d+[\.\)]/)?.[0]}</span>
+          <span>{renderInline(trimmed.replace(/^\d+[\.\)]\s*/, ""))}</span>
+        </div>
+      );
+    } else if (trimmed.startsWith("> ")) {
+      flushList(`flush-${idx}`);
+      elements.push(
+        <blockquote key={idx} className="border-l-2 border-primary/60 pl-2.5 my-1.5 italic text-muted-foreground text-[11px] bg-secondary/30 py-1 rounded-r">
+          {renderInline(trimmed.slice(2))}
+        </blockquote>
+      );
+    } else if (trimmed.startsWith("---") || trimmed.startsWith("***")) {
+      flushList(`flush-${idx}`);
+      elements.push(<hr key={idx} className="border-border my-2" />);
+    } else {
+      flushList(`flush-${idx}`);
+      elements.push(
+        <p key={idx} className="text-xs leading-relaxed text-foreground/90 my-1">
+          {renderInline(trimmed)}
+        </p>
+      );
+    }
+  });
+
+  flushList("final-flush");
+  return elements;
 }
 
 export default function FacultyDashboard() {
@@ -197,6 +307,47 @@ export default function FacultyDashboard() {
     }
   };
 
+  /**
+   * @description Send one-click concern starter query to AI
+   */
+  const handleSendChipMessage = async (text: string) => {
+    if (isAiLoading || !text.trim()) return;
+    setAiQuery("");
+    setAiChatHistory((prev) => [...prev, { role: "user", content: text }]);
+    setIsAiLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/ai/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          query: text,
+          history: aiChatHistory,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAiChatHistory((prev) => [
+          ...prev,
+          { role: "assistant", content: data.data.response },
+        ]);
+      } else {
+        setAiChatHistory((prev) => [
+          ...prev,
+          { role: "assistant", content: "Apologies, I encountered an issue analyzing academic telemetry." },
+        ]);
+      }
+    } catch (err) {
+      setAiChatHistory((prev) => [
+        ...prev,
+        { role: "assistant", content: "Network error connecting to AI advisor." },
+      ]);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
   // Filter opportunities relevant to faculty
   const facultyOpportunities = useMemo(() => {
     return opportunities.filter((opp) => {
@@ -277,7 +428,7 @@ export default function FacultyDashboard() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-base font-bold text-foreground tracking-tight">
-                    {profile?.name || "Dr. Rajesh Kulkarni"}
+                    {profile?.name || "Faculty Scholar"}
                   </h1>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3" />
@@ -285,7 +436,7 @@ export default function FacultyDashboard() {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {profile?.designation || "Associate Professor"} • {profile?.department || "Computer Science"} • {profile?.institution || "IIT Bombay"}
+                  {profile?.designation || "Faculty Member"} • {profile?.department || "Department Not Specified"} • {profile?.institution || "Institution Pending"}
                 </p>
               </div>
             </div>
@@ -307,7 +458,9 @@ export default function FacultyDashboard() {
               <div className="px-3 py-1.5 rounded-md bg-background border border-border">
                 <span className="text-muted-foreground block text-[10px]">Joint Research Grants</span>
                 <span className="font-bold text-primary tabular-nums text-sm">
-                  ₹15.0 L
+                  {opportunities.filter((o) => o.category === "research").length > 0
+                    ? `₹${(opportunities.filter((o) => o.category === "research").length * 15).toFixed(1)} L`
+                    : "₹0.0 L"}
                 </span>
               </div>
             </div>
@@ -317,26 +470,34 @@ export default function FacultyDashboard() {
           <div className="mt-4 pt-4 border-t border-border flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-muted-foreground mr-1">Expertise:</span>
-              {(profile?.expertise || ["Distributed Systems", "Cloud Security", "Applied ML"]).map((exp, idx) => (
-                <span
-                  key={idx}
-                  className="px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground border border-border font-mono"
-                >
-                  {exp}
-                </span>
-              ))}
+              {profile?.expertise && profile.expertise.length > 0 ? (
+                profile.expertise.map((exp, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground border border-border font-mono"
+                  >
+                    {exp}
+                  </span>
+                ))
+              ) : (
+                <span className="text-muted-foreground italic font-mono">No expertise tags added</span>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-muted-foreground mr-1">Research Focus:</span>
-              {(profile?.researchInterests || ["Ayurvedic Medical Informatics", "Consensus"]).map((res, idx) => (
-                <span
-                  key={idx}
-                  className="px-2 py-0.5 rounded-md bg-background border border-border text-foreground font-mono"
-                >
-                  {res}
-                </span>
-              ))}
+              {profile?.researchInterests && profile.researchInterests.length > 0 ? (
+                profile.researchInterests.map((res, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-0.5 rounded-md bg-background border border-border text-foreground font-mono"
+                  >
+                    {res}
+                  </span>
+                ))
+              ) : (
+                <span className="text-muted-foreground italic font-mono">General Research</span>
+              )}
             </div>
           </div>
         </section>
@@ -460,43 +621,27 @@ export default function FacultyDashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
-            <div className="p-3 rounded-md bg-background border border-border space-y-1.5">
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-secondary text-foreground font-bold">
-                TCS Cloud Case Study
-              </span>
-              <h4 className="text-xs font-bold text-foreground">
-                High-Concurrency Telemetry Architecture
-              </h4>
-              <p className="text-[11px] text-muted-foreground">
-                Real-world operational telemetry covering 400k req/s database clustering and microservices.
-              </p>
+          {opportunities.length === 0 ? (
+            <div className="py-6 text-center text-xs text-muted-foreground border border-dashed border-border rounded-md">
+              No classroom case studies or enterprise datasets published yet.
             </div>
-
-            <div className="p-3 rounded-md bg-background border border-border space-y-1.5">
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-secondary text-foreground font-bold">
-                Ministry of Ayush Dataset
-              </span>
-              <h4 className="text-xs font-bold text-foreground">
-                Ayurvedic Clinical Trial Informatics
-              </h4>
-              <p className="text-[11px] text-muted-foreground">
-                Standardized herbal constituent ontologies for computer science and bioinformatics classrooms.
-              </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+              {opportunities.slice(0, 3).map((opp) => (
+                <div key={opp._id} className="p-3 rounded-md bg-background border border-border space-y-1.5">
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-secondary text-foreground font-bold uppercase">
+                    {opp.organization} • {opp.category}
+                  </span>
+                  <h4 className="text-xs font-bold text-foreground line-clamp-1">
+                    {opp.title}
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground line-clamp-2">
+                    {opp.description}
+                  </p>
+                </div>
+              ))}
             </div>
-
-            <div className="p-3 rounded-md bg-background border border-border space-y-1.5">
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-secondary text-foreground font-bold">
-                DRDO Robotics Report
-              </span>
-              <h4 className="text-xs font-bold text-foreground">
-                Fault-Tolerant Drone Mesh Networks
-              </h4>
-              <p className="text-[11px] text-muted-foreground">
-                Autonomous drone collision avoidance mathematics and Linux socket benchmark routines.
-              </p>
-            </div>
-          </div>
+          )}
         </section>
       </main>
 
@@ -583,8 +728,11 @@ export default function FacultyDashboard() {
             <div className="flex items-center gap-2">
               <Bot className="w-4 h-4 text-primary" />
               <div>
-                <h3 className="text-xs font-bold text-foreground">AI Academic Immersion Guide</h3>
-                <p className="text-[10px] text-muted-foreground font-mono">SIH 26044 Faculty Consultation</p>
+                <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <span>AI Academic Immersion Guide</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono font-normal">SIH 26044</span>
+                </h3>
+                <p className="text-[10px] text-muted-foreground font-mono">Faculty Sabbaticals & Research Telemetry</p>
               </div>
             </div>
             <button
@@ -597,6 +745,32 @@ export default function FacultyDashboard() {
           </div>
 
           <div className="flex-1 p-4 overflow-y-auto space-y-3">
+            {aiChatHistory.length <= 1 && (
+              <div className="p-3.5 bg-secondary/40 border border-border rounded-md space-y-2.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  <span>Academic Advisory Prompts</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Explore policies on corporate sabbaticals, AICTE/MHRD CAS credit alignment, and IP frameworks:
+                </p>
+                <div className="pt-1 flex flex-col gap-1.5">
+                  {FACULTY_CONCERN_CHIPS.map((chip, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSendChipMessage(chip)}
+                      disabled={isAiLoading}
+                      className="text-[11px] text-left px-2.5 py-1.5 rounded bg-card hover:bg-secondary text-foreground border border-border transition-colors flex items-center justify-between group disabled:opacity-50"
+                    >
+                      <span className="truncate pr-2">{chip}</span>
+                      <span className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity font-mono shrink-0">Ask →</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {aiChatHistory.map((msg, idx) => (
               <div
                 key={idx}
@@ -604,19 +778,35 @@ export default function FacultyDashboard() {
                   "p-3 rounded-md text-xs leading-relaxed",
                   msg.role === "user"
                     ? "bg-primary text-primary-foreground ml-6"
-                    : "bg-background border border-border text-foreground mr-6 whitespace-pre-wrap font-sans"
+                    : "bg-background border border-border text-foreground mr-4 font-sans space-y-1"
                 )}
               >
-                {msg.content}
+                {msg.role === "user" ? msg.content : formatAiMessage(msg.content)}
               </div>
             ))}
             {isAiLoading && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground p-3 bg-background border border-border rounded-md mr-6">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground p-3 bg-background border border-border rounded-md mr-4">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
                 <span>Consulting research telemetry and corporate partnerships…</span>
               </div>
             )}
           </div>
+
+          {aiChatHistory.length > 1 && (
+            <div className="px-3 py-1.5 border-t border-border/60 bg-muted/20 flex gap-1.5 overflow-x-auto text-[10px]">
+              {FACULTY_CONCERN_CHIPS.slice(0, 3).map((chip, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleSendChipMessage(chip)}
+                  disabled={isAiLoading}
+                  className="whitespace-nowrap px-2 py-0.5 rounded bg-background hover:bg-secondary text-muted-foreground hover:text-foreground border border-border transition-colors"
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+          )}
 
           <form onSubmit={handleSendAiMessage} className="p-3 border-t border-border flex gap-2">
             <input
