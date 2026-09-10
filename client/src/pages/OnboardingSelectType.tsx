@@ -269,12 +269,24 @@ export default function OnboardingSelectType() {
                 )}
               >
                 {/* Background Illustration Watermark (Adaptive Light/Dark Theme) */}
-                <div className="absolute -right-2 -bottom-2 sm:-right-3 sm:-bottom-3 w-32 h-32 sm:w-40 sm:h-40 pointer-events-none select-none opacity-80 sm:opacity-85 dark:opacity-30 group-hover:opacity-95 dark:group-hover:opacity-45 group-hover:scale-105 transition-all duration-300 ease-out">
+                <div
+                  className={cn(
+                    "absolute -right-2 -bottom-2 sm:-right-3 sm:-bottom-3 w-32 h-32 sm:w-40 sm:h-40 pointer-events-none select-none transition-all duration-300 ease-out",
+                    isSelected
+                      ? "opacity-100 dark:opacity-60 scale-105"
+                      : "opacity-45 dark:opacity-20 group-hover:opacity-70 dark:group-hover:opacity-40 group-hover:scale-105"
+                  )}
+                >
                   <img
                     src={role.bgImage}
                     alt=""
                     aria-hidden="true"
-                    className="w-full h-full object-contain filter drop-shadow-sm"
+                    className={cn(
+                      "w-full h-full object-contain transition-all duration-300",
+                      isSelected
+                        ? "brightness-[0.68] contrast-[1.25] saturate-[1.25] drop-shadow-md dark:brightness-[0.80]"
+                        : "brightness-105 contrast-100 drop-shadow-sm"
+                    )}
                   />
                 </div>
 
