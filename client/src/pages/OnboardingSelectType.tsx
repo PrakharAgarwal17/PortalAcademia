@@ -10,14 +10,17 @@ import {
   Sun,
   Moon,
   CheckCircle2,
-  ShieldCheck,
   HelpCircle,
-  Sparkles,
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/context/store";
 import { signOutThunk } from "@/context/authSlice";
 import { useTheme } from "@/context/theme";
 import { cn } from "@/lib/utils";
+
+import studentBg from "@/assets/role-student.png";
+import facultyBg from "@/assets/role-faculty.png";
+import institutionBg from "@/assets/role-institution.png";
+import industryBg from "@/assets/role-industry.png";
 
 type MainCategory = "individual" | "organization";
 type SubRole = "student" | "faculty" | "institution" | "industry";
@@ -26,11 +29,11 @@ interface RoleOption {
   id: SubRole;
   category: MainCategory;
   title: string;
-  pillarBadge: string;
   shortDesc: string;
   features: string[];
   icon: typeof GraduationCap;
   targetUrl: string;
+  bgImage: string;
 }
 
 const ROLE_OPTIONS: RoleOption[] = [
@@ -38,7 +41,6 @@ const ROLE_OPTIONS: RoleOption[] = [
     id: "student",
     category: "individual",
     title: "Student / Learner",
-    pillarBadge: "PILLAR 1 // TALENT",
     shortDesc: "Objective skill assessment, verified digital portfolio, tailored resume builder, and vetted industry internships.",
     features: [
       "AI & Industry skill gap quantification",
@@ -48,12 +50,12 @@ const ROLE_OPTIONS: RoleOption[] = [
     ],
     icon: GraduationCap,
     targetUrl: "/onboarding/individual?role=student",
+    bgImage: studentBg,
   },
   {
     id: "faculty",
     category: "individual",
     title: "Faculty / Academician",
-    pillarBadge: "PILLAR 2 // RESEARCH",
     shortDesc: "Domain-specific faculty internships, FDP certifications, corporate sabbaticals, and joint research contracts.",
     features: [
       "Short-term industrial sabbaticals",
@@ -63,12 +65,12 @@ const ROLE_OPTIONS: RoleOption[] = [
     ],
     icon: BookOpenCheck,
     targetUrl: "/onboarding/individual?role=faculty",
+    bgImage: facultyBg,
   },
   {
     id: "institution",
     category: "organization",
     title: "Higher Education Institution",
-    pillarBadge: "PILLAR 3 // GOVERNANCE",
     shortDesc: "AISHE-verified college/university administration, student cohort skill telemetry, and placement funnel analytics.",
     features: [
       "Cohort competency distribution telemetry",
@@ -78,12 +80,12 @@ const ROLE_OPTIONS: RoleOption[] = [
     ],
     icon: Building2,
     targetUrl: "/onboarding/organization?type=institution",
+    bgImage: institutionBg,
   },
   {
     id: "industry",
     category: "organization",
     title: "Industry & Corporate Partner",
-    pillarBadge: "PILLAR 4 // ENTERPRISE",
     shortDesc: "Post internships, search verified student competency vectors, publish problem statements, and train candidates.",
     features: [
       "Direct opportunity publishing desk",
@@ -93,6 +95,7 @@ const ROLE_OPTIONS: RoleOption[] = [
     ],
     icon: Briefcase,
     targetUrl: "/onboarding/organization?type=industry",
+    bgImage: industryBg,
   },
 ];
 
@@ -141,10 +144,6 @@ export default function OnboardingSelectType() {
                 PortalAcademia
               </span>
             </Link>
-            <span className="hidden sm:inline-block text-border font-light">|</span>
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 font-mono text-[11px] tabular-nums rounded-sm bg-muted text-muted-foreground border border-border">
-              PHASE 2 // STAKEHOLDER ONBOARDING
-            </span>
           </div>
 
           <div className="flex items-center gap-2.5">
@@ -206,10 +205,6 @@ export default function OnboardingSelectType() {
 
         {/* Header Block */}
         <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-muted text-muted-foreground border border-border font-mono text-[11px] mb-3">
-            <ShieldCheck className="w-3.5 h-3.5 text-foreground" />
-            <span>ROLE-BASED ACCESS CONTROL // STEP 1 OF 2</span>
-          </div>
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
             Select Your Account Stakeholder Type
           </h1>
@@ -267,21 +262,31 @@ export default function OnboardingSelectType() {
                 key={role.id}
                 onClick={() => setSelectedRole(role.id)}
                 className={cn(
-                  "cursor-pointer text-left rounded-md border p-5 transition-all relative flex flex-col justify-between",
+                  "group cursor-pointer text-left rounded-md border p-5 transition-all relative flex flex-col justify-between overflow-hidden",
                   isSelected
                     ? "border-foreground bg-white dark:bg-zinc-900 shadow-sm ring-1 ring-foreground"
                     : "border-border bg-card hover:border-zinc-400 dark:hover:border-zinc-700 hover:bg-muted/30"
                 )}
               >
+                {/* Background Illustration Watermark (Adaptive Light/Dark Theme) */}
+                <div className="absolute -right-2 -bottom-2 sm:-right-3 sm:-bottom-3 w-32 h-32 sm:w-40 sm:h-40 pointer-events-none select-none opacity-80 sm:opacity-85 dark:opacity-30 group-hover:opacity-95 dark:group-hover:opacity-45 group-hover:scale-105 transition-all duration-300 ease-out">
+                  <img
+                    src={role.bgImage}
+                    alt=""
+                    aria-hidden="true"
+                    className="w-full h-full object-contain filter drop-shadow-sm"
+                  />
+                </div>
+
                 {/* Active Indicator Pin */}
                 {isSelected && (
-                  <span className="absolute top-3.5 right-3.5 inline-flex items-center gap-1 font-mono text-[10px] uppercase font-bold text-foreground bg-muted border border-border px-1.5 py-0.5 rounded-sm">
+                  <span className="absolute top-3.5 right-3.5 inline-flex items-center gap-1 font-mono text-[10px] uppercase font-bold text-foreground bg-muted border border-border px-1.5 py-0.5 rounded-sm z-10">
                     <span className="w-1.5 h-1.5 rounded-full bg-foreground" />
                     Selected
                   </span>
                 )}
 
-                <div>
+                <div className="relative z-10">
                   <div className="flex items-center gap-3 mb-3">
                     <div
                       className={cn(
@@ -294,16 +299,13 @@ export default function OnboardingSelectType() {
                       <Icon className="w-4 h-4" />
                     </div>
                     <div>
-                      <span className="font-mono text-[10px] text-muted-foreground uppercase block">
-                        {role.pillarBadge}
-                      </span>
                       <h2 className="text-base font-semibold text-foreground tracking-tight">
                         {role.title}
                       </h2>
                     </div>
                   </div>
 
-                  <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-4 max-w-[85%] sm:max-w-[82%]">
                     {role.shortDesc}
                   </p>
 
@@ -314,7 +316,7 @@ export default function OnboardingSelectType() {
                     {role.features.map((feat, idx) => (
                       <div
                         key={idx}
-                        className="flex items-start gap-2 text-xs text-muted-foreground"
+                        className="flex items-start gap-2 text-xs text-muted-foreground max-w-[85%] sm:max-w-[80%]"
                       >
                         <span className="text-foreground font-mono mt-0.5">&bull;</span>
                         <span>{feat}</span>
@@ -322,54 +324,21 @@ export default function OnboardingSelectType() {
                     ))}
                   </div>
                 </div>
-
-                <div className="mt-5 pt-3 border-t border-border/80 flex items-center justify-between">
-                  <span className="text-xs font-mono text-muted-foreground">
-                    Target Route: {role.targetUrl}
-                  </span>
-                  <div
-                    className={cn(
-                      "w-4 h-4 rounded-full border flex items-center justify-center transition-colors",
-                      isSelected
-                        ? "border-foreground bg-foreground text-background"
-                        : "border-muted-foreground"
-                    )}
-                  >
-                    {isSelected && <span className="w-1.5 h-1.5 bg-background rounded-full" />}
-                  </div>
-                </div>
               </div>
             );
           })}
         </div>
 
-        {/* Sticky Action Footer */}
-        <div className="rounded-md border border-border bg-white dark:bg-zinc-900 p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3 text-left">
-            <div className="w-8 h-8 rounded-sm bg-muted border border-border flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4 text-foreground" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-foreground">
-                Initializing setup for:{" "}
-                <span className="underline decoration-muted-foreground font-mono">
-                  {activeOption?.title}
-                </span>
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                You will be guided through identity verification, domain records, and optional career data.
-              </p>
-            </div>
-          </div>
-
+        {/* Action Button */}
+        <div className="flex items-center justify-end">
           <button
             type="button"
             id="continue-onboarding-btn"
             onClick={handleContinue}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-9 px-5 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors shadow-sm shrink-0 cursor-pointer"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-10 px-6 text-sm font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors shadow-sm cursor-pointer"
           >
-            <span>Proceed to Workspace Setup</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <span>Continue</span>
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
 
