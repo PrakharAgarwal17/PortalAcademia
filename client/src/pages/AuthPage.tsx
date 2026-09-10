@@ -16,6 +16,8 @@ import {
 import { useAppDispatch, useAppSelector } from "@/context/store";
 import { checkAuthThunk } from "@/context/authSlice";
 import { useTheme } from "@/context/theme";
+import authLightImg from "@/assets/auth-light.png";
+import authDarkImg from "@/assets/auth-dark.png";
 
 // ============================================================
 // Constants
@@ -824,55 +826,98 @@ export default function AuthPage() {
         content="PortalAcademia unified login and registration for students, faculty, institutions, and corporate recruiters."
       />
 
-      <div className="min-h-screen flex flex-col lg:flex-row bg-zinc-50 dark:bg-zinc-950">
-        {/* Left — Clean brand presentation panel */}
-        <div className="hidden lg:flex lg:w-1/2 bg-zinc-900 text-zinc-100 border-r border-zinc-800 flex-col justify-between p-12">
-          <Link
-            to="/"
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="flex items-center gap-2.5 hover:opacity-85 transition-opacity cursor-pointer group"
-            aria-label="PortalAcademia — Return to top"
-          >
-            <div className="w-7 h-7 rounded-sm bg-white text-zinc-900 flex items-center justify-center font-mono font-bold text-xs">
-              PA
-            </div>
-            <span className="font-semibold text-sm text-white tracking-tight">
-              PortalAcademia
-            </span>
-          </Link>
+      <div className="min-h-screen flex flex-col lg:flex-row bg-background text-foreground selection:bg-zinc-200 selection:text-zinc-900">
+        {/* Left — Full-size Image Panel (Light / Dark theme adaptive, seamless borderless blend) */}
+        <div className="hidden lg:relative lg:flex lg:w-[58%] xl:w-[60%] min-h-screen overflow-hidden bg-background">
+          {/* Light Theme Full-Size Image */}
+          <img
+            src={authLightImg}
+            alt="PortalAcademia Learning Illustration"
+            className="w-full h-full object-cover object-center dark:hidden select-none pointer-events-none"
+            loading="eager"
+          />
 
-          <div className="max-w-md">
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white leading-snug">
-              Bridging higher education directly to industry careers.
-            </h1>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-3 leading-relaxed">
-              Join thousands of students, faculty members, and recruiters connecting through verified skill assessments, digital portfolios, and direct placement pipelines.
-            </p>
+          {/* Dark Theme Full-Size Image */}
+          <img
+            src={authDarkImg}
+            alt="PortalAcademia Learning Illustration"
+            className="w-full h-full object-cover object-center hidden dark:block select-none pointer-events-none"
+            loading="eager"
+          />
 
-            <div className="mt-8 space-y-3">
-              <div className="flex items-center gap-2.5 text-xs text-zinc-300">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Standardized skill assessments & gap diagnostics</span>
+          {/* Seamless right-edge fade so no hard separation cuts into the art */}
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-28 bg-gradient-to-r from-transparent to-background hidden lg:block z-10" />
+
+          {/* Overlay Logo */}
+          <div className="absolute top-8 left-8 z-20">
+            <Link
+              to="/"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="flex items-center gap-2.5 px-3.5 py-2 rounded-lg bg-background/85 dark:bg-zinc-900/85 backdrop-blur-md border border-border/80 hover:opacity-90 transition-all shadow-sm group"
+              aria-label="PortalAcademia — Return to top"
+            >
+              <div className="w-6 h-6 rounded-md bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 flex items-center justify-center font-mono font-bold text-xs shadow-sm">
+                PA
               </div>
-              <div className="flex items-center gap-2.5 text-xs text-zinc-300">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Verified digital portfolios & ATS resume generation</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-xs text-zinc-300">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Faculty corporate internships & FDP workshops</span>
-              </div>
-            </div>
+              <span className="font-semibold text-sm tracking-tight text-foreground">
+                PortalAcademia
+              </span>
+            </Link>
           </div>
-
-          <p className="text-xs text-zinc-500 font-mono">
-            Smart India Hackathon 2026 • Problem Statement 26044
-          </p>
         </div>
 
         {/* Right — Auth Card Panel */}
-        <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">
-          <div className="w-full max-w-sm mb-4 flex items-center justify-between">
+        <div className="flex-1 lg:w-[42%] xl:w-[40%] flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 bg-background min-h-screen overflow-y-auto">
+          {/* Mobile-only header & responsive illustration banner */}
+          <div className="lg:hidden w-full max-w-sm mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <Link
+                to="/"
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                className="flex items-center gap-2 hover:opacity-85 transition-opacity cursor-pointer group"
+                aria-label="PortalAcademia — Return to top"
+              >
+                <div className="w-6 h-6 rounded-md bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 flex items-center justify-center font-mono font-bold text-xs shadow-sm">
+                  PA
+                </div>
+                <span className="font-semibold text-sm tracking-tight text-foreground">
+                  PortalAcademia
+                </span>
+              </Link>
+
+              <button
+                type="button"
+                onClick={toggleTheme}
+                aria-label="Toggle dark mode"
+                className="w-8 h-8 rounded-md border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+              >
+                {theme === "dark" ? (
+                  <Sun className="w-4 h-4 text-amber-400" />
+                ) : (
+                  <Moon className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                )}
+              </button>
+            </div>
+
+            {/* Mobile Banner: Adaptive Image */}
+            <div className="w-full h-44 sm:h-52 rounded-xl overflow-hidden border border-border shadow-sm">
+              <img
+                src={authLightImg}
+                alt="PortalAcademia"
+                className="w-full h-full object-cover object-center dark:hidden select-none pointer-events-none"
+                loading="eager"
+              />
+              <img
+                src={authDarkImg}
+                alt="PortalAcademia"
+                className="w-full h-full object-cover object-center hidden dark:block select-none pointer-events-none"
+                loading="eager"
+              />
+            </div>
+          </div>
+
+          {/* Desktop top bar for back link & theme toggle */}
+          <div className="hidden lg:flex w-full max-w-sm mb-4 items-center justify-between">
             <Link
               to="/"
               id="back-to-home-link"
@@ -898,7 +943,7 @@ export default function AuthPage() {
             </button>
           </div>
 
-          <div className="w-full max-w-sm rounded-md border border-border bg-card p-6 shadow-sm">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 sm:p-7 shadow-sm">
             {/* Header */}
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-border">
               <Link

@@ -21,7 +21,6 @@ import {
   Moon,
   Sparkles,
   Users,
-  BarChart3,
   Check,
 } from "lucide-react";
 import { useTheme } from "@/context/theme";
@@ -342,7 +341,6 @@ function Hero() {
       stat1: { label: "Verified Index", value: "94.2%" },
       stat2: { label: "ATS Bypass", value: "100%" },
       stat3: { label: "Avg Placement", value: "9 Days" },
-      highlight: "Candidates qualify through verified coding benchmarks, bypassing resume filters.",
     },
     {
       id: "faculty",
@@ -353,7 +351,6 @@ function Hero() {
       stat1: { label: "Live Demand Index", value: "50K+ Reqs" },
       stat2: { label: "FDP Credits", value: "100% OBE" },
       stat3: { label: "R&D Grants", value: "Active Exchange" },
-      highlight: "Continuous syllabus reconciliation with real-world engineering problem statements.",
     },
     {
       id: "institutions",
@@ -364,7 +361,6 @@ function Hero() {
       stat1: { label: "NIRF / NAAC", value: "1-Click Export" },
       stat2: { label: "ABC Credit Bank", value: "Automated" },
       stat3: { label: "Cohort Tracking", value: "Real-Time" },
-      highlight: "Unalterable placement audit logs and aggregate departmental competency heatmaps.",
     },
     {
       id: "industry",
@@ -375,7 +371,6 @@ function Hero() {
       stat1: { label: "Candidate Pass Rate", value: "14.8%" },
       stat2: { label: "Filter Metric", value: "Code Quality" },
       stat3: { label: "Time-to-Offer", value: "< 10 Days" },
-      highlight: "Hire based strictly on validated code execution instead of embellished PDF claims.",
     },
   ];
 
@@ -452,7 +447,7 @@ function Hero() {
               })}
             </div>
 
-            {/* Showcase details container with generous spacing */}
+            {/* Showcase details container */}
             <div className="p-6 sm:p-8">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-border">
                 <div>
@@ -467,7 +462,7 @@ function Hero() {
                 <button
                   type="button"
                   onClick={() => navigate("/auth")}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground hover:underline shrink-0"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground hover:underline shrink-0 cursor-pointer"
                 >
                   <span>Explore Workspace</span>
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -475,7 +470,7 @@ function Hero() {
               </div>
 
               {/* 3 Metric Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
                 <div className="p-4 rounded-lg border border-border bg-background/70">
                   <p className="text-xs font-mono text-muted-foreground">{currentTab.stat1.label}</p>
                   <p className="text-xl font-bold font-mono text-foreground mt-1">{currentTab.stat1.value}</p>
@@ -490,32 +485,6 @@ function Hero() {
                   <p className="text-xs font-mono text-muted-foreground">{currentTab.stat3.label}</p>
                   <p className="text-xl font-bold font-mono text-foreground mt-1">{currentTab.stat3.value}</p>
                 </div>
-              </div>
-
-              {/* Dedicated Image / Visual Preview Slot */}
-              <div className="rounded-lg border border-dashed border-border bg-muted/20 p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-md bg-muted flex items-center justify-center text-foreground shrink-0">
-                    <BarChart3 className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-foreground">
-                      {currentTab.highlight}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
-                      Integrated Live Telemetry & Verification Hub
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => navigate("/auth")}
-                  className="inline-flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded border border-border bg-background hover:bg-muted text-foreground transition-colors shrink-0"
-                >
-                  View Live Demo
-                  <ArrowRight className="w-3 h-3 ml-1" />
-                </button>
               </div>
             </div>
           </div>
