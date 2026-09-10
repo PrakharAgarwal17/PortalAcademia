@@ -19,92 +19,153 @@ import {
   Network,
   Sun,
   Moon,
+  Sparkles,
   Users,
-  Cpu,
+  BarChart3,
+  Check,
 } from "lucide-react";
 import { useTheme } from "@/context/theme";
 
 // ============================================================
-// Data Models & Content
+// ============================================================
+// Twinkling Stars Constellation Component (Full Page Background)
+// ============================================================
+
+function TwinklingStars() {
+  const stars = [
+    // Top Zone (0% - 20%)
+    { top: "4%", left: "12%", size: 3, delay: "0.2s", duration: "3.5s" },
+    { top: "8%", left: "84%", size: 3.5, delay: "1.7s", duration: "4.0s" },
+    { top: "16%", left: "48%", size: 2.5, delay: "0.9s", duration: "3.2s" },
+
+    // Upper-Middle Zone (20% - 40%)
+    { top: "25%", left: "8%", size: 3, delay: "1.4s", duration: "3.8s" },
+    { top: "28%", left: "91%", size: 3.5, delay: "2.1s", duration: "4.2s" },
+    { top: "36%", left: "32%", size: 2.5, delay: "0.6s", duration: "3.0s" },
+
+    // Middle Zone (40% - 60%)
+    { top: "45%", left: "6%", size: 3.5, delay: "2.2s", duration: "3.4s" },
+    { top: "49%", left: "88%", size: 2.5, delay: "0.5s", duration: "3.6s" },
+    { top: "55%", left: "65%", size: 3, delay: "1.6s", duration: "4.1s" },
+
+    // Lower-Middle Zone (60% - 80%)
+    { top: "65%", left: "10%", size: 3, delay: "1.9s", duration: "3.7s" },
+    { top: "69%", left: "92%", size: 3.5, delay: "0.3s", duration: "3.3s" },
+    { top: "76%", left: "42%", size: 2.5, delay: "2.5s", duration: "4.0s" },
+
+    // Bottom Zone (80% - 98%)
+    { top: "84%", left: "7%", size: 3.5, delay: "2.3s", duration: "3.5s" },
+    { top: "87%", left: "86%", size: 2.5, delay: "0.8s", duration: "3.8s" },
+    { top: "93%", left: "22%", size: 3, delay: "1.1s", duration: "3.4s" },
+    { top: "96%", left: "74%", size: 3.5, delay: "2.7s", duration: "4.2s" },
+  ];
+
+  return (
+    <div className="fixed inset-0 overflow-hidden pointer-events-none z-[1]">
+      {stars.map((star, i) => (
+        <div
+          key={`twinkle-${i}`}
+          className="twinkle-star"
+          style={{
+            top: star.top,
+            left: star.left,
+            width: `${star.size}px`,
+            height: `${star.size}px`,
+            animationDelay: star.delay,
+            animationDuration: star.duration,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+
+// ============================================================
+// Data Models & Clean Content
 // ============================================================
 
 const roles = [
   {
     icon: <Brain className="w-5 h-5 text-foreground" />,
     title: "Students",
-    subtitle: "Career Readiness & Placement",
+    roleKey: "student",
+    subtitle: "Verified Skills & Career Readiness",
+    badge: "Direct Hiring",
     features: [
-      "Objective skill assessments & competency gap diagnostics",
-      "Curated learning paths aligned with active industry demand",
-      "Verified digital portfolio with cryptographically signed badges",
-      "Direct internship & graduate hiring application pipeline",
+      "Standardized assessments benchmarked to industry standards",
+      "Cryptographic digital portfolio with verified proof-of-work",
+      "Direct applications bypassing keyword-filtering ATS bots",
     ],
   },
   {
     icon: <GraduationCap className="w-5 h-5 text-foreground" />,
     title: "Faculty",
-    subtitle: "Industrial Training & Research",
+    roleKey: "faculty",
+    subtitle: "Industrial Training & Research Grants",
+    badge: "Industry Immersion",
     features: [
-      "Access to domain corporate internships & sabbatical programs",
-      "Certified Faculty Development Programs (FDPs) and bootcamps",
-      "Industry-sponsored research grants, consultancy & R&D projects",
-      "Real-world enterprise case studies for classroom curricula",
+      "Real-time curriculum gap discovery matched with live hiring trends",
+      "Corporate sabbaticals and accredited Faculty Development Programs",
+      "Direct corporate R&D problem statements and research funding",
     ],
   },
   {
     icon: <Building className="w-5 h-5 text-foreground" />,
     title: "Institutions",
-    subtitle: "Governance & Telemetry",
+    roleKey: "institution",
+    subtitle: "Governance & Accreditation Telemetry",
+    badge: "NEP 2020 Aligned",
     features: [
-      "Real-time cohort skill readiness telemetry & benchmarking",
-      "Dynamic curriculum alignment with live enterprise hiring data",
-      "Automated placement audits & NEP 2020 accreditation reporting",
-      "Comprehensive alumni tracking & institutional outcome metrics",
+      "Departmental cohort skill readiness telemetry & benchmarking",
+      "Instant 1-click audit reports for NAAC, NBA, and NIRF criteria",
+      "Centralized batch placement tracking and verified alumni metrics",
     ],
   },
   {
     icon: <Building2 className="w-5 h-5 text-foreground" />,
     title: "Industry",
-    subtitle: "Targeted Talent Acquisition",
+    roleKey: "industry",
+    subtitle: "Targeted Competency-Based Talent Search",
+    badge: "Zero Keyword Spam",
     features: [
-      "Post verified internships, full-time jobs, and live challenges",
-      "Filter candidates by objective skill scores rather than keywords",
-      "Sponsor pre-skilling bootcamps for custom talent incubation",
-      "Direct campus R&D partnerships and funded faculty fellowships",
+      "Screen candidates strictly on functional code benchmarks",
+      "Deploy custom bounties and pre-skilling talent bootcamps",
+      "Fund academic research partnerships and faculty fellowships",
     ],
   },
 ];
 
 const capabilities = [
   {
-    icon: <Brain className="w-4 h-4 text-foreground" />,
+    icon: <Brain className="w-5 h-5 text-foreground" />,
     title: "Automated Skill Diagnostics",
-    desc: "Multi-dimensional evaluations benchmarked against Bloom's Taxonomy, measuring conceptual depth, practical coding agility, and system design logic.",
+    desc: "Rigorous evaluations benchmarked against Bloom's Taxonomy, measuring conceptual depth and real coding agility.",
   },
   {
-    icon: <LineChart className="w-4 h-4 text-foreground" />,
+    icon: <LineChart className="w-5 h-5 text-foreground" />,
     title: "Curriculum Gap Telemetry",
-    desc: "Algorithmic syllabus analysis continuously compared against thousands of active industry requisitions to flag outdated topics and recommend updates.",
+    desc: "Algorithmic syllabus benchmarking continuously evaluated against live requisitions to flag outdated topics.",
   },
   {
-    icon: <Award className="w-4 h-4 text-foreground" />,
+    icon: <Award className="w-5 h-5 text-foreground" />,
     title: "Verified Digital Portfolios",
-    desc: "Tamper-proof digital credentials capturing real code commits, benchmark percentiles, and faculty-approved capstones ready for one-click ATS export.",
+    desc: "Tamper-proof digital credentials capturing code commits, percentiles, and supervisor-approved capstones.",
   },
   {
-    icon: <Briefcase className="w-4 h-4 text-foreground" />,
+    icon: <Briefcase className="w-5 h-5 text-foreground" />,
     title: "Pre-Skilling Bootcamps",
-    desc: "Industry-sponsored micro-curricula that train students on proprietary enterprise stacks with guaranteed interview shortlists upon completion.",
+    desc: "Industry-sponsored micro-curricula that train students on enterprise stacks with interview shortlists.",
   },
   {
-    icon: <Network className="w-4 h-4 text-foreground" />,
+    icon: <Network className="w-5 h-5 text-foreground" />,
     title: "Campus R&D Exchange",
-    desc: "A collaborative portal where corporations post real engineering bottlenecks with grant funding, engaging faculty and student research teams.",
+    desc: "A collaborative portal where corporations post engineering bottlenecks with grant funding for faculty teams.",
   },
   {
-    icon: <ShieldCheck className="w-4 h-4 text-foreground" />,
-    title: "Accreditation Reporting",
-    desc: "Out-of-the-box telemetry exports aligned with NAAC, NBA, and NEP 2020 parameters, quantifying student skill acquisition and placement velocity.",
+    icon: <ShieldCheck className="w-5 h-5 text-foreground" />,
+    title: "Accreditation Telemetry",
+    desc: "Out-of-the-box exports aligned with NAAC, NBA, and NEP 2020 metrics, quantifying skill acquisition.",
   },
 ];
 
@@ -117,45 +178,22 @@ const comparisonRows = [
   {
     dimension: "Curriculum Alignment",
     traditional: "Static 4-year syllabi revised once every decade",
-    portal: "Real-time industry demand telemetry & gap discovery",
+    portal: "Live industry demand telemetry & gap discovery",
   },
   {
     dimension: "Recruitment Screening",
-    traditional: "Arbitrary GPA filtering and random ATS rejections",
-    portal: "Objective competency ranking & direct challenge hiring",
+    traditional: "Arbitrary GPA cutoffs and random ATS rejections",
+    portal: "Objective competency ranking & direct code challenge hiring",
   },
   {
     dimension: "Faculty Enablement",
     traditional: "Isolated theoretical pedagogy without corporate exposure",
-    portal: "Corporate sabbaticals, sponsored FDPs & funded R&D grants",
+    portal: "Corporate sabbaticals, sponsored FDPs & funded grants",
   },
   {
     dimension: "Institutional Governance",
-    traditional: "Manual placement spreadsheets and anecdotal reports",
-    portal: "Centralized cohort analytics & audit-ready accreditation logs",
-  },
-];
-
-const steps = [
-  {
-    num: "01",
-    title: "Verify Identity",
-    desc: "Sign up with your institutional email or Google Workspace to secure verified role-based access as a student, faculty member, university admin, or recruiter.",
-  },
-  {
-    num: "02",
-    title: "Diagnose Skill Gaps",
-    desc: "Benchmark your technical and domain skills against live enterprise requirements to identify exact competency deficits and target areas.",
-  },
-  {
-    num: "03",
-    title: "Bridge Gaps with Accredited Training",
-    desc: "Follow curated learning paths, complete accredited industry challenges, and build an unalterable digital portfolio verified by academic supervisors.",
-  },
-  {
-    num: "04",
-    title: "Direct Placement & Corporate Engagement",
-    desc: "Apply to vetted corporate opportunities with verified credentials, while employers discover pre-evaluated talent without conventional recruitment friction.",
+    traditional: "Manual placement spreadsheets and anecdotal logs",
+    portal: "Centralized cohort analytics & audit-ready accreditation",
   },
 ];
 
@@ -178,7 +216,7 @@ const landingFaqs = [
   {
     id: "faq-4",
     q: "Is institutional onboarding required for students to join?",
-    a: "Any student can sign up individually. However, using an authorized institutional email automatically connects the student's profile to their university's cohort analytics and verified campus placement drives.",
+    a: "Any student can sign up individually. However, using an authorized institutional email automatically connects the student's profile to their university's cohort analytics and campus placement drives.",
   },
   {
     id: "faq-5",
@@ -202,8 +240,8 @@ function Navbar() {
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-background">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <button
           type="button"
           id="nav-logo-btn"
@@ -213,15 +251,15 @@ function Navbar() {
           className="flex items-center gap-2.5 text-left cursor-pointer hover:opacity-85 transition-opacity group"
           aria-label="PortalAcademia — Return to top"
         >
-          <div className="w-6 h-6 rounded-sm bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 flex items-center justify-center font-mono font-bold text-xs transition-colors">
+          <div className="w-7 h-7 rounded-md bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 flex items-center justify-center font-mono font-bold text-xs shadow-sm">
             PA
           </div>
-          <span className="font-semibold text-sm tracking-tight text-foreground">
+          <span className="font-semibold text-base tracking-tight text-foreground">
             PortalAcademia
           </span>
         </button>
 
-        <nav className="hidden md:flex items-center gap-6 text-xs font-medium text-muted-foreground">
+        <nav className="hidden md:flex items-center gap-7 text-xs font-medium text-muted-foreground">
           <a href="#roles" className="hover:text-foreground transition-colors">
             Stakeholders
           </a>
@@ -231,15 +269,12 @@ function Navbar() {
           <a href="#features" className="hover:text-foreground transition-colors">
             Capabilities
           </a>
-          <a href="#how-it-works" className="hover:text-foreground transition-colors">
-            Workflow
-          </a>
           <a href="#faq" className="hover:text-foreground transition-colors">
             FAQ
           </a>
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {/* Dark Mode Toggle */}
           <button
             type="button"
@@ -247,7 +282,7 @@ function Navbar() {
             onClick={toggleTheme}
             aria-label="Toggle dark mode"
             title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            className="w-8 h-8 rounded-md border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+            className="w-9 h-9 rounded-md border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
           >
             {theme === "dark" ? (
               <Sun className="w-4 h-4 text-amber-400" />
@@ -261,7 +296,7 @@ function Navbar() {
               type="button"
               id="nav-console-btn"
               onClick={() => navigate(user?.isOnboarded ? "/dashboard" : "/onboarding/select-type")}
-              className="inline-flex items-center justify-center gap-1 h-8 px-3 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors"
+              className="inline-flex items-center justify-center gap-1.5 h-9 px-4 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors shadow-sm"
             >
               Console
               <ChevronRight className="w-3.5 h-3.5 ml-1" />
@@ -272,7 +307,7 @@ function Navbar() {
                 type="button"
                 id="nav-signin-btn"
                 onClick={() => navigate("/auth")}
-                className="h-8 px-3 text-xs font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="h-9 px-3.5 text-xs font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
                 Sign In
               </button>
@@ -280,7 +315,7 @@ function Navbar() {
                 type="button"
                 id="nav-getstarted-btn"
                 onClick={() => navigate("/auth")}
-                className="inline-flex items-center justify-center gap-1 h-8 px-3 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors"
+                className="inline-flex items-center justify-center gap-1.5 h-9 px-4 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors shadow-sm"
               >
                 Get Started
                 <ChevronRight className="w-3.5 h-3.5 ml-1" />
@@ -295,67 +330,86 @@ function Navbar() {
 
 function Hero() {
   const navigate = useNavigate();
-  const [activePillar, setActivePillar] = useState<number>(0);
+  const [activeTab, setActiveTab] = useState<number>(0);
 
-  const pillars = [
+  const previewTabs = [
     {
-      id: "stakeholders",
-      stat: "04",
-      title: "Verified Stakeholders",
-      subtitle: "Dual-Sided Unified Network",
-      badge: "Synchronized",
+      id: "students",
+      label: "Students",
       icon: Users,
+      badge: "Skill Verified",
+      title: "Objective Benchmarking & Direct Job Matching",
+      stat1: { label: "Verified Index", value: "94.2%" },
+      stat2: { label: "ATS Bypass", value: "100%" },
+      stat3: { label: "Avg Placement", value: "9 Days" },
+      highlight: "Candidates qualify through verified coding benchmarks, bypassing resume filters.",
     },
     {
-      id: "taxonomies",
-      stat: "180+",
-      title: "Competency Taxonomies",
-      subtitle: "Real-Time Gap Discovery",
-      badge: "Weekly Calibrated",
-      icon: Cpu,
-    },
-    {
-      id: "hiring",
-      stat: "Direct",
-      title: "Challenge-Based Hiring",
-      subtitle: "Bypass Resume Filters",
-      badge: "Zero Keyword Spam",
-      icon: Briefcase,
-    },
-    {
-      id: "accreditation",
-      stat: "NEP 2020",
-      title: "Accreditation Aligned",
-      subtitle: "Institutional Compliance",
-      badge: "OBE & ABC Ready",
+      id: "faculty",
+      label: "Faculty",
       icon: GraduationCap,
+      badge: "Industry Immersion",
+      title: "Curriculum Gap Telemetry & Sponsored Grants",
+      stat1: { label: "Live Demand Index", value: "50K+ Reqs" },
+      stat2: { label: "FDP Credits", value: "100% OBE" },
+      stat3: { label: "R&D Grants", value: "Active Exchange" },
+      highlight: "Continuous syllabus reconciliation with real-world engineering problem statements.",
+    },
+    {
+      id: "institutions",
+      label: "Institutions",
+      icon: Building,
+      badge: "Accreditation Ready",
+      title: "Real-Time Cohort Telemetry & NEP Compliance",
+      stat1: { label: "NIRF / NAAC", value: "1-Click Export" },
+      stat2: { label: "ABC Credit Bank", value: "Automated" },
+      stat3: { label: "Cohort Tracking", value: "Real-Time" },
+      highlight: "Unalterable placement audit logs and aggregate departmental competency heatmaps.",
+    },
+    {
+      id: "industry",
+      label: "Recruiters",
+      icon: Briefcase,
+      badge: "Zero Keyword Spam",
+      title: "Merit-First Hiring via Live Engineering Challenges",
+      stat1: { label: "Candidate Pass Rate", value: "14.8%" },
+      stat2: { label: "Filter Metric", value: "Code Quality" },
+      stat3: { label: "Time-to-Offer", value: "< 10 Days" },
+      highlight: "Hire based strictly on validated code execution instead of embellished PDF claims.",
     },
   ];
 
-  return (
-    <section className="border-b border-border bg-zinc-50 dark:bg-zinc-950 py-16 sm:py-24 px-4 sm:px-6">
-      <div className="max-w-4xl mx-auto text-center flex flex-col items-center">
-        <span className="mb-4 inline-flex items-center px-2.5 py-0.5 font-mono text-[11px] rounded-sm bg-muted text-muted-foreground border border-border">
-          Bridging the gap between campus skills and industry opportunities — turning potential into careers.
-        </span>
+  const currentTab = previewTabs[activeTab];
 
-        <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 max-w-3xl leading-[1.15]">
-          Where higher education meets live industry demand.
+  return (
+    <section className="relative border-b border-border bg-transparent py-20 sm:py-28 px-4 sm:px-6 overflow-hidden">
+      <div className="relative z-10 max-w-4xl mx-auto text-center flex flex-col items-center">
+        {/* Subtle Blue Accent Badge */}
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/80 dark:bg-blue-950/40 backdrop-blur-sm text-xs font-medium text-blue-900 dark:text-blue-200 shadow-sm mb-6">
+          <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+          <span>Next-Generation Academia-Industry Ecosystem</span>
+        </div>
+
+        {/* High-impact headline */}
+        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-foreground max-w-3xl leading-[1.14]">
+          Where Higher Education Meets Live Industry Demand
         </h1>
 
-        <p className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-relaxed mt-4">
-          A unified collaboration infrastructure connecting students, faculty, universities, and enterprise employers through verified skill diagnostics, automated curriculum alignment, and direct talent placements.
+        {/* Clean, concise subtitle */}
+        <p className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-relaxed mt-5">
+          A unified collaboration platform connecting students, faculty, universities, and enterprise recruiters through verified skill assessments, curriculum gap telemetry, and direct placements.
         </p>
 
-        <div className="flex flex-wrap items-center justify-center gap-3 mt-7">
+        {/* CTA buttons */}
+        <div className="flex flex-wrap items-center justify-center gap-3.5 mt-8">
           <button
             type="button"
             id="hero-primary-cta"
             onClick={() => navigate("/auth")}
-            className="inline-flex items-center justify-center gap-1.5 h-9 px-4 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors"
+            className="inline-flex items-center justify-center gap-2 h-10 px-5 text-xs sm:text-sm font-semibold rounded-md bg-[#111827] text-white hover:bg-[#1f2937] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white transition-all shadow-sm cursor-pointer"
           >
             Get Started Free
-            <ArrowRight className="w-3.5 h-3.5 ml-1" />
+            <ArrowRight className="w-4 h-4 ml-1" />
           </button>
           <button
             type="button"
@@ -363,406 +417,183 @@ function Hero() {
             onClick={() => {
               document.getElementById("roles")?.scrollIntoView({ behavior: "smooth" });
             }}
-            className="inline-flex items-center justify-center h-9 px-4 text-xs font-medium rounded-md border border-border bg-background hover:bg-muted text-foreground transition-colors"
+            className="inline-flex items-center justify-center h-10 px-5 text-xs sm:text-sm font-medium rounded-md border border-border bg-card/80 hover:bg-muted text-foreground transition-colors backdrop-blur-sm shadow-sm cursor-pointer"
           >
             Explore Ecosystem
           </button>
         </div>
 
-        {/* Enhanced 4-Metric Pillars & Interactive Capabilities Console */}
-        <div className="mt-12 w-full max-w-4xl">
-          {/* 4 Cards Header */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 border border-border rounded-t-md bg-card divide-y sm:divide-y-0 sm:divide-x divide-border shadow-sm text-left">
-            {pillars.map((pillar, idx) => {
-              const Icon = pillar.icon;
-              const isActive = activePillar === idx;
-              return (
-                <button
-                  key={pillar.id}
-                  type="button"
-                  id={`pillar-tab-${idx}`}
-                  onClick={() => setActivePillar(idx)}
-                  className={`p-4 text-left transition-all relative flex flex-col justify-between group cursor-pointer ${isActive
-                      ? "bg-muted/50 dark:bg-zinc-900 text-foreground"
-                      : "hover:bg-muted/25 text-muted-foreground hover:text-foreground"
+        {/* Spacious, De-cluttered Interactive Platform Showcase */}
+        <div className="mt-14 w-full max-w-4xl">
+          <div className="rounded-xl border border-border bg-card/90 backdrop-blur-md shadow-lg overflow-hidden text-left">
+            {/* Tab navigation headers */}
+            <div className="flex border-b border-border bg-muted/40 overflow-x-auto scrollbar-none">
+              {previewTabs.map((tab, idx) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === idx;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(idx)}
+                    className={`flex-1 min-w-[130px] px-4 py-3.5 text-xs font-medium flex items-center justify-center gap-2 transition-colors relative cursor-pointer ${
+                      isActive
+                        ? "bg-card text-foreground font-semibold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                     }`}
+                  >
+                    {isActive && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground" />
+                    )}
+                    <Icon className={`w-4 h-4 ${isActive ? "text-foreground" : "text-muted-foreground"}`} />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Showcase details container with generous spacing */}
+            <div className="p-6 sm:p-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-border">
+                <div>
+                  <div className="inline-flex items-center gap-2 text-xs font-mono text-muted-foreground">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>{currentTab.badge}</span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-semibold text-foreground mt-1">
+                    {currentTab.title}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate("/auth")}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground hover:underline shrink-0"
                 >
-                  {/* Top indicator line for active card */}
-                  {isActive && (
-                    <span className="absolute top-0 left-0 right-0 h-0.5 bg-foreground" />
-                  )}
-                  <div>
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <span className="font-mono text-2xl font-bold tabular-nums text-foreground group-hover:scale-105 transition-transform inline-block">
-                        {pillar.stat}
-                      </span>
-                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-foreground" : "text-muted-foreground"}`} />
-                    </div>
-                    <p className="text-xs font-medium text-foreground tracking-tight">
-                      {pillar.title}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
-                      {pillar.subtitle}
-                    </p>
-                  </div>
-                  <div className="mt-3 flex items-center gap-1.5">
-                    <span
-                      className={`inline-flex items-center px-1.5 py-0.5 rounded-[3px] text-[10px] font-mono ${isActive
-                          ? "bg-foreground text-background font-semibold"
-                          : "bg-muted text-muted-foreground"
-                        }`}
-                    >
-                      {isActive ? "● Active View" : pillar.badge}
-                    </span>
-                  </div>
+                  <span>Explore Workspace</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </button>
-              );
-            })}
-          </div>
-
-          {/* Feature Intelligence Console underneath */}
-          <div className="border border-t-0 border-border rounded-b-md bg-card p-5 sm:p-6 text-left shadow-sm">
-            {/* Tab 0: Verified Stakeholders */}
-            {activePillar === 0 && (
-              <div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-border">
-                  <div>
-                    <span className="inline-flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Pillar 01 // Multi-Stakeholder Infrastructure
-                    </span>
-                    <h3 className="text-base sm:text-lg font-semibold tracking-tight text-foreground mt-0.5">
-                      Dedicated Workspaces for Every Higher Ed Stakeholder
-                    </h3>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/auth")}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-foreground hover:underline shrink-0"
-                  >
-                    Enter Stakeholder Gateway
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                  <div className="p-3.5 rounded-md border border-border bg-background">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <div className="w-6 h-6 rounded-sm bg-muted flex items-center justify-center text-foreground shrink-0">
-                        <Brain className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="font-semibold text-xs text-foreground">Students & Job Seekers</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Standardized assessments generate an unalterable Skill Index. Match directly with live internships and roles bypassing ATS keyword rejections.
-                    </p>
-                    <div className="mt-2.5 flex flex-wrap gap-1.5">
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Skill Index</span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Verified Repo</span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">1-Click Apply</span>
-                    </div>
-                  </div>
-
-                  <div className="p-3.5 rounded-md border border-border bg-background">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <div className="w-6 h-6 rounded-sm bg-muted flex items-center justify-center text-foreground shrink-0">
-                        <GraduationCap className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="font-semibold text-xs text-foreground">Faculty & Educators</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Bridge curricula to market demand with real-time gap discovery telemetry, corporate sabbaticals, FDP badges, and industry R&D grants.
-                    </p>
-                    <div className="mt-2.5 flex flex-wrap gap-1.5">
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Gap Diagnostics</span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Corporate FDPs</span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Industry Grants</span>
-                    </div>
-                  </div>
-
-                  <div className="p-3.5 rounded-md border border-border bg-background">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <div className="w-6 h-6 rounded-sm bg-muted flex items-center justify-center text-foreground shrink-0">
-                        <Building2 className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="font-semibold text-xs text-foreground">Universities & Colleges</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Monitor departmental skill readiness in real time, integrate institutional SSO for batch cohorts, and export compliance audits for NAAC & NIRF.
-                    </p>
-                    <div className="mt-2.5 flex flex-wrap gap-1.5">
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">NAAC Criterion 1 & 2</span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">SSO Batch Roster</span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Placement Heatmap</span>
-                    </div>
-                  </div>
-
-                  <div className="p-3.5 rounded-md border border-border bg-background">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <div className="w-6 h-6 rounded-sm bg-muted flex items-center justify-center text-foreground shrink-0">
-                        <Building className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="font-semibold text-xs text-foreground">Corporate Recruiters</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Deploy real architectural problem statements and technical bounties. Evaluate candidates strictly on functional code pass rates, not resumes.
-                    </p>
-                    <div className="mt-2.5 flex flex-wrap gap-1.5">
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Automated Test Suites</span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Pre-Screened Roster</span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">Avg 9-Day Hire</span>
-                    </div>
-                  </div>
-                </div>
               </div>
-            )}
 
-            {/* Tab 1: Competency Taxonomies */}
-            {activePillar === 1 && (
-              <div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-border">
-                  <div>
-                    <span className="inline-flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                      Pillar 02 // Real-Time Skill Intelligence
-                    </span>
-                    <h3 className="text-base sm:text-lg font-semibold tracking-tight text-foreground mt-0.5">
-                      Automated Curriculum-to-Industry Competency Matrix
-                    </h3>
-                  </div>
-                  <span className="text-xs font-mono text-muted-foreground">
-                    Index: 50,000+ Live Tech Requisitions
-                  </span>
+              {/* 3 Metric Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-6">
+                <div className="p-4 rounded-lg border border-border bg-background/70">
+                  <p className="text-xs font-mono text-muted-foreground">{currentTab.stat1.label}</p>
+                  <p className="text-xl font-bold font-mono text-foreground mt-1">{currentTab.stat1.value}</p>
                 </div>
-
-                <div className="mt-4 p-4 rounded-md border border-border bg-background">
-                  <div className="flex items-center justify-between mb-3 text-xs font-mono text-muted-foreground">
-                    <span>COHORT TELEMETRY: CS & SYSTEMS (BATCH 2026)</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">● GAP RECONCILIATION ACTIVE</span>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="font-medium text-foreground">Distributed Systems & Cloud Orchestration</span>
-                        <span className="font-mono text-muted-foreground text-[11px]">
-                          Industry Demand: <strong className="text-foreground">96%</strong> | Syllabus: <span className="text-amber-500">48%</span>
-                        </span>
-                      </div>
-                      <div className="w-full h-2 rounded-full bg-muted overflow-hidden flex">
-                        <div className="bg-amber-500 h-full" style={{ width: "48%" }} title="Legacy Syllabus Coverage" />
-                        <div className="bg-emerald-500 h-full" style={{ width: "48%" }} title="PortalAcademia Gap Bridge" />
-                      </div>
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1">
-                        <span>Focus: Docker, Kubernetes, gRPC, Redis, Kafka</span>
-                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">+48% gap closed via PortalAcademia bridge</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="font-medium text-foreground">Applied Machine Learning & Vector Systems</span>
-                        <span className="font-mono text-muted-foreground text-[11px]">
-                          Industry Demand: <strong className="text-foreground">92%</strong> | Syllabus: <span className="text-amber-500">35%</span>
-                        </span>
-                      </div>
-                      <div className="w-full h-2 rounded-full bg-muted overflow-hidden flex">
-                        <div className="bg-amber-500 h-full" style={{ width: "35%" }} title="Legacy Syllabus Coverage" />
-                        <div className="bg-emerald-500 h-full" style={{ width: "57%" }} title="PortalAcademia Gap Bridge" />
-                      </div>
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1">
-                        <span>Focus: PyTorch, Vector Embeddings, LLM RAG pipelines</span>
-                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">+57% gap closed via hands-on labs</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="font-medium text-foreground">Modern Full-Stack & System Design</span>
-                        <span className="font-mono text-muted-foreground text-[11px]">
-                          Industry Demand: <strong className="text-foreground">89%</strong> | Syllabus: <span className="text-amber-500">52%</span>
-                        </span>
-                      </div>
-                      <div className="w-full h-2 rounded-full bg-muted overflow-hidden flex">
-                        <div className="bg-amber-500 h-full" style={{ width: "52%" }} title="Legacy Syllabus Coverage" />
-                        <div className="bg-emerald-500 h-full" style={{ width: "37%" }} title="PortalAcademia Gap Bridge" />
-                      </div>
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1">
-                        <span>Focus: TypeScript, React 19, Redux, API Architecture</span>
-                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">+37% gap closed via product bounties</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-4">
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block" />
-                      Legacy Syllabus Coverage
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />
-                      PortalAcademia Gap Bridge
-                    </span>
-                  </div>
-                  <span className="font-mono text-[11px]">Updated every Sunday at 00:00 UTC</span>
-                </div>
-              </div>
-            )}
-
-            {/* Tab 2: Challenge-Based Hiring */}
-            {activePillar === 2 && (
-              <div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-border">
-                  <div>
-                    <span className="inline-flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                      Pillar 03 // Meritocratic Placement
-                    </span>
-                    <h3 className="text-base sm:text-lg font-semibold tracking-tight text-foreground mt-0.5">
-                      Direct Placement Driven by Proof-of-Work, Not Pedigree
-                    </h3>
-                  </div>
-                  <span className="text-xs font-mono text-muted-foreground">
-                    Avg Placement Cycle: 9 Days
-                  </span>
-                </div>
-
-                <div className="mt-4 p-4 rounded-md border border-border bg-background">
-                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-border">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-medium">
-                        ACTIVE BOUNTY // HIRING PIPELINE
-                      </span>
-                      <span className="text-xs text-muted-foreground font-mono">
-                        Challenge ID: #CH-8820
-                      </span>
-                    </div>
-                    <span className="text-xs font-semibold text-foreground">
-                      Stipend: ₹60,000 + Pre-Placement Offer (PPO)
-                    </span>
-                  </div>
-
-                  <h4 className="text-sm font-semibold text-foreground tracking-tight">
-                    High-Throughput Financial Transaction Reconciliation Service
-                  </h4>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Build a resilient, idempotent transaction processor handling 50,000 req/sec with zero double-spends and p99 latency &lt; 15ms. Tested against live chaos failure simulations.
+                <div className="p-4 rounded-lg border border-border bg-background/70">
+                  <p className="text-xs font-mono text-muted-foreground">{currentTab.stat2.label}</p>
+                  <p className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-1">
+                    {currentTab.stat2.value}
                   </p>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 pt-3 border-t border-border/60 text-center font-mono">
-                    <div className="p-2 rounded bg-muted/40">
-                      <p className="text-xs text-muted-foreground">Submissions</p>
-                      <p className="text-sm font-bold text-foreground mt-0.5">384</p>
-                    </div>
-                    <div className="p-2 rounded bg-muted/40">
-                      <p className="text-xs text-muted-foreground">Test Pass Rate</p>
-                      <p className="text-sm font-bold text-emerald-500 mt-0.5">14.8%</p>
-                    </div>
-                    <div className="p-2 rounded bg-muted/40">
-                      <p className="text-xs text-muted-foreground">Direct Interviews</p>
-                      <p className="text-sm font-bold text-foreground mt-0.5">42</p>
-                    </div>
-                    <div className="p-2 rounded bg-muted/40">
-                      <p className="text-xs text-muted-foreground">ATS Keyword Weight</p>
-                      <p className="text-sm font-bold text-emerald-500 mt-0.5">0.0% (Code Only)</p>
-                    </div>
-                  </div>
                 </div>
-
-                <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <span className="text-muted-foreground">
-                    Top 10% benchmarked code submissions automatically bypass HR resume screens and unlock technical interview rounds.
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/auth")}
-                    className="font-medium text-foreground hover:underline inline-flex items-center gap-1"
-                  >
-                    View Live Challenges
-                    <ArrowRight className="w-3 h-3" />
-                  </button>
+                <div className="p-4 rounded-lg border border-border bg-background/70">
+                  <p className="text-xs font-mono text-muted-foreground">{currentTab.stat3.label}</p>
+                  <p className="text-xl font-bold font-mono text-foreground mt-1">{currentTab.stat3.value}</p>
                 </div>
               </div>
-            )}
 
-            {/* Tab 3: NEP 2020 Accreditation Aligned */}
-            {activePillar === 3 && (
-              <div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-border">
+              {/* Dedicated Image / Visual Preview Slot */}
+              <div className="rounded-lg border border-dashed border-border bg-muted/20 p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-md bg-muted flex items-center justify-center text-foreground shrink-0">
+                    <BarChart3 className="w-5 h-5 text-muted-foreground" />
+                  </div>
                   <div>
-                    <span className="inline-flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
-                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
-                      Pillar 04 // Statutory & Institutional Compliance
-                    </span>
-                    <h3 className="text-base sm:text-lg font-semibold tracking-tight text-foreground mt-0.5">
-                      Institutional Alignment with NEP 2020 & NAAC/NIRF
-                    </h3>
-                  </div>
-                  <span className="text-xs font-mono text-muted-foreground">
-                    OBE & ABC Compliant
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                  <div className="p-3.5 rounded-md border border-border bg-background">
-                    <div className="flex items-center gap-2 mb-1">
-                      <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <span className="font-semibold text-xs text-foreground">Academic Bank of Credits (ABC)</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Converts verified industry certifications and hackathon bounties into accredited academic credits recognized across statutory universities.
+                    <p className="text-xs font-medium text-foreground">
+                      {currentTab.highlight}
                     </p>
-                  </div>
-
-                  <div className="p-3.5 rounded-md border border-border bg-background">
-                    <div className="flex items-center gap-2 mb-1">
-                      <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <span className="font-semibold text-xs text-foreground">Outcome-Based Education (OBE)</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Direct automated mapping of student technical competencies to Course Outcomes (CO) and Program Outcomes (PO) required for NBA accreditation.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 rounded-md border border-border bg-background">
-                    <div className="flex items-center gap-2 mb-1">
-                      <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <span className="font-semibold text-xs text-foreground">Mandatory AICTE Internship Tracking</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Verifiable logging of remote and on-site industry internship hours, mentor evaluations, and project deliverables with unalterable audit logs.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 rounded-md border border-border bg-background">
-                    <div className="flex items-center gap-2 mb-1">
-                      <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <span className="font-semibold text-xs text-foreground">1-Click NIRF & NAAC Audit Exports</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Export comprehensive cohort telemetry reports for NAAC Criteria 1, 2, and 5 with verified median salaries and placement rates.
+                    <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
+                      Integrated Live Telemetry & Verification Hub
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-3.5 pt-3 border-t border-border flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <span className="text-muted-foreground">
-                    100% audit-proof institutional telemetry compliant with Ministry of Education regulations.
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/auth")}
-                    className="font-medium text-foreground hover:underline inline-flex items-center gap-1"
-                  >
-                    Request Institutional Audit Suite
-                    <ArrowRight className="w-3 h-3" />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate("/auth")}
+                  className="inline-flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded border border-border bg-background hover:bg-muted text-foreground transition-colors shrink-0"
+                >
+                  View Live Demo
+                  <ArrowRight className="w-3 h-3 ml-1" />
+                </button>
               </div>
-            )}
+            </div>
           </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function RolesSection() {
+  const navigate = useNavigate();
+
+  return (
+    <section id="roles" className="py-20 px-4 sm:px-6 border-b border-border bg-transparent">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center max-w-lg mx-auto mb-12">
+          <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1.5">
+            Stakeholder Ecosystem
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            Built for Every Higher Ed Participant
+          </h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-2 leading-relaxed">
+            Eliminating guesswork with tailored workspaces built specifically for students, faculty, institutions, and corporate recruiters.
+          </p>
+        </div>
+
+        {/* 4 Spacious, De-cluttered Role Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+          {roles.map((r) => (
+            <div
+              key={r.title}
+              className="rounded-xl border border-border bg-card p-6 sm:p-8 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
+            >
+              <div>
+                {/* Header */}
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-50/70 dark:bg-zinc-900 border border-blue-100/80 dark:border-border flex items-center justify-center shrink-0 text-[#111827] dark:text-foreground">
+                      {r.icon}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-foreground tracking-tight">{r.title}</h3>
+                      <p className="text-xs text-muted-foreground font-mono">{r.subtitle}</p>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded text-[10px] font-mono bg-blue-50 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/70 dark:border-blue-900/50 shrink-0">
+                    {r.badge}
+                  </span>
+                </div>
+
+                {/* Concise bullet points with ample spacing */}
+                <ul className="space-y-3 my-6">
+                  {r.features.map((feat) => (
+                    <li key={feat} className="flex items-start gap-2.5 text-xs sm:text-sm text-muted-foreground">
+                      <Check className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                      <span className="leading-normal">{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Slot ready for future images/mockups */}
+              <div className="pt-4 border-t border-border flex items-center justify-between">
+                <span className="text-[11px] font-mono text-muted-foreground">
+                  Workspace Ready
+                </span>
+                <button
+                  type="button"
+                  onClick={() => navigate("/auth")}
+                  className="text-xs font-medium text-foreground hover:underline inline-flex items-center gap-1"
+                >
+                  Join as {r.title}
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -771,43 +602,43 @@ function Hero() {
 
 function ComparisonSection() {
   return (
-    <section id="comparison" className="py-16 px-4 sm:px-6 border-b border-border bg-background">
+    <section id="comparison" className="py-20 px-4 sm:px-6 border-b border-border bg-transparent">
       <div className="max-w-5xl mx-auto">
-        <div className="text-center max-w-xl mx-auto mb-10">
-          <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1">
+        <div className="text-center max-w-xl mx-auto mb-12">
+          <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1.5">
             Systemic Transformation
           </span>
-          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
             Bridging the Academia-Industry Disconnect
           </h2>
-          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-2 leading-relaxed">
             How PortalAcademia replaces outdated legacy processes with objective, verifiable infrastructure.
           </p>
         </div>
 
-        <div className="border border-border rounded-md bg-card overflow-hidden shadow-sm">
-          <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-border bg-muted/40 text-xs font-mono font-semibold text-muted-foreground p-3 sm:px-4">
+        <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-border bg-muted/40 text-xs font-mono font-semibold text-muted-foreground p-4">
             <div>DIMENSION</div>
             <div className="hidden sm:block text-destructive/80">LEGACY CAMPUS MODEL</div>
             <div className="hidden sm:block text-foreground">PORTALACADEMIA BRIDGE</div>
           </div>
-          <div className="divide-y divide-border text-xs">
+          <div className="divide-y divide-border text-xs sm:text-sm">
             {comparisonRows.map((row, idx) => (
               <div
                 key={idx}
-                className="grid grid-cols-1 sm:grid-cols-3 p-3.5 sm:px-4 gap-2 sm:gap-4 hover:bg-muted/20 transition-colors"
+                className="grid grid-cols-1 sm:grid-cols-3 p-4 sm:px-5 gap-2 sm:gap-4 hover:bg-muted/20 transition-colors"
               >
-                <div className="font-medium text-foreground sm:col-span-1 flex items-center gap-1.5">
-                  <span className="font-mono text-[10px] text-muted-foreground">0{idx + 1}.</span>
-                  {row.dimension}
+                <div className="font-medium text-foreground sm:col-span-1 flex items-center gap-2">
+                  <span className="font-mono text-[11px] text-muted-foreground">0{idx + 1}.</span>
+                  <span>{row.dimension}</span>
                 </div>
                 <div className="text-muted-foreground flex items-start gap-2">
-                  <XCircle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />
-                  <span>{row.traditional}</span>
+                  <XCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                  <span className="leading-snug">{row.traditional}</span>
                 </div>
                 <div className="text-foreground flex items-start gap-2 font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                  <span>{row.portal}</span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <span className="leading-snug">{row.portal}</span>
                 </div>
               </div>
             ))}
@@ -818,130 +649,41 @@ function ComparisonSection() {
   );
 }
 
-function RolesSection() {
-  return (
-    <section id="roles" className="py-16 px-4 sm:px-6 border-b border-border bg-zinc-50 dark:bg-zinc-950">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center max-w-lg mx-auto mb-10">
-          <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1">
-            Stakeholder Ecosystem
-          </span>
-          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
-            Dedicated Tools for Every Participant
-          </h2>
-          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-            Eliminating guesswork with tailored interfaces built specifically for students, faculty, institutions, and corporate recruiters.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {roles.map((r) => (
-            <div key={r.title} className="rounded-md border border-border bg-card p-5 shadow-sm">
-              <div className="pb-3 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-sm bg-muted border border-border flex items-center justify-center shrink-0">
-                    {r.icon}
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground tracking-tight">{r.title}</h3>
-                    <p className="text-[11px] text-muted-foreground font-mono">{r.subtitle}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="pt-3 border-t border-border">
-                <ul className="space-y-2">
-                  {r.features.map((feat) => (
-                    <li key={feat} className="flex items-start gap-2 text-xs text-muted-foreground">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                      <span>{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function CapabilitiesSection() {
   return (
-    <section id="features" className="py-16 px-4 sm:px-6 border-b border-border bg-background">
+    <section id="features" className="py-20 px-4 sm:px-6 border-b border-border bg-transparent">
       <div className="max-w-6xl mx-auto">
-        <div className="text-center max-w-xl mx-auto mb-10">
-          <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1">
+        <div className="text-center max-w-xl mx-auto mb-12">
+          <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1.5">
             Platform Architecture
           </span>
-          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
-            End-to-End Collaboration Infrastructure
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            Core Capabilities Powering Industry Alignment
           </h2>
-          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-            Six architectural pillars powering objective talent assessment, syllabus optimization, and direct placement.
+          <p className="text-xs sm:text-sm text-muted-foreground mt-2 leading-relaxed">
+            Integrated capabilities driving objective talent assessment, curriculum optimization, and direct placement.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {capabilities.map((c) => (
             <div
               key={c.title}
-              className="rounded-md border border-border bg-card p-5 shadow-sm flex flex-col justify-between"
+              className="rounded-xl border border-border bg-card p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
             >
               <div>
-                <div className="w-7 h-7 rounded-sm bg-muted border border-border flex items-center justify-center mb-3">
+                <div className="w-9 h-9 rounded-lg bg-blue-50/70 dark:bg-zinc-900 border border-blue-100/80 dark:border-border flex items-center justify-center mb-4 text-[#111827] dark:text-foreground">
                   {c.icon}
                 </div>
-                <h3 className="text-sm font-semibold text-foreground tracking-tight mb-2">
+                <h3 className="text-sm sm:text-base font-semibold text-foreground tracking-tight mb-2">
                   {c.title}
                 </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                   {c.desc}
                 </p>
               </div>
-              <div className="mt-4 pt-3 border-t border-border/50 text-[10px] font-mono text-muted-foreground uppercase">
+              <div className="mt-6 pt-3.5 border-t border-border/60 text-[10px] font-mono text-muted-foreground uppercase">
                 Enterprise Calibrated
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function HowItWorksSection() {
-  return (
-    <section id="how-it-works" className="py-16 px-4 sm:px-6 border-b border-border bg-zinc-50 dark:bg-zinc-950">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center max-w-lg mx-auto mb-10">
-          <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1">
-            Operational Lifecycle
-          </span>
-          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
-            How the Platform Works
-          </h2>
-          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-            A deterministic 4-stage pipeline that transitions candidates from enrollment to verified career placements.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {steps.map((s) => (
-            <div
-              key={s.num}
-              className="rounded-md border border-border bg-card p-5 shadow-sm flex flex-col justify-between"
-            >
-              <div>
-                <span className="font-mono text-xs font-bold text-muted-foreground block mb-2">
-                  {s.num} // STEP
-                </span>
-                <h3 className="text-sm font-semibold text-foreground tracking-tight mb-2">
-                  {s.title}
-                </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {s.desc}
-                </p>
               </div>
             </div>
           ))}
@@ -955,15 +697,15 @@ function FAQSection() {
   const [openFaq, setOpenFaq] = useState<string | null>("faq-1");
 
   return (
-    <section id="faq" className="py-16 px-4 sm:px-6 border-b border-border bg-background">
+    <section id="faq" className="py-20 px-4 sm:px-6 border-b border-border bg-transparent">
       <div className="max-w-4xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
           <div>
-            <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+            <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
               <HelpCircle className="w-3.5 h-3.5" />
-              <span>Institutional Knowledge Base</span>
+              <span>Knowledge Base</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
               Frequently Asked Questions
             </h2>
           </div>
@@ -976,27 +718,28 @@ function FAQSection() {
           </Link>
         </div>
 
-        <div className="w-full space-y-2">
+        <div className="w-full space-y-3">
           {landingFaqs.map((faq) => {
             const isOpen = openFaq === faq.id;
             return (
               <div
                 key={faq.id}
-                className="border border-border rounded-sm bg-card overflow-hidden"
+                className="border border-border rounded-lg bg-card overflow-hidden shadow-sm"
               >
                 <button
                   type="button"
                   onClick={() => setOpenFaq(isOpen ? null : faq.id)}
-                  className="w-full flex items-center justify-between p-4 text-xs sm:text-sm font-medium text-left hover:bg-muted/40 transition-colors"
+                  className="w-full flex items-center justify-between p-5 text-left hover:bg-muted/40 transition-colors cursor-pointer"
                 >
-                  <span className="font-medium text-foreground">{faq.q}</span>
+                  <span className="text-xs sm:text-sm font-semibold text-foreground">{faq.q}</span>
                   <ChevronDown
-                    className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""
-                      }`}
+                    className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
                   />
                 </button>
                 {isOpen && (
-                  <div className="px-4 pb-4 pt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed border-t border-border/50">
+                  <div className="px-5 pb-5 pt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed border-t border-border/50">
                     {faq.a}
                   </div>
                 )}
@@ -1013,24 +756,24 @@ function CTABanner() {
   const navigate = useNavigate();
 
   return (
-    <section className="py-16 px-4 sm:px-6 border-b border-border bg-zinc-50 dark:bg-zinc-950">
+    <section className="py-20 px-4 sm:px-6 border-b border-border bg-transparent">
       <div className="max-w-3xl mx-auto text-center">
-        <div className="rounded-md border border-zinc-800 bg-zinc-900 text-zinc-100 p-8 sm:p-12 shadow-sm">
-          <h2 className="text-xl sm:text-3xl font-semibold tracking-tight text-white leading-snug">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 text-zinc-100 p-8 sm:p-14 shadow-lg">
+          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white leading-tight">
             Ready to bridge the higher education gap?
           </h2>
-          <p className="text-xs sm:text-sm text-zinc-400 max-w-lg mx-auto mt-3 leading-relaxed">
-            Create an institutional or student account today to assess competencies, unlock verified portfolios, and accelerate corporate placement.
+          <p className="text-xs sm:text-sm text-zinc-400 max-w-lg mx-auto mt-4 leading-relaxed">
+            Create an institutional or student account today to diagnose competencies, unlock verified portfolios, and accelerate corporate placement.
           </p>
-          <div className="mt-6 flex justify-center">
+          <div className="mt-8 flex justify-center">
             <button
               type="button"
               id="cta-enter-btn"
               onClick={() => navigate("/auth")}
-              className="inline-flex items-center justify-center gap-1.5 bg-white text-zinc-900 hover:bg-zinc-100 h-9 px-5 text-xs font-medium rounded-md transition-colors"
+              className="inline-flex items-center justify-center gap-2 bg-white text-zinc-900 hover:bg-zinc-100 h-10 px-6 text-xs sm:text-sm font-semibold rounded-md transition-colors cursor-pointer shadow-sm"
             >
               Get Started Free
-              <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              <ArrowRight className="w-4 h-4 ml-1" />
             </button>
           </div>
         </div>
@@ -1041,23 +784,23 @@ function CTABanner() {
 
 function Footer() {
   return (
-    <footer className="border-t border-border bg-background py-10 px-4 sm:px-6">
+    <footer className="border-t border-border bg-transparent py-12 px-4 sm:px-6">
       <div className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10 text-xs">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12 text-xs">
           {/* Col 1: Brand */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-sm bg-zinc-900 text-zinc-100 flex items-center justify-center font-mono font-bold text-[10px]">
+          <div className="space-y-3.5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-md bg-zinc-900 text-zinc-100 flex items-center justify-center font-mono font-bold text-xs">
                 PA
               </div>
-              <span className="font-semibold text-sm tracking-tight text-foreground">
+              <span className="font-semibold text-base tracking-tight text-foreground">
                 PortalAcademia
               </span>
             </div>
             <p className="text-muted-foreground leading-relaxed text-xs">
-              Unified academia-industry collaboration infrastructure. Skill diagnostics, verified portfolios, and direct career placements.
+              Unified academia-industry collaboration platform. Skill diagnostics, verified portfolios, and direct career placements.
             </p>
-            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-sm border border-border bg-muted/40 font-mono text-[10px] text-muted-foreground">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md border border-border bg-muted/40 font-mono text-[11px] text-muted-foreground">
               <span>SIH 2026</span>
               <span className="text-zinc-400">•</span>
               <span>PS 26044</span>
@@ -1065,41 +808,36 @@ function Footer() {
           </div>
 
           {/* Col 2: Platform */}
-          <div className="space-y-2.5">
-            <h4 className="font-semibold text-foreground tracking-tight">Platform</h4>
-            <ul className="space-y-2 text-muted-foreground">
+          <div className="space-y-3">
+            <h4 className="font-semibold text-foreground tracking-tight text-xs uppercase font-mono">Platform</h4>
+            <ul className="space-y-2.5 text-muted-foreground">
               <li>
                 <a href="#roles" className="hover:text-foreground transition-colors">
-                  Stakeholder Ecosystem
+                  Stakeholders
                 </a>
               </li>
               <li>
                 <a href="#comparison" className="hover:text-foreground transition-colors">
-                  Legacy vs. Portal
+                  Why PortalAcademia
                 </a>
               </li>
               <li>
                 <a href="#features" className="hover:text-foreground transition-colors">
-                  Core Capabilities
-                </a>
-              </li>
-              <li>
-                <a href="#how-it-works" className="hover:text-foreground transition-colors">
-                  Operational Workflow
+                  Capabilities
                 </a>
               </li>
               <li>
                 <Link to="/auth" className="hover:text-foreground transition-colors">
-                  Role-Based Sign In
+                  Sign In
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Col 3: Knowledge & Support */}
-          <div className="space-y-2.5">
-            <h4 className="font-semibold text-foreground tracking-tight">Resources</h4>
-            <ul className="space-y-2 text-muted-foreground">
+          {/* Col 3: Resources */}
+          <div className="space-y-3">
+            <h4 className="font-semibold text-foreground tracking-tight text-xs uppercase font-mono">Resources</h4>
+            <ul className="space-y-2.5 text-muted-foreground">
               <li>
                 <Link to="/faq" className="hover:text-foreground transition-colors">
                   Frequently Asked Questions
@@ -1107,22 +845,22 @@ function Footer() {
               </li>
               <li>
                 <a href="#faq" className="hover:text-foreground transition-colors">
-                  Quick FAQ Section
+                  Knowledge Base
                 </a>
               </li>
               <li>
                 <span className="text-muted-foreground/70">Institutional Docs (2026)</span>
               </li>
               <li>
-                <span className="text-muted-foreground/70">API Reference (v1.0)</span>
+                <span className="text-muted-foreground/70">API Reference</span>
               </li>
             </ul>
           </div>
 
-          {/* Col 4: Legal & Compliance */}
-          <div className="space-y-2.5">
-            <h4 className="font-semibold text-foreground tracking-tight">Governance</h4>
-            <ul className="space-y-2 text-muted-foreground">
+          {/* Col 4: Governance */}
+          <div className="space-y-3">
+            <h4 className="font-semibold text-foreground tracking-tight text-xs uppercase font-mono">Governance</h4>
+            <ul className="space-y-2.5 text-muted-foreground">
               <li>
                 <Link to="/terms" className="hover:text-foreground transition-colors">
                   Terms & Conditions
@@ -1134,7 +872,7 @@ function Footer() {
                 </Link>
               </li>
               <li>
-                <span className="font-mono text-[11px] text-muted-foreground">DPDP & GDPR Standards</span>
+                <span className="font-mono text-[11px] text-muted-foreground">DPDP Standards</span>
               </li>
               <li>
                 <span className="font-mono text-[11px] text-muted-foreground">NEP 2020 Aligned</span>
@@ -1144,7 +882,7 @@ function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground font-mono">
+        <div className="pt-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground font-mono">
           <span>© {new Date().getFullYear()} PortalAcademia. All rights reserved.</span>
           <div className="flex items-center gap-4">
             <Link to="/terms" className="hover:text-foreground transition-colors">
@@ -1177,14 +915,15 @@ export default function LandingPage() {
         name="description"
         content="Connect students, faculty, universities, and industry on a unified collaboration platform with skill assessments, verified portfolios, and direct placements."
       />
-      <div className="flex flex-col min-h-screen">
+      <div className="relative flex flex-col min-h-screen bg-background text-foreground overflow-x-hidden">
+        {/* Full-Page Fixed Twinkling Stars Constellation Background */}
+        <TwinklingStars />
         <Navbar />
-        <main className="flex-1">
+        <main className="flex-1 relative z-10">
           <Hero />
-          <ComparisonSection />
           <RolesSection />
+          <ComparisonSection />
           <CapabilitiesSection />
-          <HowItWorksSection />
           <FAQSection />
           <CTABanner />
         </main>
@@ -1193,3 +932,5 @@ export default function LandingPage() {
     </>
   );
 }
+
+

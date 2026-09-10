@@ -12,7 +12,6 @@ import {
   LogOut,
   FileText,
   Sparkles,
-  HelpCircle,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppDispatch } from "@/context/store";
