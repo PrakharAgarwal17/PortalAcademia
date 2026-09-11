@@ -63,7 +63,6 @@ export interface IndividualProfilePayload {
   category: "individual";
   accountType: IndividualRole;
   name: string;
-  headline?: string;
   profileImage?: string;
   bio?: string;
   location?: string;
@@ -129,7 +128,6 @@ export default function OnboardingIndividual() {
 
   // Core Identity
   const [name, setName] = useState<string>("");
-  const [headline, setHeadline] = useState<string>("");
   const [profileImage, setProfileImage] = useState<string>("");
   const [location, setLocation] = useState<string>("");
 
@@ -601,7 +599,6 @@ export default function OnboardingIndividual() {
       category: "individual",
       accountType: activeRole,
       name: name.trim(),
-      headline: headline.trim() || undefined,
       profileImage: profileImage || undefined,
       location: location.trim() || undefined,
       institution: selectedInstitution ? selectedInstitution.name : institutionSearchQuery.trim(),
@@ -741,57 +738,6 @@ export default function OnboardingIndividual() {
                 className="w-full h-9 px-3 rounded-md border border-input bg-background text-xs text-foreground focus-ring"
                 required
               />
-            </div>
-
-            {/* Professional Headline (Optional) */}
-            <div>
-              <label
-                htmlFor="headline-input"
-                className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5"
-              >
-                Professional Headline <span className="text-muted-foreground font-normal normal-case">(optional)</span>
-              </label>
-              <input
-                id="headline-input"
-                type="text"
-                value={headline}
-                onChange={(e) => setHeadline(e.target.value)}
-                maxLength={120}
-                placeholder="e.g. CS Undergrad | React & Node.js Developer | Open Source Contributor"
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-xs text-foreground focus-ring"
-              />
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {(activeRole === "faculty"
-                  ? [
-                      "Assistant Professor | Computer Science & Engineering",
-                      "Academic Researcher & Mentor | AI & NLP",
-                      "Senior Faculty Scholar | Data Structures & Algorithms",
-                    ]
-                  : [
-                      "CS Scholar | Full-Stack Web & App Developer",
-                      "AI & Machine Learning Enthusiast | Python & PyTorch",
-                      "Aspiring SDE | Open Source Contributor",
-                      "Cloud & DevOps Enthusiast | Docker & AWS",
-                    ]
-                ).map((sug, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setHeadline(sug)}
-                    className={cn(
-                      "text-[10px] px-2 py-0.5 rounded-full border transition-colors cursor-pointer",
-                      headline === sug
-                        ? "bg-foreground text-background border-foreground"
-                        : "bg-secondary border-border text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30"
-                    )}
-                  >
-                    {sug}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-1.5">
-                Appears under your name on profile searches and certificates. You can change it anytime later.
-              </p>
             </div>
 
             {/* I'm a: Student / Faculty */}

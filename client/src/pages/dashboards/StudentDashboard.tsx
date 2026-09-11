@@ -20,7 +20,7 @@ import { signOutThunk } from "@/context/authSlice";
 import { useTheme } from "@/context/theme";
 import { cn } from "@/lib/utils";
 import SkillBadge from "@/components/SkillBadge";
-import UserProfileModal from "@/components/UserProfileModal";
+import { searchSkillSuggestions } from "@/lib/skillIcons";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
 
@@ -217,12 +217,11 @@ export default function StudentDashboard() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Profile Modal State
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-
   // Filters
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [newSkillInput, setNewSkillInput] = useState("");
+  const [isUpdatingSkill, setIsUpdatingSkill] = useState(false);
 
   // Quiz Modal State
   const [activeQuiz, setActiveQuiz] = useState<Assessment | null>(null);
@@ -331,7 +330,56 @@ export default function StudentDashboard() {
       .finally(() => setIsLoading(false));
   }, [fetchProfile, fetchOpportunities, fetchAssessments, fetchApplications]);
 
+  /**
+   * @description Add a skill tag and sync to profile
+   */
+  const handleAddSkill = async (e?: React.FormEvent, customSkill?: string) => {
+    if (e) e.preventDefault();
+    const skillName = (customSkill || newSkillInput).trim();
+    if (!skillName || !profile) return;
+    const updatedSkills = Array.from(new Set([...(profile.skills || []), skillName]));
 
+    setIsUpdatingSkill(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/profile`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ skills: updatedSkills }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setProfile((prev) => (prev ? { ...prev, skills: updatedSkills } : null));
+        setNewSkillInput("");
+      }
+    } catch (err) {
+      console.error("Failed to update skills:", err);
+    } finally {
+      setIsUpdatingSkill(false);
+    }
+  };
+
+  /**
+   * @description Remove a skill tag and sync to profile
+   */
+  const handleRemoveSkill = async (skillToRemove: string) => {
+    if (!profile) return;
+    const updatedSkills = (profile.skills || []).filter((s) => s !== skillToRemove);
+    try {
+      const res = await fetch(`${API_BASE}/api/profile`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ skills: updatedSkills }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setProfile((prev) => (prev ? { ...prev, skills: updatedSkills } : null));
+      }
+    } catch (err) {
+      console.error("Failed to remove skill:", err);
+    }
+  };
 
   /**
    * @description Submit assessment answers and compute score
@@ -523,22 +571,14 @@ export default function StudentDashboard() {
               Portal<span className="text-primary font-mono">Academia</span>
             </span>
           </Link>
+          <span className="text-xs px-2 py-0.5 rounded-md border border-border bg-background text-muted-foreground font-mono">
+            Pillar 1: Student Console
+          </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* User Profile Trigger Button */}
-          <button
-            type="button"
-            onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
-            className="flex items-center gap-2 text-xs font-semibold px-2.5 py-1.5 rounded-md bg-secondary hover:bg-secondary/80 text-foreground border border-border cursor-pointer transition-colors"
-            title="Open User Profile Page"
-          >
-            <div className="w-5 h-5 rounded-full bg-primary/20 text-primary font-bold text-[10px] flex items-center justify-center">
-              {profile?.name ? profile.name.slice(0, 2).toUpperCase() : "ST"}
-            </div>
-            <span className="hidden sm:inline max-w-[120px] truncate">{profile?.name || "Profile"}</span>
-          </button>
 
+
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setIsAiOpen(true)}
@@ -573,19 +613,14 @@ export default function StudentDashboard() {
         {/* 2. Profile & Verified Portfolio Strip */}
         <section className="bg-card border border-border rounded-md p-4 lg:p-5">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div
-              onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
-              className="flex items-start gap-3 cursor-pointer group select-none"
-              title="Click to view & edit your complete profile"
-            >
-              <div className="w-11 h-11 rounded-md bg-secondary border border-border flex items-center justify-center font-bold text-sm text-foreground group-hover:border-primary group-hover:bg-primary/10 transition-colors">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-md bg-secondary border border-border flex items-center justify-center font-bold text-sm text-foreground">
                 {profile?.name ? profile.name.slice(0, 2).toUpperCase() : "ST"}
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-base font-bold text-foreground tracking-tight group-hover:text-primary transition-colors flex items-center gap-1.5">
+                  <h1 className="text-base font-bold text-foreground tracking-tight">
                     {profile?.name || "Student Scholar"}
-                    <span className="text-[11px] font-normal text-muted-foreground">✎</span>
                   </h1>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3" />
@@ -600,11 +635,7 @@ export default function StudentDashboard() {
 
             {/* Quick Metrics */}
             <div className="flex items-center gap-4 text-xs font-mono">
-              <div
-                onClick={() => navigate(`/profile/${profile?._id || "me"}?edit=true`)}
-                className="px-3 py-1.5 rounded-md bg-background border border-border cursor-pointer hover:border-primary transition-colors"
-                title="Click to manage skills in profile"
-              >
+              <div className="px-3 py-1.5 rounded-md bg-background border border-border">
                 <span className="text-muted-foreground block text-[10px]">Verified Skills</span>
                 <span className="font-bold text-foreground tabular-nums text-sm">
                   {profile?.skills?.length || 0}
@@ -624,6 +655,78 @@ export default function StudentDashboard() {
                     : "0%"}
                 </span>
               </div>
+            </div>
+          </div>
+
+          {/* Skill Badges & Live Insertion Form with Simple Icons */}
+          <div className="mt-4 pt-4 border-t border-border flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-1.5 flex-1">
+              <span className="text-xs text-muted-foreground mr-1">Skills:</span>
+              {profile?.skills && profile.skills.length > 0 ? (
+                profile.skills.map((skill, idx) => (
+                  <SkillBadge
+                    key={idx}
+                    skill={skill}
+                    size="sm"
+                    onRemove={() => handleRemoveSkill(skill)}
+                  />
+                ))
+              ) : (
+                <span className="text-xs text-muted-foreground italic">No skills listed yet</span>
+              )}
+            </div>
+
+            <div className="relative">
+              <form onSubmit={handleAddSkill} className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={newSkillInput}
+                  onChange={(e) => setNewSkillInput(e.target.value)}
+                  placeholder="Add skill (e.g. Python, Docker)"
+                  disabled={isUpdatingSkill}
+                  className="text-xs px-2.5 py-1.5 rounded-md bg-background border border-border text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary w-52"
+                />
+                <button
+                  type="submit"
+                  disabled={isUpdatingSkill || !newSkillInput.trim()}
+                  className="text-xs font-semibold px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors cursor-pointer"
+                >
+                  {isUpdatingSkill ? "Adding…" : "Add"}
+                </button>
+              </form>
+
+              {/* Autocomplete Dropdown from Simple Icons */}
+              {newSkillInput.trim().length > 0 && (
+                <div className="absolute z-40 right-0 mt-1 w-60 max-h-48 overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-lg text-popover-foreground">
+                  <div className="px-2 py-1 text-[9px] font-mono uppercase tracking-wider text-muted-foreground">
+                    Simple Icons Matches
+                  </div>
+                  {searchSkillSuggestions(newSkillInput.trim(), 5).map((item) => (
+                    <button
+                      key={item.slug}
+                      type="button"
+                      onClick={() => handleAddSkill(undefined, item.title)}
+                      className="w-full flex items-center justify-between px-2 py-1.5 rounded-xs text-xs hover:bg-muted/80 transition-colors text-left cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <svg
+                          role="img"
+                          viewBox="0 0 24 24"
+                          className="w-3.5 h-3.5 shrink-0"
+                          style={{ fill: `#${item.hex}` }}
+                          aria-hidden="true"
+                        >
+                          <path d={item.path} />
+                        </svg>
+                        <span className="font-medium text-foreground">{item.title}</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        + Add
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -1170,13 +1273,6 @@ export default function StudentDashboard() {
           </form>
         </div>
       )}
-      {/* User Profile Modal */}
-      <UserProfileModal
-        isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
-        profile={profile}
-        onProfileUpdated={(updatedProfile) => setProfile(updatedProfile)}
-      />
     </div>
   );
 }

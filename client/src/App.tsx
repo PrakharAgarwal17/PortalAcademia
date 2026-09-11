@@ -19,7 +19,6 @@ import IndustryDashboard from "@/pages/dashboards/IndustryDashboard";
 import OnboardingSelectType from "@/pages/OnboardingSelectType";
 import OnboardingIndividual from "@/pages/onboarding/OnboardingIndividual";
 import OnboardingOrganization from "@/pages/onboarding/OnboardingOrganization";
-import ProfilePage from "@/pages/ProfilePage";
 
 import { useState } from "react";
 
@@ -233,24 +232,6 @@ function AppShell() {
           <RoleProtectedRoute allowedRole="industry">
             <IndustryDashboard />
           </RoleProtectedRoute>
-        }
-      />
-
-      {/* Dedicated Unique Full Profile Page */}
-      <Route
-        path="/profile/:id"
-        element={
-          <ProtectedRoute>
-            <ProfilePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute>
-            <ProfilePage />
-          </ProtectedRoute>
         }
       />
 

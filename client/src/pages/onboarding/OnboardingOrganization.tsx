@@ -51,7 +51,6 @@ export interface OrganizationProfilePayload {
   category: "organization";
   accountType: OrganizationType;
   name: string;
-  headline?: string;
   profileImage?: string;
   bio?: string;
   location?: string;
@@ -137,7 +136,6 @@ export default function OnboardingOrganization() {
 
   // Common Entity Fields
   const [orgLogo, setOrgLogo] = useState<string>("");
-  const [headline, setHeadline] = useState<string>("");
   const [location, setLocation] = useState<string>("");
   const [bio, setBio] = useState<string>("");
   const [website, setWebsite] = useState<string>("");
@@ -519,7 +517,6 @@ export default function OnboardingOrganization() {
       category: "organization",
       accountType: activeType,
       name: entityName,
-      headline: headline.trim() || undefined,
       profileImage: orgLogo || undefined,
       bio: bio.trim() || undefined,
       location: location.trim() || undefined,
@@ -1332,49 +1329,6 @@ export default function OnboardingOrganization() {
 
               {showAdditionalInfo && (
                 <div className="space-y-4 pt-3 mt-2 border-t border-border/40 animate-in fade-in duration-150">
-                  {/* Professional Headline */}
-                  <div>
-                    <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
-                      Professional Headline <span className="text-muted-foreground font-normal normal-case">(optional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={headline}
-                      onChange={(e) => setHeadline(e.target.value)}
-                      maxLength={120}
-                      placeholder={activeType === "institution" ? "e.g. Leading Research University in India | NAAC A++" : "e.g. Empowering Businesses with AI-First Solutions"}
-                      className="w-full h-9 px-3 rounded-md border border-input bg-background text-xs text-foreground focus-ring"
-                    />
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {(activeType === "institution"
-                        ? [
-                            "Premier Research University | NAAC A++ Accredited",
-                            "Leading Engineering & Technology Institute",
-                            "Autonomous College | Innovation & Industry-Focused Learning",
-                          ]
-                        : [
-                            "Global IT Solutions & Digital Transformation Leader",
-                            "AI-First Product Company | Enterprise SaaS",
-                            "Deep Tech Startup | Building the Future of Work",
-                          ]
-                      ).map((sug, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => setHeadline(sug)}
-                          className={cn(
-                            "text-[10px] px-2 py-0.5 rounded-full border transition-colors cursor-pointer",
-                            headline === sug
-                              ? "bg-foreground text-background border-foreground"
-                              : "bg-secondary border-border text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30"
-                          )}
-                        >
-                          {sug}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
                   {/* Bio / Description */}
                   <div>
                     <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
