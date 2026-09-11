@@ -22,6 +22,8 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localh
 interface IndustryProfile {
   _id?: string;
   name: string;
+  headline?: string;
+  profileImage?: string;
   companyName?: string;
   industryType?: string;
   workEmail?: string;
@@ -90,6 +92,7 @@ export default function IndustryDashboard() {
     requiredSkills: "",
     eligibility: "",
     deadline: "",
+    targetAudience: "both",
   });
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishFeedback, setPublishFeedback] = useState<string | null>(null);
@@ -208,6 +211,7 @@ export default function IndustryDashboard() {
             requiredSkills: "React, Node.js, TypeScript",
             eligibility: "Pre-final and final year B.Tech / M.Tech students.",
             deadline: "2026-11-30",
+            targetAudience: "both",
           });
         }, 1200);
       } else {
@@ -306,20 +310,39 @@ export default function IndustryDashboard() {
         <section className="bg-card border border-border rounded-md p-4 lg:p-5">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-md bg-secondary border border-border flex items-center justify-center font-bold text-sm text-foreground">
-                <Briefcase className="w-5 h-5 text-primary" />
+              <div 
+                onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
+                className="w-11 h-11 rounded-md bg-secondary border border-border flex items-center justify-center font-bold text-sm text-foreground cursor-pointer hover:border-primary transition-colors overflow-hidden group"
+                title="View Company Profile"
+              >
+                {profile?.profileImage ? (
+                  <img src={profile.profileImage} alt={profile.name} className="w-full h-full object-cover" />
+                ) : (
+                  <Briefcase className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
+                )}
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-base font-bold text-foreground tracking-tight">
+                  <h1 
+                    onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
+                    className="text-base font-bold text-foreground tracking-tight hover:text-primary transition-colors cursor-pointer"
+                    title="View Company Profile"
+                  >
                     {profile?.companyName || profile?.name || "Corporate Partner"}
                   </h1>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold">
                     Verified Industry Partner
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
+                    className="text-[11px] font-medium text-primary hover:underline ml-2"
+                  >
+                    View / Edit Profile →
+                  </button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {profile?.industryType || "Enterprise Partner"} • {profile?.location || "Location pending"} • {profile?.workEmail || profile?.officialWebsite || "Email not specified"}
+                  {profile?.headline || `${profile?.industryType || "Enterprise Partner"} • ${profile?.location || "Location pending"} • ${profile?.workEmail || profile?.officialWebsite || "Email not specified"}`}
                 </p>
               </div>
             </div>
@@ -507,7 +530,7 @@ export default function IndustryDashboard() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-foreground mb-1">Category</label>
                   <select
@@ -521,6 +544,19 @@ export default function IndustryDashboard() {
                     <option value="fdp">FDP</option>
                     <option value="research">Joint Research</option>
                     <option value="sabbatical">Sabbatical</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1">Target Audience</label>
+                  <select
+                    value={publishForm.targetAudience}
+                    onChange={(e) => setPublishForm((p) => ({ ...p, targetAudience: e.target.value }))}
+                    className="w-full text-xs p-2 rounded-md bg-background border border-border text-foreground focus:outline-none font-semibold text-primary"
+                  >
+                    <option value="both">Both (Students &amp; Faculty)</option>
+                    <option value="student">For Students Only</option>
+                    <option value="faculty">For Faculty Only</option>
                   </select>
                 </div>
 

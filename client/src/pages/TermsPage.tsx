@@ -92,7 +92,7 @@ export default function TermsPage() {
                 Acceptance of Terms & Institutional Governance
               </h2>
               <p>
-                By accessing or registering an account on PortalAcademia (the "Platform"), you agree to comply with and be bound by these Terms and Conditions. PortalAcademia operates as a verified intermediary facilitating structured talent development, skill gap assessments, and direct industry hiring under Problem Statement 26044. If you register on behalf of an academic institution or corporate entity, you warrant that you possess the requisite authority to bind that entity.
+                By accessing or registering an account on PortalAcademia (the "Platform"), you agree to comply with and be bound by these Terms and Conditions. PortalAcademia operates as a verified intermediary facilitating structured talent development, skill gap assessments, and direct industry hiring. If you register on behalf of an academic institution or corporate entity, you warrant that you possess the requisite authority to bind that entity.
               </p>
             </section>
 
@@ -189,7 +189,7 @@ export default function TermsPage() {
         <footer className="py-6 px-4 sm:px-6 border-t border-border bg-background mt-auto">
           <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground font-mono">
             <span>© {new Date().getFullYear()} PortalAcademia. All rights reserved.</span>
-            <span>SIH 2026 PS 26044 Legal Repository</span>
+            <span>PortalAcademia Legal Repository</span>
           </div>
         </footer>
       </div>

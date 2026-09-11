@@ -12,6 +12,8 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localh
 // ============================================================
 
 export interface AuthUser {
+  _id?: string;
+  id?: string;
   email: string;
   role?: string;
   isVerified: boolean;

@@ -310,6 +310,7 @@ async function seed() {
             eligibility: "Pre-final / final year B.Tech, M.Tech, or MCA candidates with verified Python competency.",
             deadline: "2026-10-30",
             status: "active",
+            targetAudience: "student",
             recommendedToStudentsBy: [institutionUser._id],
             applicantCount: 3,
         });
@@ -329,6 +330,7 @@ async function seed() {
             eligibility: "Student teams of 4-6 members enrolled in accredited AISHE Indian institutions.",
             deadline: "2026-11-15",
             status: "active",
+            targetAudience: "student",
             recommendedToStudentsBy: [institutionUser._id],
             applicantCount: 14,
         });
@@ -348,6 +350,7 @@ async function seed() {
             eligibility: "Open to all students and faculty seeking official AWS Cloud certification.",
             deadline: "2026-10-15",
             status: "active",
+            targetAudience: "both",
             recommendedToStudentsBy: [institutionUser._id],
             recommendedToFacultyBy: [institutionUser._id],
             applicantCount: 28,
@@ -368,6 +371,7 @@ async function seed() {
             eligibility: "Accredited university professors, assistant professors, and lecturers across all departments.",
             deadline: "2026-10-25",
             status: "active",
+            targetAudience: "faculty",
             recommendedToFacultyBy: [institutionUser._id],
             applicantCount: 9,
         });
@@ -387,6 +391,7 @@ async function seed() {
             eligibility: "Tenured or contract faculty with Ph.D. or 5+ years academic teaching experience in engineering.",
             deadline: "2026-11-30",
             status: "active",
+            targetAudience: "faculty",
             recommendedToFacultyBy: [institutionUser._id],
             applicantCount: 4,
         });
@@ -406,6 +411,7 @@ async function seed() {
             eligibility: "Joint proposals led by a university professor paired with student researchers.",
             deadline: "2026-12-15",
             status: "active",
+            targetAudience: "faculty",
             recommendedToFacultyBy: [institutionUser._id],
             applicantCount: 6,
         });

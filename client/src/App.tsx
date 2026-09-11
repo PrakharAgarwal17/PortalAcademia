@@ -19,6 +19,11 @@ import IndustryDashboard from "@/pages/dashboards/IndustryDashboard";
 import OnboardingSelectType from "@/pages/OnboardingSelectType";
 import OnboardingIndividual from "@/pages/onboarding/OnboardingIndividual";
 import OnboardingOrganization from "@/pages/onboarding/OnboardingOrganization";
+import ProfilePage from "@/pages/ProfilePage";
+import AiGuidePage from "@/pages/AiGuidePage";
+import MarketTrendsPage from "@/pages/MarketTrendsPage";
+import SkillAssessmentsPage from "@/pages/SkillAssessmentsPage";
+import ApplicationsTrackerPage from "@/pages/ApplicationsTrackerPage";
 
 import { useState } from "react";
 
@@ -232,6 +237,58 @@ function AppShell() {
           <RoleProtectedRoute allowedRole="industry">
             <IndustryDashboard />
           </RoleProtectedRoute>
+        }
+      />
+
+      {/* Dedicated Feature Routes */}
+      <Route
+        path="/ai-guide"
+        element={
+          <ProtectedRoute>
+            <AiGuidePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/trends"
+        element={
+          <ProtectedRoute>
+            <MarketTrendsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/assessments"
+        element={
+          <ProtectedRoute>
+            <SkillAssessmentsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/applications"
+        element={
+          <ProtectedRoute>
+            <ApplicationsTrackerPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Dedicated User Profile Page with Unique ID */}
+      <Route
+        path="/profile/:id"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
         }
       />
 

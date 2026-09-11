@@ -1,5 +1,5 @@
 import { getSkillIcon } from "@/lib/skillIcons";
-import { Sparkles, X } from "lucide-react";
+import { Sparkles, X, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SkillBadgeProps {
@@ -8,6 +8,7 @@ interface SkillBadgeProps {
   size?: "xs" | "sm" | "md";
   className?: string;
   showColor?: boolean;
+  isTested?: boolean;
 }
 
 export default function SkillBadge({
@@ -16,6 +17,7 @@ export default function SkillBadge({
   size = "sm",
   className,
   showColor = true,
+  isTested = false,
 }: SkillBadgeProps) {
   const iconData = getSkillIcon(skill);
 
@@ -53,6 +55,12 @@ export default function SkillBadge({
         <Sparkles className={cn(iconSizes[size], "text-muted-foreground shrink-0")} />
       )}
       <span className="truncate max-w-[170px]">{skill}</span>
+      {isTested && (
+        <span className="inline-flex items-center gap-0.5 text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold ml-0.5" title="Tested & Verified Competency">
+          <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" />
+          Tested
+        </span>
+      )}
       {onRemove && (
         <button
           type="button"

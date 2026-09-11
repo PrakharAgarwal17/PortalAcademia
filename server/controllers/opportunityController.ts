@@ -9,7 +9,7 @@ import profileModel from "../models/profileModel.js";
  */
 export async function getOpportunities(req: Request, res: Response) {
     try {
-        const { category, mode, search, recommendedFor, limit = "50", page = "1" } = req.query;
+        const { category, mode, search, targetAudience, recommendedFor, limit = "50", page = "1" } = req.query;
         const filter: any = { status: "active" };
 
         if (category && category !== "all") {
@@ -18,6 +18,19 @@ export async function getOpportunities(req: Request, res: Response) {
 
         if (mode && mode !== "all") {
             filter.mode = mode as OpportunityMode;
+        }
+
+        if (targetAudience && targetAudience !== "all") {
+            if (targetAudience === "student") {
+                filter.targetAudience = { $ne: "faculty" };
+                if (!category || category === "all") {
+                    filter.category = { $nin: ["fdp", "sabbatical"] };
+                }
+            } else if (targetAudience === "faculty") {
+                filter.targetAudience = { $ne: "student" };
+            } else {
+                filter.targetAudience = { $in: [targetAudience, "both"] };
+            }
         }
 
         if (search) {
@@ -149,6 +162,7 @@ export async function createOpportunity(req: Request, res: Response) {
             requiredSkills,
             eligibility,
             deadline,
+            targetAudience,
         } = req.body;
 
         if (!title || !description || !category || !domain || !deadline) {
@@ -189,6 +203,7 @@ export async function createOpportunity(req: Request, res: Response) {
             requiredSkills: skillsArray,
             eligibility: eligibility || "Open to all qualified applicants.",
             deadline,
+            targetAudience: targetAudience || "both",
             status: "active",
         });
 
@@ -302,6 +317,19 @@ export async function recommendOpportunity(req: Request, res: Response) {
             return res.status(404).json({ success: false, message: "Opportunity not found" });
         }
 
+        // Fetch recommending user's profile to find institution name
+        const recommenderProfile = await profileModel.findOne({ userId: req.userId });
+        const instName = recommenderProfile?.institutionName || recommenderProfile?.institution || recommenderProfile?.name;
+
+        if (instName) {
+            if (!opportunity.recommendedByColleges) {
+                opportunity.recommendedByColleges = [];
+            }
+            if (!opportunity.recommendedByColleges.includes(instName)) {
+                opportunity.recommendedByColleges.push(instName);
+            }
+        }
+
         const userObjId = req.userId as any;
         if (target === "students") {
             const alreadyRecommended = opportunity.recommendedToStudentsBy.some(
@@ -327,6 +355,7 @@ export async function recommendOpportunity(req: Request, res: Response) {
             data: {
                 recommendedToStudentsCount: opportunity.recommendedToStudentsBy.length,
                 recommendedToFacultyCount: opportunity.recommendedToFacultyBy.length,
+                recommendedByColleges: opportunity.recommendedByColleges,
             },
         });
     } catch (error) {

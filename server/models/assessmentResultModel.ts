@@ -3,6 +3,9 @@ import mongoose, { Schema, type Document, type Model } from "mongoose";
 export interface IAssessmentAnswer {
     questionId: string;
     selectedOptionIndex: number;
+    writtenAnswer?: string;
+    timeTakenSeconds?: number;
+    isFlaggedAI?: boolean;
     isCorrect: boolean;
 }
 
@@ -23,7 +26,10 @@ export interface IAssessmentResult extends Document {
 const assessmentAnswerSchema = new Schema<IAssessmentAnswer>(
     {
         questionId: { type: String, required: true },
-        selectedOptionIndex: { type: Number, required: true },
+        selectedOptionIndex: { type: Number, default: -1 },
+        writtenAnswer: { type: String, default: "" },
+        timeTakenSeconds: { type: Number, default: 0 },
+        isFlaggedAI: { type: Boolean, default: false },
         isCorrect: { type: Boolean, required: true },
     },
     { _id: false }

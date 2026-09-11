@@ -24,6 +24,8 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localh
 interface InstitutionProfile {
   _id?: string;
   name: string;
+  headline?: string;
+  profileImage?: string;
   institutionName?: string;
   aisheCode?: string;
   officialEmail?: string;
@@ -280,18 +282,37 @@ export default function InstitutionDashboard() {
         <section className="bg-card border border-border rounded-md p-4 lg:p-5">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-md bg-secondary border border-border flex items-center justify-center font-bold text-sm text-foreground">
-                <Building2 className="w-5 h-5 text-primary" />
+              <div 
+                onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
+                className="w-11 h-11 rounded-md bg-secondary border border-border flex items-center justify-center font-bold text-sm text-foreground cursor-pointer hover:border-primary transition-colors overflow-hidden group"
+                title="View Institution Profile"
+              >
+                {profile?.profileImage ? (
+                  <img src={profile.profileImage} alt={profile.name} className="w-full h-full object-cover" />
+                ) : (
+                  <Building2 className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
+                )}
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-base font-bold text-foreground tracking-tight">
+                  <h1 
+                    onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
+                    className="text-base font-bold text-foreground tracking-tight hover:text-primary transition-colors cursor-pointer"
+                    title="View Institution Profile"
+                  >
                     {profile?.institutionName || profile?.name || "Academic Institution"}
                   </h1>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 font-bold">
                     <ShieldCheck className="w-3 h-3" />
                     AISHE Code: {profile?.aisheCode || "Registry Pending"}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
+                    className="text-[11px] font-medium text-primary hover:underline ml-2"
+                  >
+                    View / Edit Profile →
+                  </button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Training & Placement Office • {profile?.officialEmail || profile?.contact || "Email unverified"} • {profile?.location || "Location pending"}
@@ -375,7 +396,7 @@ export default function InstitutionDashboard() {
                 Pending Credential Verification Queue
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                SIH 26044 Mandate: Official placement officers audit student uploaded certificates, external credentials, and project proofs before granting verified cryptographic badges.
+                Verification Mandate: Official placement officers audit student uploaded certificates, external credentials, and project proofs before granting verified cryptographic badges.
               </p>
             </div>
 
@@ -559,7 +580,7 @@ export default function InstitutionDashboard() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
               {opportunities.map((opp) => (
                 <div
                   key={opp._id}

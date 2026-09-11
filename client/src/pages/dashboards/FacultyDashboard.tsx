@@ -35,6 +35,8 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localh
 interface FacultyProfile {
   _id?: string;
   name: string;
+  headline?: string;
+  profileImage?: string;
   accountType: string;
   designation?: string;
   department?: string;
@@ -764,10 +766,15 @@ export default function FacultyDashboard() {
           <div className="flex items-center gap-3 flex-1 max-w-md">
             {/* Circular Profile Avatar ( O ) */}
             <div
-              className="relative w-9 h-9 rounded-full bg-secondary border-2 border-primary/40 flex items-center justify-center font-bold text-xs text-foreground shrink-0 shadow-xs cursor-pointer hover:border-primary transition-all"
-              title={`${profile?.name || "Faculty Member"} (Verified)`}
+              onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
+              className="relative w-9 h-9 rounded-full bg-secondary border-2 border-primary/40 flex items-center justify-center font-bold text-xs text-foreground shrink-0 shadow-xs cursor-pointer hover:border-primary transition-all overflow-hidden"
+              title={`View ${profile?.name || "Faculty Member"}'s Profile`}
             >
-              <span>{initials}</span>
+              {profile?.profileImage ? (
+                <img src={profile.profileImage} alt={profile.name} className="w-full h-full object-cover" />
+              ) : (
+                <span>{initials}</span>
+              )}
               {/* Verified tick mark */}
               <span className="absolute -bottom-0.5 -right-0.5 bg-background rounded-full p-0.5 shadow-xs">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500/20" />
@@ -895,10 +902,17 @@ export default function FacultyDashboard() {
             <span className="text-xs font-medium text-muted-foreground">
               {profile?.name ? (
                 <>
-                  Logged in as <strong className="text-foreground font-semibold">{profile.name}</strong>
+                  Logged in as <strong onClick={() => navigate(`/profile/${profile?._id || "me"}`)} className="text-foreground font-semibold hover:text-primary transition-colors cursor-pointer" title="View Full Profile">{profile.name}</strong>
                   {profile.institution && (
                     <span className="text-muted-foreground"> ({profile.institution})</span>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
+                    className="text-[11px] font-medium text-primary hover:underline ml-2"
+                  >
+                    View / Edit Profile →
+                  </button>
                 </>
               ) : (
                 "Faculty Immersion Portal"
@@ -1489,7 +1503,7 @@ export default function FacultyDashboard() {
 
       {/* 
         ========================================================================
-        CONTEXTUAL AI HELPBOT DRAWER (SIH 26044)
+        CONTEXTUAL AI HELPBOT DRAWER
         ========================================================================
       */}
       {isAiOpen && (
@@ -1500,7 +1514,7 @@ export default function FacultyDashboard() {
               <div>
                 <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5">
                   <span>AI HelpBOT & Immersion Advisor</span>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono font-normal">SIH 26044</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono font-normal">v2.0 Verified</span>
                 </h3>
                 <p className="text-[10px] text-muted-foreground font-mono">Faculty Sabbaticals & Research Telemetry</p>
               </div>

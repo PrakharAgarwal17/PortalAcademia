@@ -772,7 +772,7 @@ function Footer() {
             <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md border border-border bg-muted/40 font-mono text-[11px] text-muted-foreground">
               <span>SIH 2026</span>
               <span className="text-zinc-400">•</span>
-              <span>PS 26044</span>
+              <span>National Portal</span>
             </div>
           </div>
 

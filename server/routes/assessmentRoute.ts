@@ -4,6 +4,7 @@ import {
     getAssessmentById,
     submitAssessment,
     getMyResults,
+    generateSkillAssessment,
 } from "../controllers/assessmentController.js";
 import isloggedIn from "../middleware/isloggedIn.js";
 import { isStudent } from "../middleware/rbacMiddleware.js";
@@ -15,6 +16,9 @@ router.get("/", isloggedIn, getAssessments);
 
 // Student past assessment attempts
 router.get("/my-results", isloggedIn, isStudent, getMyResults);
+
+// Generate custom skill assessment based on selected profile skills
+router.post("/generate", isloggedIn, generateSkillAssessment);
 
 // Specific assessment questions (without answer keys)
 router.get("/:id", isloggedIn, getAssessmentById);

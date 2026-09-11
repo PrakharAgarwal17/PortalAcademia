@@ -16,7 +16,7 @@ const FAQ_ITEMS: FAQItem[] = [
     category: "General",
     question: "What is PortalAcademia and what problem does it solve?",
     answer:
-      "PortalAcademia is an integrated academia-industry collaboration platform developed to solve Smart India Hackathon Problem Statement 26044. It directly bridges the gap between theoretical academic curricula and live industry expectations by providing verified skill assessments, automated competency gap discovery, curated industry learning paths, and direct employer placement matching.",
+      "PortalAcademia is an integrated academia-industry collaboration platform. It directly bridges the gap between theoretical academic curricula and live industry expectations by providing verified skill assessments, automated competency gap discovery, curated industry learning paths, and direct employer placement matching.",
   },
   {
     id: "gen-2",

@@ -1,32 +1,37 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
-  Award,
   CheckCircle2,
-  Clock,
   Bot,
   Search,
   Send,
   X,
   Loader2,
-  Sun,
-  Moon,
-  LogOut,
   Briefcase,
   Sparkles,
+  MapPin,
+  Building2,
+  Clock,
+  Star,
+  ArrowRight,
+  Coins,
+  ShieldCheck,
+  Zap,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAppDispatch } from "@/context/store";
-import { signOutThunk } from "@/context/authSlice";
-import { useTheme } from "@/context/theme";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import SkillBadge from "@/components/SkillBadge";
 import { searchSkillSuggestions } from "@/lib/skillIcons";
+import TestConfirmationModal from "@/components/TestConfirmationModal";
+import SkillTestRunnerModal from "@/components/SkillTestRunnerModal";
+import Navbar from "@/components/Navbar";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
 
 interface UserProfile {
   _id?: string;
   name: string;
+  headline?: string;
+  profileImage?: string;
   category?: "individual" | "organization";
   accountType: string;
   institution?: string;
@@ -57,14 +62,21 @@ interface Opportunity {
   requiredSkills: string[];
   deadline: string;
   recommendedToStudentsBy?: string[];
+  recommendedByColleges?: string[];
+  targetAudience?: "student" | "faculty" | "both";
   applicantCount: number;
 }
 
 interface AssessmentQuestion {
   questionId: string;
   questionText: string;
+  type?: "mcq" | "writing";
+  difficultyLevel?: "easy" | "medium" | "writing";
+  concept?: string;
   options: string[];
-  weight: number;
+  correctOptionIndex?: number;
+  explanation?: string;
+  weight?: number;
 }
 
 interface Assessment {
@@ -206,15 +218,13 @@ function formatAiMessage(content: string) {
 }
 
 export default function StudentDashboard() {
-  const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useTheme();
 
   // State
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
-  const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
+  const [testedSkills, setTestedSkills] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Filters
@@ -224,10 +234,15 @@ export default function StudentDashboard() {
   const [isUpdatingSkill, setIsUpdatingSkill] = useState(false);
 
   // Quiz Modal State
+  const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
+  const [targetTestSkill, setTargetTestSkill] = useState<string | undefined>(undefined);
+  const [isGeneratingTest, setIsGeneratingTest] = useState(false);
   const [activeQuiz, setActiveQuiz] = useState<Assessment | null>(null);
-  const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
-  const [quizSubmitting, setQuizSubmitting] = useState(false);
-  const [quizResult, setQuizResult] = useState<any | null>(null);
+
+  const openTestConfirmation = (skillName?: string) => {
+    setTargetTestSkill(skillName);
+    setIsConfirmationOpen(true);
+  };
 
   // Apply Modal State
   const [applyingOpportunity, setApplyingOpportunity] = useState<Opportunity | null>(null);
@@ -271,7 +286,7 @@ export default function StudentDashboard() {
    */
   const fetchOpportunities = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/opportunities`, {
+      const res = await fetch(`${API_BASE}/api/opportunities?targetAudience=student`, {
         method: "GET",
         credentials: "include",
       });
@@ -285,27 +300,7 @@ export default function StudentDashboard() {
   }, []);
 
   /**
-   * @description Fetch standardized skill assessment tests
-   * @returns {Promise<void>}
-   */
-  const fetchAssessments = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/assessments`, {
-        method: "GET",
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (data.success) {
-        setAssessments(data.data || []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch assessments:", err);
-    }
-  }, []);
-
-  /**
    * @description Fetch student submitted applications
-   * @returns {Promise<void>}
    */
   const fetchApplications = useCallback(async () => {
     try {
@@ -322,13 +317,37 @@ export default function StudentDashboard() {
     }
   }, []);
 
+  /**
+   * @description Fetch past assessment results to know which skills are verified/tested
+   */
+  const fetchTestResults = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/assessments/my-results`, {
+        method: "GET",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        const verifiedSet = new Set<string>();
+        data.data.forEach((r: any) => {
+          if (r.passed) {
+            (r.verifiedSkillsAdded || []).forEach((s: string) => verifiedSet.add(s.toLowerCase()));
+          }
+        });
+        setTestedSkills(Array.from(verifiedSet));
+      }
+    } catch (err) {
+      console.error("Failed to fetch test results:", err);
+    }
+  }, []);
+
   // Initial Load
   useEffect(() => {
     setIsLoading(true);
-    Promise.all([fetchProfile(), fetchOpportunities(), fetchAssessments(), fetchApplications()])
+    Promise.all([fetchProfile(), fetchOpportunities(), fetchApplications(), fetchTestResults()])
       .catch((err) => console.error("Initial load error:", err))
       .finally(() => setIsLoading(false));
-  }, [fetchProfile, fetchOpportunities, fetchAssessments, fetchApplications]);
+  }, [fetchProfile, fetchOpportunities, fetchApplications, fetchTestResults]);
 
   /**
    * @description Add a skill tag and sync to profile
@@ -382,34 +401,32 @@ export default function StudentDashboard() {
   };
 
   /**
-   * @description Submit assessment answers and compute score
+   * @description Generate customized 10-question assessment based on selected target skill/language
    */
-  const handleQuizSubmit = async () => {
-    if (!activeQuiz) return;
-    const formattedAnswers = activeQuiz.questions.map((q) => ({
-      questionId: q.questionId,
-      selectedOptionIndex: quizAnswers[q.questionId] ?? -1,
-    }));
-
-    setQuizSubmitting(true);
+  const handleGenerateTestFromConfirmation = async (targetSkill: string) => {
+    setIsGeneratingTest(true);
     try {
-      const res = await fetch(`${API_BASE}/api/assessments/${activeQuiz._id}/submit`, {
+      const res = await fetch(`${API_BASE}/api/assessments/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ answers: formattedAnswers }),
+        body: JSON.stringify({ targetSkill }),
       });
       const data = await res.json();
-      if (data.success) {
-        setQuizResult(data.data);
-        await fetchProfile(); // refresh verified skills
+      if (data.success && data.data) {
+        setActiveQuiz(data.data);
+        setIsConfirmationOpen(false);
+      } else {
+        alert(data.message || "Failed to generate test.");
       }
     } catch (err) {
-      console.error("Quiz submission failed:", err);
+      console.error("Failed to generate custom test:", err);
+      alert("Network error generating assessment.");
     } finally {
-      setQuizSubmitting(false);
+      setIsGeneratingTest(false);
     }
   };
+
 
   /**
    * @description Submit job/internship application
@@ -531,13 +548,42 @@ export default function StudentDashboard() {
     }
   };
 
+  /**
+   * @description Calculate skill match score (%) between candidate profile skills and opportunity required skills
+   */
+  const computeSkillMatch = useCallback((requiredSkills: string[] = []) => {
+    const userSkills = profile?.skills || [];
+    if (!requiredSkills || requiredSkills.length === 0) {
+      return { score: 100, matchedSkills: userSkills, totalRequired: 0 };
+    }
+    const normalizedUserSkills = userSkills.map((s) => s.toLowerCase().trim());
+    const matchedSkills: string[] = [];
+
+    requiredSkills.forEach((reqSkill) => {
+      const normReq = reqSkill.toLowerCase().trim();
+      if (normalizedUserSkills.some((us) => us.includes(normReq) || normReq.includes(us))) {
+        matchedSkills.push(reqSkill);
+      }
+    });
+
+    const score = Math.round((matchedSkills.length / requiredSkills.length) * 100);
+    return { score, matchedSkills, totalRequired: requiredSkills.length };
+  }, [profile?.skills]);
+
   // Filtered opportunities
   const filteredOpportunities = useMemo(() => {
-    return opportunities.filter((opp) => {
+    const list = opportunities.filter((opp) => {
+      const matchesAudience =
+        opp.targetAudience === "student" ||
+        opp.targetAudience === "both" ||
+        (!opp.targetAudience && opp.category !== "fdp" && opp.category !== "sabbatical");
+
       const matchesCategory =
         selectedCategory === "all" ||
+        selectedCategory === "skill_matched" ||
         opp.category === selectedCategory ||
-        (selectedCategory === "recommended" && (opp.recommendedToStudentsBy?.length || 0) > 0);
+        (selectedCategory === "recommended" &&
+          ((opp.recommendedToStudentsBy?.length || 0) > 0 || (opp.recommendedByColleges?.length || 0) > 0));
 
       const matchesSearch =
         !searchQuery ||
@@ -546,9 +592,19 @@ export default function StudentDashboard() {
         opp.domain.toLowerCase().includes(searchQuery.toLowerCase()) ||
         opp.requiredSkills.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase()));
 
-      return matchesCategory && matchesSearch;
+      return matchesAudience && matchesCategory && matchesSearch;
     });
-  }, [opportunities, selectedCategory, searchQuery]);
+
+    if (selectedCategory === "skill_matched") {
+      return [...list].sort((a, b) => {
+        const scoreA = computeSkillMatch(a.requiredSkills).score;
+        const scoreB = computeSkillMatch(b.requiredSkills).score;
+        return scoreB - scoreA;
+      });
+    }
+
+    return list;
+  }, [opportunities, selectedCategory, searchQuery, computeSkillMatch]);
 
   if (isLoading) {
     return (
@@ -563,93 +619,75 @@ export default function StudentDashboard() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      {/* 1. Global Stakeholder Bar & Dual-Theme Switcher */}
-      <header className="sticky top-0 z-30 bg-card border-b border-border px-4 lg:px-8 py-2.5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="font-bold text-sm tracking-tight text-foreground">
-              Portal<span className="text-primary font-mono">Academia</span>
-            </span>
-          </Link>
-          <span className="text-xs px-2 py-0.5 rounded-md border border-border bg-background text-muted-foreground font-mono">
-            Pillar 1: Student Console
-          </span>
-        </div>
-
-
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsAiOpen(true)}
-            className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-md bg-secondary hover:bg-secondary/80 text-foreground border border-border"
-          >
-            <Bot className="w-3.5 h-3.5 text-primary" />
-            <span>AI Career Guide</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary border border-border"
-            title="Toggle theme"
-          >
-            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => dispatch(signOutThunk()).then(() => navigate("/auth"))}
-            className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-secondary border border-border"
-            title="Sign Out"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-      </header>
+      {/* 1. Global Stakeholder Navigation Bar */}
+      <Navbar userName={profile?.name} profileId={profile?._id} />
 
       {/* Main Viewport Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 space-y-6">
         {/* 2. Profile & Verified Portfolio Strip */}
-        <section className="bg-card border border-border rounded-md p-4 lg:p-5">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-md bg-secondary border border-border flex items-center justify-center font-bold text-sm text-foreground">
-                {profile?.name ? profile.name.slice(0, 2).toUpperCase() : "ST"}
+        <section className="relative overflow-hidden bg-card border border-border/80 rounded-2xl p-5 sm:p-6 shadow-sm">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
+            <div className="flex items-start gap-4">
+              <div 
+                onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
+                className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 via-secondary to-muted border-2 border-primary/30 flex items-center justify-center font-bold text-base text-foreground cursor-pointer hover:border-primary transition-all duration-300 overflow-hidden shadow-md group shrink-0"
+                title="View Full Profile"
+              >
+                {profile?.profileImage ? (
+                  <img src={profile.profileImage} alt={profile.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                ) : (
+                  <span className="group-hover:text-primary transition-colors font-mono">
+                    {profile?.name ? profile.name.slice(0, 2).toUpperCase() : "ST"}
+                  </span>
+                )}
+                <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-card" />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-base font-bold text-foreground tracking-tight">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 
+                    onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
+                    className="text-lg sm:text-xl font-extrabold text-foreground tracking-tight hover:text-primary transition-colors cursor-pointer"
+                    title="View Full Profile"
+                  >
                     {profile?.name || "Student Scholar"}
                   </h1>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" />
-                    Verified AISHE Learner
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1 text-[11px] font-bold" title="Verified Learner">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    Verified Scholar
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
+                    className="text-[11px] font-semibold text-primary hover:underline ml-1 inline-flex items-center gap-1"
+                  >
+                    <span>Edit Profile</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {profile?.institution || profile?.institutionName || "Affiliated Institution Pending"} • {profile?.institutionEmail || "Email not verified"}
+                <p className="text-xs text-muted-foreground font-medium">
+                  {profile?.headline || `${profile?.institution || profile?.institutionName || "Affiliated Institution Pending"} • ${profile?.institutionEmail || "Email not verified"}`}
                 </p>
               </div>
             </div>
 
-            {/* Quick Metrics */}
-            <div className="flex items-center gap-4 text-xs font-mono">
-              <div className="px-3 py-1.5 rounded-md bg-background border border-border">
-                <span className="text-muted-foreground block text-[10px]">Verified Skills</span>
-                <span className="font-bold text-foreground tabular-nums text-sm">
+            {/* Quick Metrics Cards */}
+            <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+              <div className="px-4 py-2 rounded-xl bg-secondary/50 border border-border hover:border-primary/30 transition-colors">
+                <span className="text-muted-foreground block text-[10px] uppercase tracking-wider">Verified Skills</span>
+                <span className="font-bold text-foreground tabular-nums text-base">
                   {profile?.skills?.length || 0}
                 </span>
               </div>
-              <div className="px-3 py-1.5 rounded-md bg-background border border-border">
-                <span className="text-muted-foreground block text-[10px]">Active Applications</span>
-                <span className="font-bold text-foreground tabular-nums text-sm">
+              <div className="px-4 py-2 rounded-xl bg-secondary/50 border border-border hover:border-primary/30 transition-colors">
+                <span className="text-muted-foreground block text-[10px] uppercase tracking-wider">Applications</span>
+                <span className="font-bold text-foreground tabular-nums text-base">
                   {applications.length}
                 </span>
               </div>
-              <div className="px-3 py-1.5 rounded-md bg-background border border-border">
-                <span className="text-muted-foreground block text-[10px]">Readiness Index</span>
-                <span className="font-bold text-primary tabular-nums text-sm">
+              <div className="px-4 py-2 rounded-xl bg-primary/10 border border-primary/20 hover:border-primary/40 transition-colors">
+                <span className="text-primary block text-[10px] uppercase tracking-wider font-bold">Readiness Score</span>
+                <span className="font-bold text-primary tabular-nums text-base">
                   {profile?.skills && profile.skills.length > 0
                     ? `${Math.min(100, profile.skills.length * 15)}%`
                     : "0%"}
@@ -668,12 +706,23 @@ export default function StudentDashboard() {
                     key={idx}
                     skill={skill}
                     size="sm"
+                    isTested={testedSkills.some((ts) => ts.toLowerCase() === skill.toLowerCase())}
                     onRemove={() => handleRemoveSkill(skill)}
                   />
                 ))
               ) : (
                 <span className="text-xs text-muted-foreground italic">No skills listed yet</span>
               )}
+              
+              <button
+                type="button"
+                onClick={() => openTestConfirmation()}
+                className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 border border-primary/30 flex items-center gap-1 transition-colors cursor-pointer ml-1"
+                title="Attempt Skill Test for your profile skills"
+              >
+                <Sparkles className="w-3 h-3" />
+                <span>Attempt Test</span>
+              </button>
             </div>
 
             <div className="relative">
@@ -731,135 +780,7 @@ export default function StudentDashboard() {
           </div>
         </section>
 
-        {/* 3. Two-Column Workspace: Standardized Skill Assessments + Live Applications Tracker */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left 2 Cols: Standardized Skill Assessment Desk */}
-          <section className="lg:col-span-2 bg-card border border-border rounded-md p-4 lg:p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-foreground tracking-tight flex items-center gap-2">
-                  <Award className="w-4 h-4 text-primary" />
-                  Standardized Skill Assessment Engine
-                </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  SIH 26044 Mandate: Take objective technical quizzes to earn verified competency badges and boost recruiter shortlisting rank.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {assessments.map((quiz) => (
-                <div
-                  key={quiz._id}
-                  className="p-3.5 rounded-md border border-border bg-background flex flex-col justify-between hover:border-primary/50 transition-colors"
-                >
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground border border-border">
-                        {quiz.category} • {quiz.difficulty}
-                      </span>
-                      <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {quiz.durationMinutes}m
-                      </span>
-                    </div>
-                    <h3 className="text-xs font-bold text-foreground tracking-tight leading-snug">
-                      {quiz.title}
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground line-clamp-2">
-                      {quiz.description}
-                    </p>
-                  </div>
-
-                  <div className="mt-3 pt-2 border-t border-border flex items-center justify-between">
-                    <span className="text-[11px] font-mono text-primary font-semibold">
-                      Pass: {quiz.passPercentage}%
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveQuiz(quiz);
-                        setQuizAnswers({});
-                        setQuizResult(null);
-                      }}
-                      className="text-xs font-semibold px-2.5 py-1 rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
-                    >
-                      Start Test
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Right 1 Col: Application Pipeline Tracker */}
-          <section className="bg-card border border-border rounded-md p-4 lg:p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-foreground tracking-tight flex items-center gap-2">
-                <Clock className="w-4 h-4 text-primary" />
-                Applications Tracker
-              </h2>
-              <span className="text-xs font-mono text-muted-foreground">
-                {applications.length} Active
-              </span>
-            </div>
-
-            {applications.length === 0 ? (
-              <div className="py-8 text-center border border-dashed border-border rounded-md">
-                <p className="text-xs text-muted-foreground">No submitted applications yet.</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Browse live opportunities below and click "Apply".
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
-                {applications.map((app) => (
-                  <div
-                    key={app._id}
-                    className="p-3 rounded-md border border-border bg-background space-y-1.5"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h4 className="text-xs font-bold text-foreground line-clamp-1">
-                          {app.opportunityId?.title || "Opportunity Posting"}
-                        </h4>
-                        <p className="text-[11px] text-muted-foreground">
-                          {app.opportunityId?.organization}
-                        </p>
-                      </div>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-secondary text-primary font-bold">
-                        {app.matchScore}% Match
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-1 text-[11px] font-mono">
-                      <span className="text-muted-foreground">Status:</span>
-                      <span
-                        className={cn(
-                          "px-2 py-0.5 rounded-md font-semibold text-[10px]",
-                          app.status === "Shortlisted" && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20",
-                          app.status === "Applied" && "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20",
-                          app.status === "Technical Interview" && "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20",
-                          app.status === "Rejected" && "bg-red-500/10 text-red-600 border border-red-500/20"
-                        )}
-                      >
-                        {app.status}
-                      </span>
-                    </div>
-
-                    {app.reviewerNotes && (
-                      <p className="text-[10px] text-muted-foreground italic bg-secondary p-1.5 rounded-md mt-1">
-                        Note: {app.reviewerNotes}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
-
-        {/* 4. Live Marketplace Feed (Internships, Hackathons, Workshops) */}
+        {/* 3. Live Marketplace Feed (Internships, Hackathons, Workshops) */}
         <section className="bg-card border border-border rounded-md p-4 lg:p-5 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div>
@@ -889,6 +810,7 @@ export default function StudentDashboard() {
           <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border">
             {[
               { id: "all", label: "All Postings" },
+              { id: "skill_matched", label: "⚡ Top Skill Match" },
               { id: "internship", label: "Internships" },
               { id: "hackathon", label: "Hackathons" },
               { id: "workshop", label: "Workshops" },
@@ -899,9 +821,9 @@ export default function StudentDashboard() {
                 type="button"
                 onClick={() => setSelectedCategory(tab.id)}
                 className={cn(
-                  "text-xs font-semibold px-3 py-1.5 rounded-md transition-colors",
+                  "text-xs font-semibold px-3 py-1.5 rounded-md transition-colors cursor-pointer",
                   selectedCategory === tab.id
-                    ? "bg-primary text-primary-foreground"
+                    ? "bg-primary text-primary-foreground shadow-xs"
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border"
                 )}
               >
@@ -910,185 +832,192 @@ export default function StudentDashboard() {
             ))}
           </div>
 
-          {/* Opportunity Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+          {/* Opportunity Grid (2 per row) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
             {filteredOpportunities.length === 0 ? (
               <div className="col-span-full py-12 text-center border border-dashed border-border rounded-md">
                 <p className="text-xs text-muted-foreground">No opportunities matching your criteria.</p>
               </div>
             ) : (
-              filteredOpportunities.map((opp) => (
-                <div
-                  key={opp._id}
-                  className="bg-background border border-border rounded-md p-4 flex flex-col justify-between hover:border-primary/50 transition-colors space-y-3"
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground uppercase font-bold border border-border">
-                        {opp.category}
-                      </span>
-                      {(opp.recommendedToStudentsBy?.length || 0) > 0 && (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold">
-                          ★ Endorsed
+              filteredOpportunities.map((opp) => {
+                const { score: matchScore, matchedSkills, totalRequired } = computeSkillMatch(
+                  opp.requiredSkills
+                );
+
+                return (
+                  <div
+                    key={opp._id}
+                    className="group relative bg-card border border-border/80 hover:border-primary/50 rounded-2xl p-5 flex flex-col justify-between transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden space-y-4"
+                  >
+                    {/* Glowing background accent on hover */}
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/10 transition-colors pointer-events-none" />
+
+                    <div className="space-y-3 relative z-10">
+                      {/* Top Pill Badges */}
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span
+                          className={cn(
+                            "text-[10px] font-mono px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border shadow-2xs",
+                            opp.category === "internship"
+                              ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                              : opp.category === "hackathon"
+                              ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
+                              : opp.category === "workshop"
+                              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                              : "bg-primary/10 text-primary border-primary/20"
+                          )}
+                        >
+                          {opp.category}
                         </span>
-                      )}
+
+                        {opp.recommendedByColleges && opp.recommendedByColleges.length > 0 ? (
+                          <span className="text-[10.5px] font-mono px-3 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-extrabold flex items-center gap-1 shadow-xs animate-pulse">
+                            <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                            <span>Recommended by {opp.recommendedByColleges[0]}</span>
+                          </span>
+                        ) : (opp.recommendedToStudentsBy?.length || 0) > 0 ? (
+                          <span className="text-[10.5px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                            <span>College Endorsed</span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            <span>Apply by {opp.deadline || "Soon"}</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Organization & Title */}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                          <Building2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                          <span className="truncate">{opp.organization}</span>
+                        </div>
+                        <h3 className="text-sm font-extrabold text-foreground tracking-tight leading-snug group-hover:text-primary transition-colors">
+                          {opp.title}
+                        </h3>
+                      </div>
+
+                      {/* Location & Mode Info */}
+                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                        <div className="flex items-center gap-1 bg-secondary/50 px-2 py-0.5 rounded-md border border-border">
+                          <MapPin className="w-3 h-3 text-primary" />
+                          <span>{opp.location}</span>
+                        </div>
+                        <div className="flex items-center gap-1 bg-secondary/50 px-2 py-0.5 rounded-md border border-border">
+                          <Briefcase className="w-3 h-3 text-primary" />
+                          <span>{opp.mode}</span>
+                        </div>
+                        {opp.duration && (
+                          <div className="flex items-center gap-1 bg-secondary/50 px-2 py-0.5 rounded-md border border-border">
+                            <Clock className="w-3 h-3 text-primary" />
+                            <span>{opp.duration}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Description */}
+                      <p className="text-xs text-muted-foreground/90 line-clamp-2 leading-relaxed">
+                        {opp.description}
+                      </p>
+
+                      {/* Skill Match Telemetry Box */}
+                      <div className="p-2.5 rounded-xl bg-secondary/30 border border-border/80 space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-bold text-foreground flex items-center gap-1">
+                            <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                            <span>Skill Match Score:</span>
+                          </span>
+                          <span
+                            className={cn(
+                              "font-mono font-bold px-2 py-0.5 rounded-md text-[10.5px]",
+                              matchScore >= 70
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                                : matchScore >= 40
+                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                                : "bg-secondary text-muted-foreground border border-border"
+                            )}
+                          >
+                            {matchScore}% ({matchedSkills.length}/{totalRequired} Matched)
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-secondary overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all duration-500",
+                              matchScore >= 70
+                                ? "bg-emerald-500"
+                                : matchScore >= 40
+                                ? "bg-amber-500"
+                                : "bg-muted-foreground/40"
+                            )}
+                            style={{ width: `${Math.max(6, matchScore)}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Required Skill Badges */}
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {opp.requiredSkills.map((sk, sIdx) => (
+                          <SkillBadge
+                            key={sIdx}
+                            skill={sk}
+                            size="xs"
+                          />
+                        ))}
+                      </div>
                     </div>
 
-                    <h3 className="text-xs font-bold text-foreground tracking-tight leading-snug">
-                      {opp.title}
-                    </h3>
-                    <p className="text-[11px] font-medium text-muted-foreground">
-                      {opp.organization} • <span className="font-mono">{opp.location} ({opp.mode})</span>
-                    </p>
-                    <p className="text-[11px] text-muted-foreground line-clamp-2">
-                      {opp.description}
-                    </p>
-
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      {opp.requiredSkills.map((sk, sIdx) => (
-                        <SkillBadge
-                          key={sIdx}
-                          skill={sk}
-                          size="xs"
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-border flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] text-muted-foreground block font-mono">Stipend / Prize</span>
-                      <span className="text-xs font-mono font-bold text-foreground">
-                        {opp.stipendOrPrize}
+                  {/* Card Bottom CTA Strip */}
+                  <div className="pt-3 border-t border-border/80 flex items-center justify-between gap-2 relative z-10">
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider block">
+                        Stipend / Award
                       </span>
+                      <div className="flex items-center gap-1 font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        <Coins className="w-3.5 h-3.5" />
+                        <span>{opp.stipendOrPrize}</span>
+                      </div>
                     </div>
 
                     <button
                       type="button"
                       onClick={() => setApplyingOpportunity(opp)}
-                      className="text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
+                      className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-700 text-primary-foreground shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all cursor-pointer group/btn"
                     >
-                      Apply Now
+                      <span>Apply Now</span>
+                      <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
                     </button>
                   </div>
                 </div>
-              ))
-            )}
+              );
+            })
+          )}
           </div>
         </section>
       </main>
 
-      {/* 5. Interactive Assessment Taking Modal */}
+      {/* 5. Interactive Assessment Confirmation & Timed Test Runner Modals */}
+      <TestConfirmationModal
+        isOpen={isConfirmationOpen}
+        onClose={() => setIsConfirmationOpen(false)}
+        userSkills={profile?.skills || []}
+        initialTargetSkill={targetTestSkill}
+        onConfirmStart={handleGenerateTestFromConfirmation}
+        isGenerating={isGeneratingTest}
+      />
+
+
       {activeQuiz && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-md w-full max-w-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <div>
-                <h3 className="text-sm font-bold text-foreground">{activeQuiz.title}</h3>
-                <p className="text-xs text-muted-foreground">
-                  {activeQuiz.questions.length} Questions • Pass mark: {activeQuiz.passPercentage}%
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveQuiz(null)}
-                className="p-1 rounded-md text-muted-foreground hover:text-foreground border border-border"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {quizResult ? (
-              <div className="space-y-4 py-4 text-center">
-                <div
-                  className={cn(
-                    "w-16 h-16 rounded-full mx-auto flex items-center justify-center text-xl font-bold font-mono border",
-                    quizResult.passed
-                      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                      : "bg-red-500/10 text-red-600 border-red-500/20"
-                  )}
-                >
-                  {quizResult.percentage}%
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-foreground">
-                    {quizResult.passed ? "Assessment Passed!" : "Assessment Benchmark Not Met"}
-                  </h4>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    You scored {quizResult.score} out of {quizResult.totalQuestions} questions correctly.
-                  </p>
-                  {quizResult.badgeAwarded && (
-                    <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold">
-                      <Award className="w-3.5 h-3.5" />
-                      Badge Awarded: {quizResult.badgeAwarded}
-                    </div>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveQuiz(null)}
-                  className="text-xs font-semibold px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 mt-4"
-                >
-                  Close & Return to Dashboard
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                {activeQuiz.questions.map((q, idx) => (
-                  <div key={q.questionId} className="space-y-2 p-3 rounded-md bg-background border border-border">
-                    <p className="text-xs font-semibold text-foreground">
-                      {idx + 1}. {q.questionText}
-                    </p>
-                    <div className="space-y-1.5 pt-1">
-                      {q.options.map((opt, oIdx) => (
-                        <label
-                          key={oIdx}
-                          className={cn(
-                            "flex items-center gap-2.5 p-2 rounded-md text-xs border cursor-pointer transition-colors",
-                            quizAnswers[q.questionId] === oIdx
-                              ? "bg-primary/10 border-primary text-foreground font-semibold"
-                              : "border-border hover:bg-secondary text-foreground"
-                          )}
-                        >
-                          <input
-                            type="radio"
-                            name={`question-${q.questionId}`}
-                            checked={quizAnswers[q.questionId] === oIdx}
-                            onChange={() =>
-                              setQuizAnswers((prev) => ({ ...prev, [q.questionId]: oIdx }))
-                            }
-                            className="text-primary"
-                          />
-                          <span>{opt}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
-                  <button
-                    type="button"
-                    onClick={() => setActiveQuiz(null)}
-                    disabled={quizSubmitting}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleQuizSubmit}
-                    disabled={quizSubmitting}
-                    className="text-xs font-semibold px-4 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1.5"
-                  >
-                    {quizSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                    Submit Assessment
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <SkillTestRunnerModal
+          assessment={activeQuiz}
+          onClose={() => setActiveQuiz(null)}
+          onSuccessResult={async () => {
+            await fetchProfile(); // Refresh profile & verified skills
+          }}
+          apiBaseUrl={API_BASE}
+        />
       )}
 
       {/* 6. One-Click Application Modal */}
@@ -1177,7 +1106,7 @@ export default function StudentDashboard() {
               <div>
                 <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5">
                   <span>AI Career Guide</span>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono font-normal">SIH 26044</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono font-normal">v2.0 Verified</span>
                 </h3>
                 <p className="text-[10px] text-muted-foreground font-mono">Empathetic Career & Placement Telemetry</p>
               </div>

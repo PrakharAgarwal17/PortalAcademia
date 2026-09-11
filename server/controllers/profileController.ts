@@ -176,6 +176,10 @@ export async function getProfileById(req: Request, res: Response): Promise<Respo
     try {
         const id = req.params.id as string | undefined;
 
+        if (id === "me") {
+            return getMyProfile(req, res);
+        }
+
         let profile = null;
         if (id && mongoose.Types.ObjectId.isValid(id)) {
             const objectId = new mongoose.Types.ObjectId(id);

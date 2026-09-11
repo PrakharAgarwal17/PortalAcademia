@@ -25,6 +25,8 @@ export interface IOpportunity extends Document {
     eligibility: string;
     deadline: string;
     status: "active" | "closed";
+    targetAudience: "student" | "faculty" | "both";
+    recommendedByColleges: string[];
     recommendedToStudentsBy: mongoose.Types.ObjectId[];
     recommendedToFacultyBy: mongoose.Types.ObjectId[];
     applicantCount: number;
@@ -67,6 +69,13 @@ const opportunitySchema = new Schema<IOpportunity>(
             default: "active",
             index: true,
         },
+        targetAudience: {
+            type: String,
+            enum: ["student", "faculty", "both"],
+            default: "both",
+            index: true,
+        },
+        recommendedByColleges: [{ type: String, trim: true }],
         recommendedToStudentsBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
         recommendedToFacultyBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
         applicantCount: { type: Number, default: 0 },

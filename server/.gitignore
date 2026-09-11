@@ -18,6 +18,10 @@ pnpm-debug.log*
 # Build
 dist/
 build/
+*.js
+*.js.map
+*.d.ts
+!src/types/*.d.ts
 
 # OS
 .DS_Store

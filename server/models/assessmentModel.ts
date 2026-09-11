@@ -3,6 +3,9 @@ import mongoose, { Schema, type Document, type Model } from "mongoose";
 export interface IAssessmentQuestion {
     questionId: string;
     questionText: string;
+    type?: "mcq" | "writing";
+    difficultyLevel?: "easy" | "medium" | "writing";
+    concept?: string;
     options: string[];
     correctOptionIndex: number;
     explanation?: string;
@@ -28,8 +31,11 @@ const assessmentQuestionSchema = new Schema<IAssessmentQuestion>(
     {
         questionId: { type: String, required: true },
         questionText: { type: String, required: true },
+        type: { type: String, enum: ["mcq", "writing"], default: "mcq" },
+        difficultyLevel: { type: String, enum: ["easy", "medium", "writing"], default: "easy" },
+        concept: { type: String, default: "" },
         options: [{ type: String, required: true }],
-        correctOptionIndex: { type: Number, required: true },
+        correctOptionIndex: { type: Number, required: true, default: 0 },
         explanation: { type: String, default: "" },
         weight: { type: Number, default: 1 },
     },
