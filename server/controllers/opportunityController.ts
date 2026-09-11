@@ -13,11 +13,13 @@ export async function getOpportunities(req: Request, res: Response) {
         const filter: any = { status: "active" };
 
         if (category && category !== "all") {
-            filter.category = category as OpportunityCategory;
+            const catStr = String(category).trim();
+            filter.category = { $regex: new RegExp(`^${catStr}$`, "i") };
         }
 
         if (mode && mode !== "all") {
-            filter.mode = mode as OpportunityMode;
+            const modeStr = String(mode).trim();
+            filter.mode = { $regex: new RegExp(`^${modeStr}$`, "i") };
         }
 
         if (targetAudience && targetAudience !== "all") {
@@ -165,10 +167,13 @@ export async function createOpportunity(req: Request, res: Response) {
             targetAudience,
         } = req.body;
 
-        if (!title || !description || !category || !domain || !deadline) {
+        const finalCategory = (category || "internship").toString().toLowerCase().trim();
+        const finalDomain = domain || "General Technology & Engineering";
+
+        if (!title || !description || !finalCategory || !deadline) {
             return res.status(400).json({
                 success: false,
-                message: "Missing mandatory fields: title, description, category, domain, deadline are required.",
+                message: "Missing mandatory fields: title, description, category, deadline are required.",
             });
         }
 
@@ -189,13 +194,15 @@ export async function createOpportunity(req: Request, res: Response) {
             ? requiredSkills.split(",").map((s: string) => s.trim()).filter(Boolean)
             : [];
 
+        const defaultTargetAudience = ["fdp", "sabbatical"].includes(finalCategory) ? "faculty" : "student";
+
         const newOpportunity = await opportunityModel.create({
             title,
             description,
             organization: organizationName,
             createdBy: req.userId,
-            category,
-            domain,
+            category: finalCategory,
+            domain: finalDomain,
             location: location || "Remote",
             mode: mode || "Remote",
             duration: duration || "Flexible",
@@ -203,7 +210,7 @@ export async function createOpportunity(req: Request, res: Response) {
             requiredSkills: skillsArray,
             eligibility: eligibility || "Open to all qualified applicants.",
             deadline,
-            targetAudience: targetAudience || "both",
+            targetAudience: targetAudience || defaultTargetAudience,
             status: "active",
         });
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -14,6 +14,7 @@ import {
   Trash2,
   Loader2,
   Edit3,
+  Pencil,
   Camera,
   GraduationCap,
   Briefcase,
@@ -26,8 +27,10 @@ import {
 } from "lucide-react";
 import SkillBadge from "@/components/SkillBadge";
 import SkillInput from "@/components/SkillInput";
+import ProfileEditModal from "@/components/ProfileEditModal";
 import { cn } from "@/lib/utils";
-import { useAppSelector } from "@/context/store";
+import { useAppDispatch, useAppSelector } from "@/context/store";
+import { openEditModal } from "@/context/profileSlice";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
 
@@ -156,6 +159,7 @@ export default function ProfilePage() {
   const { id } = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -180,6 +184,44 @@ export default function ProfilePage() {
 
   const [newCert, setNewCert] = useState({ title: "", issuer: "", credentialUrl: "", description: "" });
   const [showAddCert, setShowAddCert] = useState(false);
+
+  const [newResearchInput, setNewResearchInput] = useState("");
+
+  // Avatar file upload state & ref (Multer -> Cloudinary -> DB)
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  const handleAvatarFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      const uploadFormData = new FormData();
+      uploadFormData.append("profileImage", file);
+
+      const res = await fetch(`${API_BASE}/api/profile/avatar`, {
+        method: "POST",
+        credentials: "include",
+        body: uploadFormData,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success && data.profileImage) {
+        setProfile((prev) => (prev ? { ...prev, profileImage: data.profileImage, image: data.profileImage } : prev));
+        setFormData((prev) => ({ ...prev, profileImage: data.profileImage, image: data.profileImage }));
+        setSaveFeedback({ type: "success", text: "Profile picture uploaded to Cloudinary & saved to DB!" });
+        setTimeout(() => setSaveFeedback(null), 3500);
+      } else {
+        setSaveFeedback({ type: "error", text: data.message || "Failed to upload profile picture" });
+      }
+    } catch (err: any) {
+      console.error("Avatar upload error:", err);
+      setSaveFeedback({ type: "error", text: "Error uploading profile picture" });
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   // Quick inline headline editor state
   const [isEditingHeadline, setIsEditingHeadline] = useState(false);
@@ -214,6 +256,8 @@ export default function ProfilePage() {
     }
   };
 
+  const [isFetchedAsOwnProfile, setIsFetchedAsOwnProfile] = useState(false);
+
   // Sync tab with query param
   useEffect(() => {
     if (searchParams.get("edit") === "true") {
@@ -224,13 +268,20 @@ export default function ProfilePage() {
   // Determine if this profile belongs to current logged-in user
   const isOwnProfile = useMemo(() => {
     if (!profile) return false;
-    if (id === "me") return true;
-    const currentUserId = user?.id || user?._id;
-    if (currentUserId && (profile.userId === currentUserId || profile._id === currentUserId)) {
+    if (!id || id === "me" || isFetchedAsOwnProfile) return true;
+    const currentUserId = (user?.id || user?._id || "").toString();
+    const profileUserId = (
+      typeof profile.userId === "object"
+        ? (profile.userId as any)?._id
+        : profile.userId || ""
+    ).toString();
+    const profileId = (profile._id || "").toString();
+
+    if (currentUserId && (profileUserId === currentUserId || profileId === currentUserId)) {
       return true;
     }
     return false;
-  }, [profile, id, user]);
+  }, [profile, id, user, isFetchedAsOwnProfile]);
 
   // Fetch profile from database (MongoDB)
   const fetchProfileData = useCallback(async () => {
@@ -238,8 +289,36 @@ export default function ProfilePage() {
     setFetchError(null);
 
     try {
-      // If route is /profile or /profile/me or has specific id
+      // First, get logged-in user's own profile info to reliably match ownership
+      let myProfileId: string | null = null;
+      let myUserId: string | null = null;
+      try {
+        const myRes = await fetch(`${API_BASE}/api/profile/me`, {
+          method: "GET",
+          credentials: "include",
+        });
+        const myData = await myRes.json();
+        if (myRes.ok && myData.success && myData.profile) {
+          myProfileId = myData.profile._id?.toString() || null;
+          myUserId = (
+            typeof myData.profile.userId === "object"
+              ? myData.profile.userId?._id
+              : myData.profile.userId || ""
+          )?.toString() || null;
+        }
+      } catch (e) {
+        // network blip fallback
+      }
+
       const targetId = id || "me";
+
+      if (
+        targetId === "me" ||
+        (myProfileId && (targetId === myProfileId || targetId === myUserId))
+      ) {
+        setIsFetchedAsOwnProfile(true);
+      }
+
       const endpoint = targetId === "me" ? `${API_BASE}/api/profile/me` : `${API_BASE}/api/profile/${targetId}`;
 
       const res = await fetch(endpoint, {
@@ -259,6 +338,21 @@ export default function ProfilePage() {
           pastExperience: data.profile.pastExperience ? [...data.profile.pastExperience] : [],
         });
 
+        const fetchedId = data.profile._id?.toString();
+        const fetchedUserId = (
+          typeof data.profile.userId === "object"
+            ? data.profile.userId?._id
+            : data.profile.userId || ""
+        )?.toString();
+
+        if (
+          targetId === "me" ||
+          (myProfileId && (fetchedId === myProfileId || fetchedUserId === myUserId)) ||
+          (user && (user.id === fetchedUserId || user._id === fetchedUserId || user.id === fetchedId || user._id === fetchedId))
+        ) {
+          setIsFetchedAsOwnProfile(true);
+        }
+
         // If visited /profile or /profile/me directly, update route URL to display the unique ID
         if ((!id || id === "me") && data.profile._id) {
           navigate(`/profile/${data.profile._id}`, { replace: true });
@@ -274,6 +368,7 @@ export default function ProfilePage() {
           if (fallbackRes.ok && fallbackData.success && fallbackData.profile) {
             setProfile(fallbackData.profile);
             setFormData(fallbackData.profile);
+            setIsFetchedAsOwnProfile(true);
             navigate(`/profile/${fallbackData.profile._id}`, { replace: true });
             return;
           }
@@ -285,7 +380,7 @@ export default function ProfilePage() {
     } finally {
       setIsLoading(false);
     }
-  }, [id, navigate]);
+  }, [id, navigate, user]);
 
   useEffect(() => {
     fetchProfileData();
@@ -429,6 +524,91 @@ export default function ProfilePage() {
     }));
   };
 
+  // Expertise Add / Remove (Faculty)
+  const handleAddExpertise = (skill: string) => {
+    const trimmed = skill.trim();
+    if (!trimmed) return;
+    if (formData.expertise?.includes(trimmed)) return;
+    setFormData((prev) => ({
+      ...prev,
+      expertise: [...(prev.expertise || []), trimmed],
+    }));
+  };
+
+  const handleRemoveExpertise = (skillToRemove: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      expertise: (prev.expertise || []).filter((s) => s !== skillToRemove),
+    }));
+  };
+
+  // Research Interests Add / Remove (Faculty)
+  const handleAddResearchInterest = (interest: string) => {
+    const trimmed = interest.trim();
+    if (!trimmed) return;
+    if (formData.researchInterests?.includes(trimmed)) return;
+    setFormData((prev) => ({
+      ...prev,
+      researchInterests: [...(prev.researchInterests || []), trimmed],
+    }));
+  };
+
+  const handleRemoveResearchInterest = (interestToRemove: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      researchInterests: (prev.researchInterests || []).filter((r) => r !== interestToRemove),
+    }));
+  };
+
+  // Edit Handlers for Array Items
+  const handleEditEdu = (idx: number) => {
+    const item = formData.education?.[idx];
+    if (!item) return;
+    setNewEdu({
+      education: item.education || "",
+      course: item.course || "",
+      timeline: item.timeline || "",
+      description: item.description || "",
+    });
+    setFormData((prev) => ({
+      ...prev,
+      education: prev.education?.filter((_, i) => i !== idx),
+    }));
+    setShowAddEdu(true);
+  };
+
+  const handleEditExp = (idx: number) => {
+    const item = formData.pastExperience?.[idx];
+    if (!item) return;
+    setNewExp({
+      title: item.title || "",
+      organization: item.organization || "",
+      timeline: item.timeline || "",
+      description: item.description || "",
+    });
+    setFormData((prev) => ({
+      ...prev,
+      pastExperience: prev.pastExperience?.filter((_, i) => i !== idx),
+    }));
+    setShowAddExp(true);
+  };
+
+  const handleEditCert = (idx: number) => {
+    const item = formData.certifications?.[idx];
+    if (!item) return;
+    setNewCert({
+      title: item.title || "",
+      issuer: item.issuer || "",
+      credentialUrl: item.credentialUrl || "",
+      description: item.description || "",
+    });
+    setFormData((prev) => ({
+      ...prev,
+      certifications: prev.certifications?.filter((_, i) => i !== idx),
+    }));
+    setShowAddCert(true);
+  };
+
   // Copy Profile Link
   const handleCopyProfileLink = () => {
     const url = window.location.href.split("?")[0];
@@ -542,24 +722,11 @@ export default function ProfilePage() {
             {isOwnProfile && (
               <button
                 type="button"
-                onClick={() => {
-                  if (activeTab === "edit") {
-                    setActiveTab("overview");
-                    setSearchParams({});
-                  } else {
-                    setActiveTab("edit");
-                    setSearchParams({ edit: "true" });
-                  }
-                }}
-                className={cn(
-                  "inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1.5 rounded-lg transition-all cursor-pointer shadow-xs",
-                  activeTab === "edit"
-                    ? "bg-secondary text-foreground hover:bg-secondary/80 border border-border"
-                    : "bg-primary text-primary-foreground hover:bg-primary/90"
-                )}
+                onClick={() => dispatch(openEditModal({ section: "visuals" }))}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all cursor-pointer shadow-xs"
               >
                 <Edit3 className="w-3.5 h-3.5" />
-                <span>{activeTab === "edit" ? "View Profile" : "Edit Profile"}</span>
+                <span>Edit Profile</span>
               </button>
             )}
           </div>
@@ -701,17 +868,28 @@ export default function ProfilePage() {
                   )}
                 </div>
 
+                {/* Hidden File Input for Avatar Multer -> Cloudinary Upload */}
+                <input
+                  type="file"
+                  ref={avatarInputRef}
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarFileUpload}
+                />
+
                 {isOwnProfile && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setActiveTab("edit");
-                      setSearchParams({ edit: "true" });
-                    }}
-                    className="absolute bottom-1 right-1 p-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg transition-transform hover:scale-110 cursor-pointer"
-                    title="Change Profile Picture"
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={isUploadingAvatar}
+                    className="absolute bottom-1 right-1 p-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg transition-transform hover:scale-110 cursor-pointer disabled:opacity-50"
+                    title="Upload Profile Picture (Multer to Cloudinary)"
                   >
-                    <Camera className="w-4 h-4" />
+                    {isUploadingAvatar ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    ) : (
+                      <Camera className="w-4 h-4" />
+                    )}
                   </button>
                 )}
               </div>
@@ -722,10 +900,7 @@ export default function ProfilePage() {
                   <>
                     <button
                       type="button"
-                      onClick={() => {
-                        setActiveTab("edit");
-                        setSearchParams({ edit: "true" });
-                      }}
+                      onClick={() => dispatch(openEditModal({ section: "visuals" }))}
                       className="inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-xs cursor-pointer"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
@@ -733,7 +908,7 @@ export default function ProfilePage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setActiveTab("skills")}
+                      onClick={() => dispatch(openEditModal({ section: "skills" }))}
                       className="inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full bg-secondary text-foreground hover:bg-secondary/80 border border-border transition-colors cursor-pointer"
                     >
                       <Sparkles className="w-3.5 h-3.5 text-primary" />
@@ -760,12 +935,9 @@ export default function ProfilePage() {
                 {isOwnProfile && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setActiveTab("edit");
-                      setSearchParams({ edit: "true" });
-                    }}
+                    onClick={() => dispatch(openEditModal({ section: "roleParams" }))}
                     className="p-1 rounded-md hover:bg-secondary text-muted-foreground hover:text-primary transition-colors cursor-pointer"
-                    title="Edit Name"
+                    title="Edit Name & Role Parameters"
                   >
                     <Edit3 className="w-4 h-4" />
                   </button>
@@ -850,10 +1022,7 @@ export default function ProfilePage() {
                     ) : isOwnProfile ? (
                       <button
                         type="button"
-                        onClick={() => {
-                          setHeadlineDraft(formData.headline || "");
-                          setIsEditingHeadline(true);
-                        }}
+                        onClick={() => dispatch(openEditModal({ section: "headline" }))}
                         className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-dashed border-primary/50 text-primary bg-primary/5 hover:bg-primary/10 transition-colors cursor-pointer"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -875,10 +1044,7 @@ export default function ProfilePage() {
                   {isOwnProfile && formData.headline && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setHeadlineDraft(formData.headline || "");
-                        setIsEditingHeadline(true);
-                      }}
+                      onClick={() => dispatch(openEditModal({ section: "headline" }))}
                       className="opacity-70 group-hover/head:opacity-100 transition-opacity p-1 rounded-md hover:bg-secondary text-muted-foreground hover:text-primary cursor-pointer shrink-0"
                       title="Edit headline"
                     >
@@ -947,10 +1113,7 @@ export default function ProfilePage() {
                 {isOwnProfile && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setActiveTab("edit");
-                      setSearchParams({ edit: "true" });
-                    }}
+                    onClick={() => dispatch(openEditModal({ section: "roleParams" }))}
                     className="p-1 rounded-md hover:bg-secondary text-muted-foreground hover:text-primary transition-colors cursor-pointer inline-flex items-center gap-1 text-[11px] font-semibold text-primary"
                     title="Edit Location, Institution & Social Links"
                   >
@@ -1095,9 +1258,10 @@ export default function ProfilePage() {
                   <button
                     type="button"
                     onClick={() => setActiveTab("edit")}
-                    className="text-xs font-semibold text-primary hover:underline cursor-pointer"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
                   >
-                    Edit Bio
+                    <Pencil className="w-3.5 h-3.5" />
+                    <span>Edit Bio</span>
                   </button>
                 )}
               </div>
@@ -1119,13 +1283,24 @@ export default function ProfilePage() {
                     Skills &amp; Simple Icons ({formData.skills?.length || 0})
                   </h3>
                   {isOwnProfile && (
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("skills")}
-                      className="text-xs font-semibold text-primary hover:underline cursor-pointer"
-                    >
-                      Manage All Skills →
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("skills")}
+                        className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Skill</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("skills")}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline cursor-pointer"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        <span>Manage Skills</span>
+                      </button>
+                    </div>
                   )}
                 </div>
                 {formData.skills && formData.skills.length > 0 ? (
@@ -1151,13 +1326,24 @@ export default function ProfilePage() {
                     Education ({formData.education?.length || 0})
                   </h3>
                   {isOwnProfile && (
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("edit")}
-                      className="text-xs font-semibold text-primary hover:underline cursor-pointer"
-                    >
-                      + Add Education
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => dispatch(openEditModal({ section: "education", index: null }))}
+                        className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Education</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => dispatch(openEditModal({ section: "education", index: null }))}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline cursor-pointer"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        <span>Edit List</span>
+                      </button>
+                    </div>
                   )}
                 </div>
                 {formData.education && formData.education.length > 0 ? (
@@ -1169,11 +1355,23 @@ export default function ProfilePage() {
                             <h4 className="font-bold text-foreground text-sm">{edu.education}</h4>
                             {edu.course && <p className="text-muted-foreground text-xs font-medium">{edu.course}</p>}
                           </div>
-                          {edu.timeline && (
-                            <span className="font-mono text-muted-foreground text-[11px] px-2.5 py-1 rounded-md bg-secondary shrink-0 border border-border">
-                              {edu.timeline}
-                            </span>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {edu.timeline && (
+                              <span className="font-mono text-muted-foreground text-[11px] px-2.5 py-1 rounded-md bg-secondary shrink-0 border border-border">
+                                {edu.timeline}
+                              </span>
+                            )}
+                            {isOwnProfile && (
+                              <button
+                                type="button"
+                                onClick={() => dispatch(openEditModal({ section: "education", index: idx }))}
+                                className="p-1 rounded bg-secondary hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                                title="Edit Education item"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                         {edu.description && (
                           <p className="text-xs text-foreground/80 leading-relaxed pt-1">
@@ -1198,13 +1396,24 @@ export default function ProfilePage() {
                     Experience &amp; Industry Internships ({formData.pastExperience?.length || 0})
                   </h3>
                   {isOwnProfile && (
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("edit")}
-                      className="text-xs font-semibold text-primary hover:underline cursor-pointer"
-                    >
-                      + Add Experience
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => dispatch(openEditModal({ section: "experience", index: null }))}
+                        className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Experience</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => dispatch(openEditModal({ section: "experience", index: null }))}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline cursor-pointer"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        <span>Edit List</span>
+                      </button>
+                    </div>
                   )}
                 </div>
                 {formData.pastExperience && formData.pastExperience.length > 0 ? (
@@ -1218,11 +1427,23 @@ export default function ProfilePage() {
                               <p className="text-muted-foreground text-xs font-medium">{exp.organization}</p>
                             )}
                           </div>
-                          {exp.timeline && (
-                            <span className="font-mono text-muted-foreground text-[11px] px-2.5 py-1 rounded-md bg-secondary shrink-0 border border-border">
-                              {exp.timeline}
-                            </span>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {exp.timeline && (
+                              <span className="font-mono text-muted-foreground text-[11px] px-2.5 py-1 rounded-md bg-secondary shrink-0 border border-border">
+                                {exp.timeline}
+                              </span>
+                            )}
+                            {isOwnProfile && (
+                              <button
+                                type="button"
+                                onClick={() => dispatch(openEditModal({ section: "experience", index: idx }))}
+                                className="p-1 rounded bg-secondary hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                                title="Edit Experience item"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                         {exp.description && (
                           <p className="text-xs text-foreground/80 leading-relaxed pt-1">
@@ -1247,13 +1468,24 @@ export default function ProfilePage() {
                     Certifications &amp; Licenses ({formData.certifications?.length || 0})
                   </h3>
                   {isOwnProfile && (
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("edit")}
-                      className="text-xs font-semibold text-primary hover:underline cursor-pointer"
-                    >
-                      + Add Certificate
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => dispatch(openEditModal({ section: "certifications", index: null }))}
+                        className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Certificate</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => dispatch(openEditModal({ section: "certifications", index: null }))}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline cursor-pointer"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        <span>Edit List</span>
+                      </button>
+                    </div>
                   )}
                 </div>
                 {formData.certifications && formData.certifications.length > 0 ? (
@@ -1266,11 +1498,23 @@ export default function ProfilePage() {
                         <div className="space-y-1">
                           <div className="flex items-start justify-between gap-2">
                             <h4 className="font-bold text-foreground text-xs leading-snug">{cert.title}</h4>
-                            {cert.isVerified && (
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0 flex items-center gap-1 font-semibold">
-                                <CheckCircle2 className="w-3 h-3" /> Verified
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1 shrink-0">
+                              {cert.isVerified && (
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 font-semibold">
+                                  <CheckCircle2 className="w-3 h-3" /> Verified
+                                </span>
+                              )}
+                              {isOwnProfile && (
+                                <button
+                                  type="button"
+                                  onClick={() => dispatch(openEditModal({ section: "certifications", index: idx }))}
+                                  className="p-1 rounded bg-secondary hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                                  title="Edit Certificate item"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                           {cert.issuer && (
                             <p className="text-xs text-muted-foreground">{cert.issuer}</p>
@@ -1296,6 +1540,186 @@ export default function ProfilePage() {
                 ) : (
                   <p className="text-xs text-muted-foreground italic">No verified certificates uploaded yet.</p>
                 )}
+              </div>
+            )}
+
+            {/* Role-Specific Overview Cards */}
+            {role === "faculty" && (
+              <>
+                <div className="bg-card border border-border rounded-xl p-5 sm:p-6 space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2 font-mono">
+                      <Briefcase className="w-4 h-4 text-primary" />
+                      Academic Role &amp; Designation
+                    </h3>
+                    {isOwnProfile && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab("edit");
+                          setSearchParams({ edit: "true" });
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        <span>Edit Details</span>
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <span className="text-muted-foreground block text-[11px]">Designation:</span>
+                      <span className="font-semibold text-foreground text-sm">{formData.designation || "Faculty Member"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[11px]">Department:</span>
+                      <span className="font-semibold text-foreground text-sm">{formData.department || "Academic Department"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-card border border-border rounded-xl p-5 sm:p-6 space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2 font-mono">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                      Teaching Expertise &amp; Domain Skills ({formData.expertise?.length || 0})
+                    </h3>
+                    {isOwnProfile && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab("edit");
+                          setSearchParams({ edit: "true" });
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        <span>Manage Expertise</span>
+                      </button>
+                    )}
+                  </div>
+                  {formData.expertise && formData.expertise.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {formData.expertise.map((exp, idx) => (
+                        <SkillBadge key={idx} skill={exp} size="md" />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">No teaching expertise listed yet.</p>
+                  )}
+                </div>
+
+                <div className="bg-card border border-border rounded-xl p-5 sm:p-6 space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2 font-mono">
+                      <GraduationCap className="w-4 h-4 text-primary" />
+                      Research Interests ({formData.researchInterests?.length || 0})
+                    </h3>
+                    {isOwnProfile && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab("edit");
+                          setSearchParams({ edit: "true" });
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        <span>Manage Research Focus</span>
+                      </button>
+                    )}
+                  </div>
+                  {formData.researchInterests && formData.researchInterests.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {formData.researchInterests.map((interest, idx) => (
+                        <span
+                          key={idx}
+                          className="text-xs font-medium px-3 py-1.5 rounded-full bg-secondary text-foreground border border-border"
+                        >
+                          {interest}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">No research interests added yet.</p>
+                  )}
+                </div>
+              </>
+            )}
+
+            {role === "industry" && (
+              <div className="bg-card border border-border rounded-xl p-5 sm:p-6 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2 font-mono">
+                    <Building2 className="w-4 h-4 text-primary" />
+                    Corporate &amp; Industry Overview
+                  </h3>
+                  {isOwnProfile && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab("edit");
+                        setSearchParams({ edit: "true" });
+                      }}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      <span>Edit Corporate Info</span>
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">Company Name:</span>
+                    <span className="font-semibold text-foreground text-sm">{formData.companyName || formData.name || "Corporate Partner"}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">Industry Sector:</span>
+                    <span className="font-semibold text-foreground text-sm">{formData.industryType || "Technology & Services"}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">Workforce Size:</span>
+                    <span className="font-semibold text-foreground text-sm">{formData.employees || "Enterprise"}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {role === "institution" && (
+              <div className="bg-card border border-border rounded-xl p-5 sm:p-6 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2 font-mono">
+                    <Building2 className="w-4 h-4 text-primary" />
+                    Institutional Credentials &amp; AISHE Record
+                  </h3>
+                  {isOwnProfile && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab("edit");
+                        setSearchParams({ edit: "true" });
+                      }}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      <span>Edit Campus Details</span>
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">Institution Name:</span>
+                    <span className="font-semibold text-foreground text-sm">{formData.institutionName || formData.name || "Higher Ed Institution"}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">AISHE Code:</span>
+                    <span className="font-mono font-semibold text-primary text-sm">{formData.aisheCode || "Not Recorded"}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">Contact Helpline:</span>
+                    <span className="font-semibold text-foreground text-sm">{formData.contact || "N/A"}</span>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -1586,12 +2010,267 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* 4. Education Manager */}
+              {/* 4. Dedicated Role Parameters */}
+              <div className="space-y-4 pt-2 border-t border-border">
+                <h4 className="text-xs font-bold text-primary uppercase tracking-wider font-mono">
+                  4. Dedicated Profile Parameters ({role.toUpperCase()})
+                </h4>
+
+                {role === "student" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-foreground">Institution / University Name</label>
+                      <input
+                        type="text"
+                        value={formData.institutionName || formData.institution || ""}
+                        onChange={(e) => setFormData((p) => ({ ...p, institutionName: e.target.value, institution: e.target.value }))}
+                        placeholder="e.g. Indian Institute of Technology, Delhi"
+                        className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-foreground">Student Institutional Email</label>
+                      <input
+                        type="email"
+                        value={formData.institutionEmail || ""}
+                        onChange={(e) => setFormData((p) => ({ ...p, institutionEmail: e.target.value }))}
+                        placeholder="e.g. student@iitd.ac.in"
+                        className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {role === "faculty" && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground">Designation</label>
+                        <input
+                          type="text"
+                          value={formData.designation || ""}
+                          onChange={(e) => setFormData((p) => ({ ...p, designation: e.target.value }))}
+                          placeholder="e.g. Associate Professor / Assistant Professor"
+                          className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground">Department</label>
+                        <input
+                          type="text"
+                          value={formData.department || ""}
+                          onChange={(e) => setFormData((p) => ({ ...p, department: e.target.value }))}
+                          placeholder="e.g. Computer Science & Engineering"
+                          className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground">Institution Name</label>
+                        <input
+                          type="text"
+                          value={formData.institutionName || formData.institution || ""}
+                          onChange={(e) => setFormData((p) => ({ ...p, institutionName: e.target.value, institution: e.target.value }))}
+                          placeholder="e.g. Indian Institute of Science"
+                          className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground">Faculty Official Email</label>
+                        <input
+                          type="email"
+                          value={formData.institutionEmail || ""}
+                          onChange={(e) => setFormData((p) => ({ ...p, institutionEmail: e.target.value }))}
+                          placeholder="e.g. professor@iisc.ac.in"
+                          className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Faculty Expertise Tag Adder */}
+                    <div className="space-y-2 pt-2">
+                      <label className="text-xs font-semibold text-foreground">Teaching Expertise & Domain Skills</label>
+                      <SkillInput
+                        skills={formData.expertise || []}
+                        onAddSkill={handleAddExpertise}
+                        onRemoveSkill={handleRemoveExpertise}
+                        placeholder="Type expertise (e.g. Deep Learning, Data Structures, Compiler Design)..."
+                        showPopularSuggestions={false}
+                      />
+                    </div>
+
+                    {/* Research Interests Tag Adder */}
+                    <div className="space-y-2 pt-2">
+                      <label className="text-xs font-semibold text-foreground">Research Interests & Field Focus</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={newResearchInput}
+                          onChange={(e) => setNewResearchInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddResearchInterest(newResearchInput);
+                              setNewResearchInput("");
+                            }
+                          }}
+                          placeholder="e.g. Quantum Computing, NLP, Autonomous Robotics..."
+                          className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleAddResearchInterest(newResearchInput);
+                            setNewResearchInput("");
+                          }}
+                          className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 cursor-pointer"
+                        >
+                          Add
+                        </button>
+                      </div>
+                      {formData.researchInterests && formData.researchInterests.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {formData.researchInterests.map((interest, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-secondary text-foreground border border-border"
+                            >
+                              <span>{interest}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveResearchInterest(interest)}
+                                className="text-muted-foreground hover:text-destructive cursor-pointer font-bold"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {role === "industry" && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground">Company Name</label>
+                        <input
+                          type="text"
+                          value={formData.companyName || formData.name || ""}
+                          onChange={(e) => setFormData((p) => ({ ...p, companyName: e.target.value, name: e.target.value }))}
+                          placeholder="e.g. Google India / Microsoft"
+                          className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground">Industry Sector</label>
+                        <input
+                          type="text"
+                          value={formData.industryType || ""}
+                          onChange={(e) => setFormData((p) => ({ ...p, industryType: e.target.value }))}
+                          placeholder="e.g. Information Technology / AI & Cloud"
+                          className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground">Work / Corporate Email</label>
+                        <input
+                          type="email"
+                          value={formData.workEmail || ""}
+                          onChange={(e) => setFormData((p) => ({ ...p, workEmail: e.target.value }))}
+                          placeholder="e.g. hr@company.com"
+                          className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground">Official Corporate Website</label>
+                        <input
+                          type="url"
+                          value={formData.officialWebsite || formData.website || ""}
+                          onChange={(e) => setFormData((p) => ({ ...p, officialWebsite: e.target.value, website: e.target.value }))}
+                          placeholder="https://company.com"
+                          className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-foreground">Company Size / Workforce</label>
+                      <input
+                        type="text"
+                        value={formData.employees || ""}
+                        onChange={(e) => setFormData((p) => ({ ...p, employees: e.target.value }))}
+                        placeholder="e.g. 500-1000 employees / 10,000+ global workforce"
+                        className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {role === "institution" && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground">Institution Name</label>
+                        <input
+                          type="text"
+                          value={formData.institutionName || formData.name || ""}
+                          onChange={(e) => setFormData((p) => ({ ...p, institutionName: e.target.value, name: e.target.value }))}
+                          placeholder="e.g. National Institute of Technology, Trichy"
+                          className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground">AISHE Code</label>
+                        <input
+                          type="text"
+                          value={formData.aisheCode || ""}
+                          onChange={(e) => setFormData((p) => ({ ...p, aisheCode: e.target.value }))}
+                          placeholder="e.g. C-26789"
+                          className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground">Official Institutional Email</label>
+                        <input
+                          type="email"
+                          value={formData.officialEmail || ""}
+                          onChange={(e) => setFormData((p) => ({ ...p, officialEmail: e.target.value }))}
+                          placeholder="e.g. registrar@nitt.edu"
+                          className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground">Contact Number / Helpline</label>
+                        <input
+                          type="text"
+                          value={formData.contact || ""}
+                          onChange={(e) => setFormData((p) => ({ ...p, contact: e.target.value }))}
+                          placeholder="e.g. +91 431 2503000"
+                          className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 5. Education Manager */}
               {isIndividual && (
                 <div className="space-y-4 pt-2 border-t border-border">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold text-primary uppercase tracking-wider font-mono">
-                      4. Education Entries ({formData.education?.length || 0})
+                      5. Education Entries ({formData.education?.length || 0})
                     </h4>
                     <button
                       type="button"
@@ -1679,19 +2358,30 @@ export default function ProfilePage() {
                               <span className="font-mono text-muted-foreground ml-2">({item.timeline})</span>
                             )}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                education: prev.education?.filter((_, i) => i !== idx),
-                              }))
-                            }
-                            className="p-1 text-muted-foreground hover:text-destructive cursor-pointer"
-                            title="Remove item"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleEditEdu(idx)}
+                              className="px-2 py-1 rounded bg-secondary hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors cursor-pointer flex items-center gap-1 font-semibold text-[11px]"
+                              title="Edit item"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  education: prev.education?.filter((_, i) => i !== idx),
+                                }))
+                              }
+                              className="p-1 text-muted-foreground hover:text-destructive cursor-pointer"
+                              title="Remove item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1701,12 +2391,12 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* 5. Experience Manager */}
+              {/* 6. Experience Manager */}
               {isIndividual && (
                 <div className="space-y-4 pt-2 border-t border-border">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold text-primary uppercase tracking-wider font-mono">
-                      5. Work Experience &amp; Projects ({formData.pastExperience?.length || 0})
+                      6. Work Experience &amp; Projects ({formData.pastExperience?.length || 0})
                     </h4>
                     <button
                       type="button"
@@ -1796,19 +2486,30 @@ export default function ProfilePage() {
                               <span className="font-mono text-muted-foreground ml-2">({item.timeline})</span>
                             )}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                pastExperience: prev.pastExperience?.filter((_, i) => i !== idx),
-                              }))
-                            }
-                            className="p-1 text-muted-foreground hover:text-destructive cursor-pointer"
-                            title="Remove item"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleEditExp(idx)}
+                              className="px-2 py-1 rounded bg-secondary hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors cursor-pointer flex items-center gap-1 font-semibold text-[11px]"
+                              title="Edit item"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  pastExperience: prev.pastExperience?.filter((_, i) => i !== idx),
+                                }))
+                              }
+                              className="p-1 text-muted-foreground hover:text-destructive cursor-pointer"
+                              title="Remove item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1818,12 +2519,12 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* 6. Certifications Manager */}
+              {/* 7. Certifications Manager */}
               {isIndividual && (
                 <div className="space-y-4 pt-2 border-t border-border">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold text-primary uppercase tracking-wider font-mono">
-                      6. Certifications &amp; Credentials ({formData.certifications?.length || 0})
+                      7. Certifications &amp; Credentials ({formData.certifications?.length || 0})
                     </h4>
                     <button
                       type="button"
@@ -1901,19 +2602,30 @@ export default function ProfilePage() {
                             <span className="font-bold text-foreground">{item.title}</span>
                             {item.issuer && <span className="text-muted-foreground"> — {item.issuer}</span>}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                certifications: prev.certifications?.filter((_, i) => i !== idx),
-                              }))
-                            }
-                            className="p-1 text-muted-foreground hover:text-destructive cursor-pointer"
-                            title="Remove item"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleEditCert(idx)}
+                              className="px-2 py-1 rounded bg-secondary hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors cursor-pointer flex items-center gap-1 font-semibold text-[11px]"
+                              title="Edit item"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  certifications: prev.certifications?.filter((_, i) => i !== idx),
+                                }))
+                              }
+                              className="p-1 text-muted-foreground hover:text-destructive cursor-pointer"
+                              title="Remove item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1948,6 +2660,13 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
+        <ProfileEditModal
+          profileData={formData}
+          onSaveSuccess={(updated) => {
+            setProfile(updated);
+            setFormData(updated);
+          }}
+        />
       </main>
     </div>
   );

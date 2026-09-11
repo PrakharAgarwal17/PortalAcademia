@@ -147,9 +147,11 @@ export default function SkillInput({
               if (query.trim()) handleSelect(query.trim());
             }}
             disabled={!query.trim() || skills.length >= maxSkills}
-            className="absolute right-1.5 h-6 px-2 text-[11px] font-medium rounded border border-border bg-muted hover:bg-foreground hover:text-background text-foreground transition-colors disabled:opacity-40 cursor-pointer"
+            className="absolute right-1.5 h-6 px-2 text-[11px] font-semibold rounded border border-primary/30 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40 cursor-pointer flex items-center gap-1 shadow-xs"
+            title="Add skill to list"
           >
-            Add
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add</span>
           </button>
         </div>
 

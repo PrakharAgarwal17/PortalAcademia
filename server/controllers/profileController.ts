@@ -2,6 +2,59 @@ import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import profileModel, { type IProfile } from "../models/profileModel.js";
 import userModel from "../models/userModel.js";
+import { uploadToCloudinary } from "../config/cloudinary.js";
+
+/**
+ * POST /api/profile/avatar
+ * Uploads profile picture using Multer & Cloudinary, updates DB, returns Cloudinary URL
+ */
+export async function uploadAvatar(req: Request, res: Response): Promise<Response> {
+    try {
+        const userId = req.userId;
+
+        if (!userId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const file = (req as any).file as Express.Multer.File | undefined;
+
+        if (!file) {
+            return res.status(400).json({
+                success: false,
+                message: "No profile image file uploaded",
+            });
+        }
+
+        // Upload buffer to Cloudinary
+        const result = await uploadToCloudinary(
+            file.buffer,
+            "portal_academia/avatars",
+            "image"
+        );
+
+        const profileImage = result.url;
+
+        // Persist Cloudinary URL to MongoDB Profile
+        const profile = await profileModel.findOneAndUpdate(
+            { userId: new mongoose.Types.ObjectId(userId) },
+            { $set: { profileImage, image: profileImage } },
+            { new: true, upsert: true, runValidators: true }
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Profile picture uploaded successfully to Cloudinary",
+            profileImage,
+            profile,
+        });
+    } catch (error: any) {
+        console.error("Upload avatar error:", error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || "Failed to upload profile image",
+        });
+    }
+}
 
 /**
  * GET /api/profile/me
