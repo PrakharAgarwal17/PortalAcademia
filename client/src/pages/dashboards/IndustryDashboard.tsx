@@ -16,6 +16,7 @@ import { signOutThunk } from "@/context/authSlice";
 import { useTheme } from "@/context/theme";
 import { cn } from "@/lib/utils";
 import SkillBadge from "@/components/SkillBadge";
+import UserProfileModal from "@/components/UserProfileModal";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
 
@@ -75,6 +76,7 @@ export default function IndustryDashboard() {
   const [applicants, setApplicants] = useState<CandidateApplication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingApplicants, setIsLoadingApplicants] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // New Opportunity Modal State
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
@@ -263,14 +265,24 @@ export default function IndustryDashboard() {
               Portal<span className="text-primary font-mono">Academia</span>
             </span>
           </Link>
-          <span className="text-xs px-2 py-0.5 rounded-md border border-border bg-background text-muted-foreground font-mono">
-            Pillar 4: Corporate Talent & Discovery Desk
-          </span>
         </div>
 
-
-
         <div className="flex items-center gap-2">
+          {/* User Profile Trigger Button */}
+          <button
+            type="button"
+            onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
+            className="flex items-center gap-2 text-xs font-semibold px-2.5 py-1.5 rounded-md bg-secondary hover:bg-secondary/80 text-foreground border border-border cursor-pointer transition-colors"
+            title="Open Industry Partner Profile"
+          >
+            <div className="w-5 h-5 rounded-full bg-primary/20 text-primary font-bold text-[10px] flex items-center justify-center">
+              <Briefcase className="w-3 h-3" />
+            </div>
+            <span className="hidden sm:inline max-w-[140px] truncate">
+              {profile?.companyName || profile?.name || "Partner"}
+            </span>
+          </button>
+
           <button
             type="button"
             onClick={() => setIsPublishModalOpen(true)}
@@ -305,14 +317,19 @@ export default function IndustryDashboard() {
         {/* 2. Recruiter Identity Strip */}
         <section className="bg-card border border-border rounded-md p-4 lg:p-5">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-md bg-secondary border border-border flex items-center justify-center font-bold text-sm text-foreground">
+            <div
+              onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
+              className="flex items-start gap-3 cursor-pointer group select-none"
+              title="Click to view & edit your complete corporate profile"
+            >
+              <div className="w-11 h-11 rounded-md bg-secondary border border-border flex items-center justify-center font-bold text-sm text-foreground group-hover:border-primary group-hover:bg-primary/10 transition-colors">
                 <Briefcase className="w-5 h-5 text-primary" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-base font-bold text-foreground tracking-tight">
+                  <h1 className="text-base font-bold text-foreground tracking-tight group-hover:text-primary transition-colors flex items-center gap-1.5">
                     {profile?.companyName || profile?.name || "Corporate Partner"}
+                    <span className="text-[11px] font-normal text-muted-foreground">✎</span>
                   </h1>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold">
                     Verified Industry Partner
@@ -616,6 +633,14 @@ export default function IndustryDashboard() {
           </div>
         </div>
       )}
+
+      {/* User Profile Modal */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        profile={profile}
+        onProfileUpdated={(updatedProfile) => setProfile(updatedProfile)}
+      />
     </div>
   );
 }

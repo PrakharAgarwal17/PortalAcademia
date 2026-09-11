@@ -29,6 +29,7 @@ import { signOutThunk } from "@/context/authSlice";
 import { useTheme } from "@/context/theme";
 import { cn } from "@/lib/utils";
 import SkillBadge from "@/components/SkillBadge";
+import UserProfileModal from "@/components/UserProfileModal";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
 
@@ -409,6 +410,7 @@ export default function FacultyDashboard() {
   const [selectedCategory, setSelectedCategory] = useState<FacultyCategoryFilter>("all");
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
   const [isCollegeInboxOnly, setIsCollegeInboxOnly] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Infinite Scroll state
   const [visibleCount, setVisibleCount] = useState(4);
@@ -764,8 +766,9 @@ export default function FacultyDashboard() {
           <div className="flex items-center gap-3 flex-1 max-w-md">
             {/* Circular Profile Avatar ( O ) */}
             <div
-              className="relative w-9 h-9 rounded-full bg-secondary border-2 border-primary/40 flex items-center justify-center font-bold text-xs text-foreground shrink-0 shadow-xs cursor-pointer hover:border-primary transition-all"
-              title={`${profile?.name || "Faculty Member"} (Verified)`}
+              onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
+              className="relative w-9 h-9 rounded-full bg-secondary border-2 border-primary/40 flex items-center justify-center font-bold text-xs text-foreground shrink-0 shadow-xs cursor-pointer hover:border-primary hover:scale-105 transition-all"
+              title="Click to view & edit your complete faculty profile"
             >
               <span>{initials}</span>
               {/* Verified tick mark */}
@@ -895,7 +898,16 @@ export default function FacultyDashboard() {
             <span className="text-xs font-medium text-muted-foreground">
               {profile?.name ? (
                 <>
-                  Logged in as <strong className="text-foreground font-semibold">{profile.name}</strong>
+                  Logged in as{" "}
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
+                    className="text-foreground font-semibold hover:text-primary underline-offset-2 hover:underline cursor-pointer inline-flex items-center gap-1"
+                    title="Click to view & edit your complete faculty profile"
+                  >
+                    {profile.name}
+                    <span className="text-[10px] text-muted-foreground">✎</span>
+                  </button>
                   {profile.institution && (
                     <span className="text-muted-foreground"> ({profile.institution})</span>
                   )}
@@ -1317,15 +1329,22 @@ export default function FacultyDashboard() {
             </div>
 
             {/* Profile Overview Card */}
-            <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+            <div
+              onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
+              className="bg-card border border-border hover:border-primary/50 rounded-xl p-5 space-y-4 cursor-pointer transition-colors group"
+              title="Click to view & edit your complete faculty profile"
+            >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-secondary border-2 border-primary/40 flex items-center justify-center font-bold text-sm text-foreground">
+                  <div className="w-12 h-12 rounded-full bg-secondary border-2 border-primary/40 group-hover:border-primary flex items-center justify-center font-bold text-sm text-foreground transition-all">
                     {initials}
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <h3 className="text-base font-bold text-foreground">{profile?.name || "Faculty Scholar"}</h3>
+                      <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
+                        {profile?.name || "Faculty Scholar"}
+                        <span className="text-[11px] font-normal text-muted-foreground">✎</span>
+                      </h3>
                       <CheckCircle2 className="w-4 h-4 text-emerald-500 fill-emerald-500/20" />
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -1596,6 +1615,13 @@ export default function FacultyDashboard() {
           </form>
         </div>
       )}
+      {/* User Profile Modal */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        profile={profile}
+        onProfileUpdated={(updatedProfile) => setProfile(updatedProfile)}
+      />
     </div>
   );
 }
