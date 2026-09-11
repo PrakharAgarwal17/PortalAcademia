@@ -54,9 +54,7 @@ export async function createOrUpdateProfile(req: Request, res: Response): Promis
             category,
             accountType,
             name,
-            headline,
             profileImage,
-            bannerImage,
             image,
             bio,
             location,
@@ -101,7 +99,6 @@ export async function createOrUpdateProfile(req: Request, res: Response): Promis
         if (category !== undefined) updateData.category = category;
         if (accountType !== undefined) updateData.accountType = accountType;
         if (name !== undefined) updateData.name = name;
-        if (headline !== undefined) updateData.headline = headline;
 
         // Handle profile image
         const resolvedImage = profileImage || image;
@@ -109,8 +106,6 @@ export async function createOrUpdateProfile(req: Request, res: Response): Promis
             updateData.profileImage = resolvedImage;
             updateData.image = resolvedImage;
         }
-
-        if (bannerImage !== undefined) updateData.bannerImage = bannerImage;
 
         if (bio !== undefined) updateData.bio = bio;
         if (location !== undefined) updateData.location = location;
@@ -182,11 +177,7 @@ export async function getProfileById(req: Request, res: Response): Promise<Respo
         const id = req.params.id as string | undefined;
 
         let profile = null;
-        if (id === "me" && req.userId) {
-            profile = await profileModel.findOne({
-                userId: new mongoose.Types.ObjectId(req.userId),
-            });
-        } else if (id && mongoose.Types.ObjectId.isValid(id)) {
+        if (id && mongoose.Types.ObjectId.isValid(id)) {
             const objectId = new mongoose.Types.ObjectId(id);
             profile = await profileModel.findOne({
                 $or: [{ _id: objectId }, { userId: objectId }],

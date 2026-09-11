@@ -12,8 +12,6 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localh
 // ============================================================
 
 export interface AuthUser {
-  id?: string;
-  _id?: string;
   email: string;
   role?: string;
   isVerified: boolean;
@@ -166,8 +164,6 @@ const authSlice = createSlice({
         if (action.payload.valid && action.payload.user) {
           state.isAuthenticated = true;
           state.user = {
-            id: action.payload.user.id,
-            _id: action.payload.user.id,
             email: action.payload.user.email,
             isVerified: action.payload.user.isVerified,
             isOnboarded: action.payload.user.isOnboarded,
