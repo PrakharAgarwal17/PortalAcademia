@@ -19,6 +19,8 @@ import { useAppDispatch } from "@/context/store";
 import { signOutThunk } from "@/context/authSlice";
 import { useTheme } from "@/context/theme";
 import { cn } from "@/lib/utils";
+import SkillBadge from "@/components/SkillBadge";
+import { searchSkillSuggestions } from "@/lib/skillIcons";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
 
@@ -331,10 +333,10 @@ export default function StudentDashboard() {
   /**
    * @description Add a skill tag and sync to profile
    */
-  const handleAddSkill = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSkillInput.trim() || !profile) return;
-    const skillName = newSkillInput.trim();
+  const handleAddSkill = async (e?: React.FormEvent, customSkill?: string) => {
+    if (e) e.preventDefault();
+    const skillName = (customSkill || newSkillInput).trim();
+    if (!skillName || !profile) return;
     const updatedSkills = Array.from(new Set([...(profile.skills || []), skillName]));
 
     setIsUpdatingSkill(true);
@@ -354,6 +356,28 @@ export default function StudentDashboard() {
       console.error("Failed to update skills:", err);
     } finally {
       setIsUpdatingSkill(false);
+    }
+  };
+
+  /**
+   * @description Remove a skill tag and sync to profile
+   */
+  const handleRemoveSkill = async (skillToRemove: string) => {
+    if (!profile) return;
+    const updatedSkills = (profile.skills || []).filter((s) => s !== skillToRemove);
+    try {
+      const res = await fetch(`${API_BASE}/api/profile`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ skills: updatedSkills }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setProfile((prev) => (prev ? { ...prev, skills: updatedSkills } : null));
+      }
+    } catch (err) {
+      console.error("Failed to remove skill:", err);
     }
   };
 
@@ -634,41 +658,76 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {/* Skill Badges & Live Insertion Form */}
-          <div className="mt-4 pt-4 border-t border-border flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-1.5">
+          {/* Skill Badges & Live Insertion Form with Simple Icons */}
+          <div className="mt-4 pt-4 border-t border-border flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-1.5 flex-1">
               <span className="text-xs text-muted-foreground mr-1">Skills:</span>
               {profile?.skills && profile.skills.length > 0 ? (
                 profile.skills.map((skill, idx) => (
-                  <span
+                  <SkillBadge
                     key={idx}
-                    className="text-xs px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground border border-border font-mono"
-                  >
-                    {skill}
-                  </span>
+                    skill={skill}
+                    size="sm"
+                    onRemove={() => handleRemoveSkill(skill)}
+                  />
                 ))
               ) : (
                 <span className="text-xs text-muted-foreground italic">No skills listed yet</span>
               )}
             </div>
 
-            <form onSubmit={handleAddSkill} className="flex items-center gap-1.5">
-              <input
-                type="text"
-                value={newSkillInput}
-                onChange={(e) => setNewSkillInput(e.target.value)}
-                placeholder="Add skill (e.g. Docker, Python)"
-                disabled={isUpdatingSkill}
-                className="text-xs px-2.5 py-1.5 rounded-md bg-background border border-border text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary w-48"
-              />
-              <button
-                type="submit"
-                disabled={isUpdatingSkill || !newSkillInput.trim()}
-                className="text-xs font-semibold px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-              >
-                {isUpdatingSkill ? "Adding…" : "Add"}
-              </button>
-            </form>
+            <div className="relative">
+              <form onSubmit={handleAddSkill} className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={newSkillInput}
+                  onChange={(e) => setNewSkillInput(e.target.value)}
+                  placeholder="Add skill (e.g. Python, Docker)"
+                  disabled={isUpdatingSkill}
+                  className="text-xs px-2.5 py-1.5 rounded-md bg-background border border-border text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary w-52"
+                />
+                <button
+                  type="submit"
+                  disabled={isUpdatingSkill || !newSkillInput.trim()}
+                  className="text-xs font-semibold px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors cursor-pointer"
+                >
+                  {isUpdatingSkill ? "Adding…" : "Add"}
+                </button>
+              </form>
+
+              {/* Autocomplete Dropdown from Simple Icons */}
+              {newSkillInput.trim().length > 0 && (
+                <div className="absolute z-40 right-0 mt-1 w-60 max-h-48 overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-lg text-popover-foreground">
+                  <div className="px-2 py-1 text-[9px] font-mono uppercase tracking-wider text-muted-foreground">
+                    Simple Icons Matches
+                  </div>
+                  {searchSkillSuggestions(newSkillInput.trim(), 5).map((item) => (
+                    <button
+                      key={item.slug}
+                      type="button"
+                      onClick={() => handleAddSkill(undefined, item.title)}
+                      className="w-full flex items-center justify-between px-2 py-1.5 rounded-xs text-xs hover:bg-muted/80 transition-colors text-left cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <svg
+                          role="img"
+                          viewBox="0 0 24 24"
+                          className="w-3.5 h-3.5 shrink-0"
+                          style={{ fill: `#${item.hex}` }}
+                          aria-hidden="true"
+                        >
+                          <path d={item.path} />
+                        </svg>
+                        <span className="font-medium text-foreground">{item.title}</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        + Add
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </section>
 
@@ -887,12 +946,11 @@ export default function StudentDashboard() {
 
                     <div className="flex flex-wrap gap-1 pt-1">
                       {opp.requiredSkills.map((sk, sIdx) => (
-                        <span
+                        <SkillBadge
                           key={sIdx}
-                          className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-secondary text-secondary-foreground border border-border"
-                        >
-                          {sk}
-                        </span>
+                          skill={sk}
+                          size="xs"
+                        />
                       ))}
                     </div>
                   </div>
@@ -1059,9 +1117,12 @@ export default function StudentDashboard() {
                 <p className="text-muted-foreground">
                   Stipend / Prize: <span className="font-semibold text-foreground font-mono">{applyingOpportunity.stipendOrPrize}</span>
                 </p>
-                <p className="text-muted-foreground">
-                  Required Skills: <span className="font-mono text-foreground">{applyingOpportunity.requiredSkills.join(", ")}</span>
-                </p>
+                <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span>Required Skills:</span>
+                  {applyingOpportunity.requiredSkills.map((sk, idx) => (
+                    <SkillBadge key={idx} skill={sk} size="xs" />
+                  ))}
+                </div>
               </div>
 
               <div>

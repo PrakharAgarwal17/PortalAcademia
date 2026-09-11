@@ -22,4 +22,16 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes("simple-icons")) {
+            return "simple-icons";
+          }
+        },
+      },
+    },
+    chunkSizeWarningLimit: 3500,
+  },
 })

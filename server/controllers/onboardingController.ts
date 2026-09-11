@@ -30,6 +30,7 @@ function getEmailCredentials(): {
 
 // Embedded representative database of Indian colleges & universities
 const DEFAULT_INSTITUTIONS = [
+    { name: "DIT University", aisheCode: "U-0774", state: "Uttarakhand" },
     { name: "Indian Institute of Technology Bombay", aisheCode: "U-0275", state: "Maharashtra" },
     { name: "Indian Institute of Technology Delhi", aisheCode: "U-0092", state: "Delhi" },
     { name: "Indian Institute of Technology Madras", aisheCode: "U-0456", state: "Tamil Nadu" },
@@ -55,31 +56,124 @@ const DEFAULT_INSTITUTIONS = [
     { name: "Thapar Institute of Engineering and Technology", aisheCode: "U-0388", state: "Punjab" },
 ];
 
-// Safe AISHE dataset loader
+// Safe AISHE dataset loader with multi-path resolution
 import { createRequire } from "module";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
 const esmRequire = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let aisheDataSet: Array<{ name?: string; aishe_code?: string; state?: string; district?: string }> = [];
-try {
-    aisheDataSet = esmRequire("aishe-institutions-list/data/institutions.json");
-} catch {
-    aisheDataSet = [];
+
+const candidateDatasetPaths = [
+    path.resolve(__dirname, "../node_modules/aishe-institutions-list/data/institutions.json"),
+    path.resolve(process.cwd(), "server/node_modules/aishe-institutions-list/data/institutions.json"),
+    path.resolve(process.cwd(), "node_modules/aishe-institutions-list/data/institutions.json"),
+];
+
+for (const candidatePath of candidateDatasetPaths) {
+    try {
+        if (fs.existsSync(candidatePath)) {
+            aisheDataSet = JSON.parse(fs.readFileSync(candidatePath, "utf-8"));
+            if (aisheDataSet.length > 0) {
+                break;
+            }
+        }
+    } catch {}
 }
+
+if (!aisheDataSet.length) {
+    try {
+        aisheDataSet = esmRequire("aishe-institutions-list/data/institutions.json");
+    } catch {
+        aisheDataSet = [];
+    }
+}
+
+const COMMON_ACRONYMS: Record<string, string> = {
+    dit: "dit university",
+    iit: "indian institute of technology",
+    nit: "national institute of technology",
+    iiit: "indian institute of information technology",
+    iim: "indian institute of management",
+    iisc: "indian institute of science",
+    bits: "birla institute of technology",
+    aiims: "all india institute of medical sciences",
+    bhu: "banaras hindu university",
+    jnu: "jawaharlal nehru university",
+    du: "delhi university",
+    dtu: "delhi technological university",
+    nsut: "netaji subhas university",
+    coep: "college of engineering pune",
+    vjti: "veermata jijabai technological institute",
+    vit: "vellore institute of technology",
+    srm: "srm institute of science and technology",
+};
 
 function searchAishe(query: string, limit = 25) {
     if (!query || !aisheDataSet.length) return [];
     const cleanQuery = query.toLowerCase().trim();
-    const words = cleanQuery.split(/\s+/).filter(Boolean);
-    const results = [];
+    const normalizedQuery = cleanQuery.replace(/[.\-_]/g, "");
+    
+    // Generate query search variations (e.g. "iit bombay" -> also "indian institute of technology bombay")
+    let expandedQuery = cleanQuery;
+    for (const [acronym, expansion] of Object.entries(COMMON_ACRONYMS)) {
+        const regex = new RegExp(`\\b${acronym}\\b`, "gi");
+        if (regex.test(expandedQuery)) {
+            expandedQuery = expandedQuery.replace(regex, expansion);
+        }
+    }
+
+    const queryVariations = Array.from(new Set([cleanQuery, normalizedQuery, expandedQuery]));
+    const results: Array<{ name?: string; aishe_code?: string; state?: string; district?: string }> = [];
+    const seenCodes = new Set<string>();
+
+    // 1st Priority: Exact or prefix match on name or aishe_code
     for (const inst of aisheDataSet) {
-        const name = (inst.name || "").toLowerCase();
+        const rawName = (inst.name || "").toLowerCase();
+        const normName = rawName.replace(/[.\-_]/g, "");
+        const code = (inst.aishe_code || "").toLowerCase();
+
+        const matchesPrefix = queryVariations.some(
+            (qv) => rawName.startsWith(qv) || normName.startsWith(qv) || code === qv || code.startsWith(qv)
+        );
+        if (matchesPrefix) {
+            const key = inst.aishe_code || inst.name || "";
+            if (!seenCodes.has(key)) {
+                seenCodes.add(key);
+                results.push(inst);
+                if (results.length >= limit) return results;
+            }
+        }
+    }
+
+    // 2nd Priority: Exact word match or full phrase match
+    for (const inst of aisheDataSet) {
+        const rawName = (inst.name || "").toLowerCase();
+        const normName = rawName.replace(/[.\-_]/g, "");
         const code = (inst.aishe_code || "").toLowerCase();
         const state = (inst.state || "").toLowerCase();
-        if (code.includes(cleanQuery) || words.every((w) => name.includes(w) || state.includes(w))) {
+        const district = (inst.district || "").toLowerCase();
+        const key = inst.aishe_code || inst.name || "";
+
+        if (seenCodes.has(key)) continue;
+
+        const isMatch = queryVariations.some((qv) => {
+            if (rawName.includes(qv) || normName.includes(qv) || code.includes(qv)) return true;
+            const words = qv.split(/\s+/).filter(Boolean);
+            return words.length > 0 && words.every((w) => rawName.includes(w) || state.includes(w) || district.includes(w));
+        });
+
+        if (isMatch) {
+            seenCodes.add(key);
             results.push(inst);
             if (results.length >= limit) break;
         }
     }
+
     return results;
 }
 
@@ -130,6 +224,134 @@ export async function searchInstitutions(req: Request, res: Response): Promise<R
 }
 
 // ============================================================
+// Known Higher Education Domains & Smart Domain Engine
+// ============================================================
+
+const KNOWN_INSTITUTION_DOMAINS: Record<string, { domain: string; emails?: string[] }> = {
+    // DIT University
+    "dit": { domain: "dituniversity.edu.in", emails: ["registrar@dituniversity.edu.in", "admissions@dituniversity.edu.in", "info@dituniversity.edu.in"] },
+    "dit university": { domain: "dituniversity.edu.in", emails: ["registrar@dituniversity.edu.in", "admissions@dituniversity.edu.in", "info@dituniversity.edu.in"] },
+    "dehradun institute of technology": { domain: "dituniversity.edu.in", emails: ["registrar@dituniversity.edu.in", "admissions@dituniversity.edu.in", "info@dituniversity.edu.in"] },
+
+    // Delhi University & Tech Universities
+    "delhi university": { domain: "du.ac.in", emails: ["registrar@du.ac.in", "admin@du.ac.in", "info@du.ac.in"] },
+    "university of delhi": { domain: "du.ac.in", emails: ["registrar@du.ac.in", "admin@du.ac.in", "info@du.ac.in"] },
+    "du": { domain: "du.ac.in", emails: ["registrar@du.ac.in", "admin@du.ac.in", "info@du.ac.in"] },
+    "dtu": { domain: "dtu.ac.in", emails: ["registrar@dtu.ac.in", "academic@dtu.ac.in", "info@dtu.ac.in"] },
+    "delhi technological university": { domain: "dtu.ac.in", emails: ["registrar@dtu.ac.in", "academic@dtu.ac.in", "info@dtu.ac.in"] },
+    "nsut": { domain: "nsut.ac.in", emails: ["registrar@nsut.ac.in", "academic@nsut.ac.in", "info@nsut.ac.in"] },
+    "netaji subhas university of technology": { domain: "nsut.ac.in", emails: ["registrar@nsut.ac.in", "academic@nsut.ac.in", "info@nsut.ac.in"] },
+
+    // IITs
+    "iit bombay": { domain: "iitb.ac.in", emails: ["registrar@iitb.ac.in", "dean.ap@iitb.ac.in", "info@iitb.ac.in"] },
+    "indian institute of technology bombay": { domain: "iitb.ac.in", emails: ["registrar@iitb.ac.in", "dean.ap@iitb.ac.in", "info@iitb.ac.in"] },
+    "iit delhi": { domain: "iitd.ac.in", emails: ["registrar@admin.iitd.ac.in", "webmaster@iitd.ac.in"] },
+    "indian institute of technology delhi": { domain: "iitd.ac.in", emails: ["registrar@admin.iitd.ac.in", "webmaster@iitd.ac.in"] },
+    "iit madras": { domain: "iitm.ac.in", emails: ["registrar@iitm.ac.in", "admissions@iitm.ac.in"] },
+    "indian institute of technology madras": { domain: "iitm.ac.in", emails: ["registrar@iitm.ac.in", "admissions@iitm.ac.in"] },
+    "iit kanpur": { domain: "iitk.ac.in", emails: ["registrar@iitk.ac.in", "doaa@iitk.ac.in"] },
+    "indian institute of technology kanpur": { domain: "iitk.ac.in", emails: ["registrar@iitk.ac.in", "doaa@iitk.ac.in"] },
+    "iit kharagpur": { domain: "iitkgp.ac.in", emails: ["registrar@iitkgp.ac.in", "dean.ap@iitkgp.ac.in"] },
+    "indian institute of technology kharagpur": { domain: "iitkgp.ac.in", emails: ["registrar@iitkgp.ac.in", "dean.ap@iitkgp.ac.in"] },
+    "iit roorkee": { domain: "iitr.ac.in", emails: ["registrar@iitr.ac.in", "pgadm@iitr.ac.in"] },
+    "indian institute of technology roorkee": { domain: "iitr.ac.in", emails: ["registrar@iitr.ac.in", "pgadm@iitr.ac.in"] },
+
+    // BITS, VIT, SRM, Manipal, Amity, Thapar, LPU, etc.
+    "birla institute of technology and science, pilani": { domain: "pilani.bits-pilani.ac.in", emails: ["registrar@pilani.bits-pilani.ac.in", "admissions@pilani.bits-pilani.ac.in"] },
+    "bits pilani": { domain: "pilani.bits-pilani.ac.in", emails: ["registrar@pilani.bits-pilani.ac.in", "admissions@pilani.bits-pilani.ac.in"] },
+    "vellore institute of technology": { domain: "vit.ac.in", emails: ["registrar@vit.ac.in", "admin@vit.ac.in", "info@vit.ac.in"] },
+    "vit": { domain: "vit.ac.in", emails: ["registrar@vit.ac.in", "admin@vit.ac.in", "info@vit.ac.in"] },
+    "srm institute of science and technology": { domain: "srmist.edu.in", emails: ["registrar@srmist.edu.in", "admissions.india@srmist.edu.in", "info@srmist.edu.in"] },
+    "srm": { domain: "srmist.edu.in", emails: ["registrar@srmist.edu.in", "admissions.india@srmist.edu.in", "info@srmist.edu.in"] },
+    "manipal academy of higher education": { domain: "manipal.edu", emails: ["registrar@manipal.edu", "admissions@manipal.edu", "info@manipal.edu"] },
+    "amity university, noida": { domain: "amity.edu", emails: ["registrar@amity.edu", "admissions@amity.edu", "info@amity.edu"] },
+    "amity university": { domain: "amity.edu", emails: ["registrar@amity.edu", "admissions@amity.edu", "info@amity.edu"] },
+    "thapar institute of engineering and technology": { domain: "thapar.edu", emails: ["registrar@thapar.edu", "admissions@thapar.edu"] },
+    "graphic era university": { domain: "geu.ac.in", emails: ["registrar@geu.ac.in", "admissions@geu.ac.in", "info@geu.ac.in"] },
+    "graphic era": { domain: "geu.ac.in", emails: ["registrar@geu.ac.in", "admissions@geu.ac.in", "info@geu.ac.in"] },
+    "upes": { domain: "upes.ac.in", emails: ["registrar@upes.ac.in", "enrollments@upes.ac.in", "info@upes.ac.in"] },
+    "lovely professional university": { domain: "lpu.in", emails: ["registrar@lpu.co.in", "info@lpu.co.in", "admissions@lpu.co.in"] },
+    "chandigarh university": { domain: "cuchd.in", emails: ["registrar@cumail.in", "admissions@cumail.in", "info@cuchd.in"] },
+    "jawaharlal nehru university": { domain: "jnu.ac.in", emails: ["registrar@mail.jnu.ac.in", "admin@mail.jnu.ac.in"] },
+    "banaras hindu university": { domain: "bhu.ac.in", emails: ["registrar@bhu.ac.in", "admin@bhu.ac.in"] },
+    "aligarh muslim university": { domain: "amu.ac.in", emails: ["registrar.amu@amu.ac.in", "info@amu.ac.in"] },
+    "anna university": { domain: "annauniv.edu", emails: ["registrar@annauniv.edu", "admissions@annauniv.edu"] },
+    "university of mumbai": { domain: "mu.ac.in", emails: ["registrar@fort.mu.ac.in", "info@mu.ac.in"] },
+    "savitribai phule pune university": { domain: "unipune.ac.in", emails: ["registrar@unipune.ac.in", "info@unipune.ac.in"] },
+    "dr. a.p.j. abdul kalam technical university": { domain: "aktu.ac.in", emails: ["registrar@aktu.ac.in", "info@aktu.ac.in"] },
+};
+
+export function deriveOfficialInstitutionEmails(institutionName: string, website?: string): string[] {
+    if (website) {
+        try {
+            const url = new URL(website.startsWith("http") ? website : `https://${website}`);
+            const domain = url.hostname.replace(/^www\./, "");
+            return [
+                `registrar@${domain}`,
+                `admin@${domain}`,
+                `info@${domain}`,
+                `admissions@${domain}`,
+                `contact@${domain}`,
+            ];
+        } catch {}
+    }
+
+    const cleanName = institutionName
+        .toLowerCase()
+        .replace(/[^\w\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    // 1. Check known institution dictionary
+    for (const [key, item] of Object.entries(KNOWN_INSTITUTION_DOMAINS)) {
+        if (cleanName === key || cleanName.startsWith(key + " ") || cleanName.endsWith(" " + key) || cleanName.includes(key)) {
+            if (item.emails && item.emails.length > 0) {
+                return item.emails;
+            }
+            return [
+                `registrar@${item.domain}`,
+                `admissions@${item.domain}`,
+                `info@${item.domain}`,
+                `admin@${item.domain}`,
+            ];
+        }
+    }
+
+    // 2. Intelligent candidate domain derivation
+    const words = cleanName.split(" ").filter((w) => !["of", "and", "the", "in", "for", "at"].includes(w));
+    const firstWord = words[0] || "";
+    const candidateDomains: string[] = [];
+
+    // If first word is a short acronym/word (e.g. "dit", "vit", "srm", "mit", "geu", "upes")
+    if (firstWord.length >= 2 && firstWord.length <= 5) {
+        candidateDomains.push(`${firstWord}university.edu.in`);
+        candidateDomains.push(`${firstWord}.edu.in`);
+        candidateDomains.push(`${firstWord}.ac.in`);
+        candidateDomains.push(`${firstWord}university.ac.in`);
+    } else if (words.length > 1) {
+        // Multi-word name: generate both acronym and compact slug
+        const acronym = words.map((w) => w[0]).join("");
+        const compactSlug = words.slice(0, 3).join("");
+        candidateDomains.push(`${acronym}.ac.in`);
+        candidateDomains.push(`${compactSlug}.ac.in`);
+        candidateDomains.push(`${compactSlug}.edu.in`);
+    } else {
+        candidateDomains.push(`${cleanName}.ac.in`);
+        candidateDomains.push(`${cleanName}.edu.in`);
+    }
+
+    const emails: string[] = [];
+    for (const d of candidateDomains) {
+        emails.push(`registrar@${d}`);
+        emails.push(`admissions@${d}`);
+        emails.push(`info@${d}`);
+        emails.push(`admin@${d}`);
+    }
+
+    return Array.from(new Set(emails)).slice(0, 5);
+}
+
+// ============================================================
 // Grok AI Official College Email Crawler
 // ============================================================
 
@@ -150,69 +372,51 @@ export async function crawlCollegeEmails(req: Request, res: Response): Promise<R
             try {
                 const prompt = `You are a verification assistant for PortalAcademia.
 Find or derive official public administrative, registrar, and academic contact emails for the educational institution: "${institutionName}"${website ? ` (Official website: ${website})` : ""}.
-Examples of expected formats: registrar@..., admin@..., principal@..., contact@..., info@... with their authentic domain.
+Examples of expected formats: registrar@..., admin@..., principal@..., admissions@..., contact@..., info@... with their authentic domain.
 Output ONLY a JSON array of valid email strings, for example: ["registrar@domain.edu.in", "info@domain.edu.in"]. No markdown, no explanations.`;
 
-                const grokResponse = await fetch("https://api.x.ai/v1/chat/completions", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${grokApiKey}`,
-                    },
-                    body: JSON.stringify({
-                        model: "grok-beta",
-                        messages: [{ role: "user", content: prompt }],
-                        temperature: 0.1,
-                    }),
-                });
+                // Try modern xAI grok model identifiers
+                const modelCandidates = ["grok-2-latest", "grok-2", "grok-beta"];
+                for (const model of modelCandidates) {
+                    try {
+                        const grokResponse = await fetch("https://api.x.ai/v1/chat/completions", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Authorization: `Bearer ${grokApiKey}`,
+                            },
+                            body: JSON.stringify({
+                                model,
+                                messages: [{ role: "user", content: prompt }],
+                                temperature: 0.1,
+                            }),
+                        });
 
-                if (grokResponse.ok) {
-                    const grokData = await grokResponse.json();
-                    const content = grokData.choices?.[0]?.message?.content?.trim();
-                    if (content) {
-                        const jsonMatch = content.match(/\[.*\]/s);
-                        if (jsonMatch) {
-                            const parsedEmails = JSON.parse(jsonMatch[0]);
-                            if (Array.isArray(parsedEmails) && parsedEmails.length > 0) {
-                                return res.status(200).json({
-                                    emails: parsedEmails,
-                                    source: "grok_ai",
-                                });
+                        if (grokResponse.ok) {
+                            const grokData = await grokResponse.json();
+                            const content = grokData.choices?.[0]?.message?.content?.trim();
+                            if (content) {
+                                const jsonMatch = content.match(/\[.*\]/s);
+                                if (jsonMatch) {
+                                    const parsedEmails = JSON.parse(jsonMatch[0]);
+                                    if (Array.isArray(parsedEmails) && parsedEmails.length > 0) {
+                                        return res.status(200).json({
+                                            emails: parsedEmails,
+                                            source: "grok_ai",
+                                        });
+                                    }
+                                }
                             }
                         }
-                    }
+                    } catch {}
                 }
             } catch (grokErr) {
-                console.warn("Grok AI API call failed, generating fallback domain suggestions:", grokErr);
+                console.warn("Grok AI API call failed, using intelligent domain engine:", grokErr);
             }
         }
 
-        // 2. Intelligent fallback email generation based on institution name / website
-        let domain = "ac.in";
-        if (website) {
-            try {
-                const url = new URL(website.startsWith("http") ? website : `https://${website}`);
-                domain = url.hostname.replace(/^www\./, "");
-            } catch {
-                domain = "ac.in";
-            }
-        } else {
-            const words = institutionName
-                .toLowerCase()
-                .replace(/[^a-z0-9 ]/g, "")
-                .split(" ")
-                .filter((w) => !["of", "and", "the", "in", "for"].includes(w));
-            const acronym = words.map((w) => w[0]).join("");
-            domain = `${acronym}.ac.in`;
-        }
-
-        const fallbackEmails = [
-            `registrar@${domain}`,
-            `admin@${domain}`,
-            `principal@${domain}`,
-            `info@${domain}`,
-            `academics@${domain}`,
-        ];
+        // 2. Intelligent, domain-aware fallback generator
+        const fallbackEmails = deriveOfficialInstitutionEmails(institutionName, website);
 
         return res.status(200).json({
             emails: fallbackEmails,
@@ -222,7 +426,7 @@ Output ONLY a JSON array of valid email strings, for example: ["registrar@domain
         console.error("Crawl college emails error:", error);
         return res.status(500).json({
             message: "Failed to crawl college emails",
-            emails: ["registrar@college.ac.in", "admin@college.ac.in", "info@college.ac.in"],
+            emails: ["registrar@college.edu.in", "admin@college.edu.in", "info@college.edu.in"],
         });
     }
 }

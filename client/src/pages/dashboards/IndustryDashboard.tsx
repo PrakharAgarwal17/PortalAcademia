@@ -15,6 +15,7 @@ import { useAppDispatch } from "@/context/store";
 import { signOutThunk } from "@/context/authSlice";
 import { useTheme } from "@/context/theme";
 import { cn } from "@/lib/utils";
+import SkillBadge from "@/components/SkillBadge";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
 
@@ -454,12 +455,11 @@ export default function IndustryDashboard() {
                     <div className="flex flex-wrap items-center gap-1 pt-1">
                       <span className="text-[10px] text-muted-foreground mr-1">Skills:</span>
                       {cand.applicantSkills.map((sk, idx) => (
-                        <span
+                        <SkillBadge
                           key={idx}
-                          className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-secondary text-secondary-foreground border border-border"
-                        >
-                          {sk}
-                        </span>
+                          skill={sk}
+                          size="xs"
+                        />
                       ))}
                     </div>
 

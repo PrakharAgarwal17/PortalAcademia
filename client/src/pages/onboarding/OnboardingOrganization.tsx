@@ -3,32 +3,40 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import {
   Building2,
   Briefcase,
-  Upload,
   Search,
   CheckCircle2,
   AlertCircle,
   Loader2,
-  ArrowRight,
-  ArrowLeft,
   Sun,
   Moon,
   ShieldCheck,
+  Camera,
+  Globe,
+  Users,
+  Sparkles,
+  MapPin,
+  ChevronDown,
+  Plus,
+  Minus,
+  ArrowRight,
+  School,
+  Lock,
   Mail,
+  ExternalLink,
+  FileText,
+  BadgeCheck,
 } from "lucide-react";
-import { useAppDispatch, useAppSelector } from "@/context/store";
+import { City, State } from "country-state-city";
+import { useAppDispatch } from "@/context/store";
 import { checkAuthThunk } from "@/context/authSlice";
 import { useTheme } from "@/context/theme";
 import { cn } from "@/lib/utils";
 
 // ============================================================
-// Constants
+// Constants & Types
 // ============================================================
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
-
-// ============================================================
-// Types & Interfaces
-// ============================================================
 
 export type OrganizationType = "institution" | "industry";
 
@@ -68,7 +76,6 @@ interface UploadResponse {
   success: boolean;
   message: string;
   url: string;
-  publicId?: string;
 }
 
 interface InstitutionsSearchResponse {
@@ -114,7 +121,7 @@ const WORKFORCE_RANGES = [
 ];
 
 // ============================================================
-// Main Component
+// Main Component: OnboardingOrganization (Right Side of Sketch)
 // ============================================================
 
 export default function OnboardingOrganization() {
@@ -122,38 +129,38 @@ export default function OnboardingOrganization() {
   const dispatch = useAppDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   const { theme, toggleTheme } = useTheme();
-  const user = useAppSelector((state) => state.auth.user);
 
-  // Read organization subtype from query param or default to institution
+  // Subtype: institution vs industry
   const typeParam = searchParams.get("type");
   const activeType: OrganizationType = typeParam === "industry" ? "industry" : "institution";
 
-  // Wizard Step: 1 (Basic Identity), 2 (Governance / Entity Details), 3 (Official Email OTP), 4 (Review)
-  const [currentStep, setCurrentStep] = useState<number>(1);
-
   // Common Entity Fields
-  const [orgName, setOrgName] = useState<string>("");
   const [orgLogo, setOrgLogo] = useState<string>("");
-  const [bio, setBio] = useState<string>("");
   const [location, setLocation] = useState<string>("");
+  const [bio, setBio] = useState<string>("");
   const [website, setWebsite] = useState<string>("");
   const [linkedin, setLinkedin] = useState<string>("");
+  const [showAdditionalInfo, setShowAdditionalInfo] = useState<boolean>(false);
 
-  // Institution Specifics
-  const [aisheCode, setAisheCode] = useState<string>("");
-  const [officialEmail, setOfficialEmail] = useState<string>("");
-  const [contactNumber, setContactNumber] = useState<string>("");
-
-  // AISHE Search Helper
+  // Institution Fields
   const [institutionSearchQuery, setInstitutionSearchQuery] = useState<string>("");
-  const [institutionList, setInstitutionList] = useState<AisheInstitution[]>([]);
-  const [isSearchingAishe, setIsSearchingAishe] = useState<boolean>(false);
+  const [selectedInstitution, setSelectedInstitution] = useState<AisheInstitution | null>(null);
+  const [institutionSuggestions, setInstitutionSuggestions] = useState<AisheInstitution[]>([]);
+  const [institutionDropdownOpen, setInstitutionDropdownOpen] = useState<boolean>(false);
+  const [isSearchingInstitutions, setIsSearchingInstitutions] = useState<boolean>(false);
 
-  // Industry Specifics
+  // Institution Official Email & Grok AI Crawled Emails
+  const [officialEmail, setOfficialEmail] = useState<string>("");
+  const [crawledEmails, setCrawledEmails] = useState<string[]>([]);
+  const [isCrawlingEmails, setIsCrawlingEmails] = useState<boolean>(false);
+  const [isManualEmailInput, setIsManualEmailInput] = useState<boolean>(false);
+
+  // Industry Fields
   const [companyName, setCompanyName] = useState<string>("");
   const [industryType, setIndustryType] = useState<string>(INDUSTRY_DOMAINS[0]);
-  const [employees, setEmployees] = useState<string>(WORKFORCE_RANGES[1]);
+  const [officialWebsite, setOfficialWebsite] = useState<string>("");
   const [workEmail, setWorkEmail] = useState<string>("");
+  const [employees, setEmployees] = useState<string>(WORKFORCE_RANGES[1]);
 
   // OTP Verification State
   const [otpValue, setOtpValue] = useState<string>("");
@@ -161,43 +168,42 @@ export default function OnboardingOrganization() {
   const [isSendingOtp, setIsSendingOtp] = useState<boolean>(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState<boolean>(false);
   const [isEmailVerified, setIsEmailVerified] = useState<boolean>(false);
+  const [verifiedContactEmail, setVerifiedContactEmail] = useState<string>("");
   const [otpMessage, setOtpMessage] = useState<string | null>(null);
   const [otpError, setOtpError] = useState<string | null>(null);
 
-  // Upload & Submission State
+  // City Search State (country-state-city)
+  const [cityInput, setCityInput] = useState<string>("");
+  const [cityDropdownOpen, setCityDropdownOpen] = useState<boolean>(false);
+  const [citySuggestions, setCitySuggestions] = useState<{
+    name: string;
+    stateName: string;
+    countryCode: string;
+  }[]>([]);
+
+  // General Loading & Status
   const [isUploadingLogo, setIsUploadingLogo] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
 
-  // Prepopulate email if available from user session
-  useEffect(() => {
-    if (user?.email) {
-      if (activeType === "institution" && !officialEmail) {
-        setOfficialEmail(user.email);
-      } else if (activeType === "industry" && !workEmail) {
-        setWorkEmail(user.email);
-      }
-    }
-  }, [user, activeType]);
-
+  // Role toggle
   const handleTypeSwitch = (newType: OrganizationType) => {
     setSearchParams({ type: newType });
+    setIsEmailVerified(false);
+    setIsOtpSent(false);
+    setOtpValue("");
+    setOtpMessage(null);
+    setOtpError(null);
   };
 
   // ============================================================
-  // Network Call: Upload Logo
+  // File Upload Helper (Cloudinary)
   // ============================================================
 
-  /**
-   * @description Uploads an organization emblem or company logo to Cloudinary
-   * @param {File} file - Raw image file
-   * @returns {Promise<string>} Secure URL of uploaded logo
-   * @throws {Error} Upload error handling
-   */
-  async function uploadOrgLogo(file: File): Promise<string> {
+  async function uploadFileToCloudinary(file: File, folder: string): Promise<string> {
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("folder", "portal_academia/organizations");
+    formData.append("folder", folder);
 
     const response = await fetch(`${API_BASE}/api/upload/single`, {
       method: "POST",
@@ -207,7 +213,7 @@ export default function OnboardingOrganization() {
 
     if (!response.ok) {
       const errData = (await response.json()) as { message?: string };
-      throw new Error(errData.message || "Failed to upload logo asset");
+      throw new Error(errData.message || "Failed to upload file");
     }
 
     const data = (await response.json()) as UploadResponse;
@@ -217,11 +223,10 @@ export default function OnboardingOrganization() {
   const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     try {
       setIsUploadingLogo(true);
       setGeneralError(null);
-      const url = await uploadOrgLogo(file);
+      const url = await uploadFileToCloudinary(file, "portal_academia/organizations");
       setOrgLogo(url);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Logo upload failed";
@@ -232,16 +237,63 @@ export default function OnboardingOrganization() {
   };
 
   // ============================================================
-  // Network Call: AISHE Lookup
+  // City Search Handler (country-state-city)
   // ============================================================
 
-  /**
-   * @description Searches AISHE institution database for institutional verification
-   * @param {string} query - College name or AISHE code substring
-   * @returns {Promise<AisheInstitution[]>} Matched colleges
-   * @throws {Error} Network failure handling
-   */
-  async function searchAishe(query: string): Promise<AisheInstitution[]> {
+  const handleCityInputChange = (val: string) => {
+    setCityInput(val);
+    setLocation(val);
+    if (!val || val.trim().length < 2) {
+      setCitySuggestions([]);
+      setCityDropdownOpen(false);
+      return;
+    }
+    const q = val.toLowerCase().trim();
+    const allCities = City.getAllCities();
+    const matches: { name: string; stateName: string; countryCode: string }[] = [];
+
+    for (const c of allCities) {
+      if (c.countryCode === "IN" && c.name.toLowerCase().includes(q)) {
+        const stateObj = State.getStateByCodeAndCountry(c.stateCode, "IN");
+        matches.push({
+          name: c.name,
+          stateName: stateObj?.name || c.stateCode,
+          countryCode: "IN",
+        });
+        if (matches.length >= 15) break;
+      }
+    }
+
+    if (matches.length < 8) {
+      for (const c of allCities) {
+        if (c.countryCode !== "IN" && c.name.toLowerCase().includes(q)) {
+          const stateObj = State.getStateByCodeAndCountry(c.stateCode, c.countryCode);
+          matches.push({
+            name: c.name,
+            stateName: stateObj?.name || c.stateCode,
+            countryCode: c.countryCode,
+          });
+          if (matches.length >= 15) break;
+        }
+      }
+    }
+
+    setCitySuggestions(matches);
+    setCityDropdownOpen(matches.length > 0);
+  };
+
+  const handleSelectCity = (c: { name: string; stateName: string; countryCode: string }) => {
+    const formatted = `${c.name}, ${c.stateName}${c.countryCode !== "IN" ? ` (${c.countryCode})` : ""}`;
+    setCityInput(formatted);
+    setLocation(formatted);
+    setCityDropdownOpen(false);
+  };
+
+  // ============================================================
+  // AISHE Institution Search
+  // ============================================================
+
+  async function fetchInstitutions(query: string): Promise<AisheInstitution[]> {
     const response = await fetch(
       `${API_BASE}/api/onboarding/institutions?search=${encodeURIComponent(query)}&limit=15`,
       {
@@ -252,66 +304,109 @@ export default function OnboardingOrganization() {
     );
 
     if (!response.ok) {
-      throw new Error("Failed to search AISHE registry");
+      throw new Error("Failed to query institution database");
     }
 
     const data = (await response.json()) as InstitutionsSearchResponse;
     return data.institutions || [];
   }
 
-  const handleSearchAishe = async () => {
-    if (!institutionSearchQuery.trim()) return;
-    try {
-      setIsSearchingAishe(true);
-      setGeneralError(null);
-      const results = await searchAishe(institutionSearchQuery);
-      setInstitutionList(results);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Search failed";
-      setGeneralError(msg);
-    } finally {
-      setIsSearchingAishe(false);
+  // Debounced search for AISHE institution name
+  useEffect(() => {
+    const q = institutionSearchQuery.trim();
+    if (!q || q.length < 2) {
+      setInstitutionSuggestions([]);
+      setInstitutionDropdownOpen(false);
+      return;
     }
-  };
 
-  const handleSelectAisheInstitution = (inst: AisheInstitution) => {
-    setOrgName(inst.name);
-    setAisheCode(inst.aisheCode);
-    setLocation(inst.state);
-    setInstitutionSearchQuery(inst.name);
-    setInstitutionList([]);
-  };
+    if (selectedInstitution && selectedInstitution.name.toLowerCase() === q.toLowerCase()) {
+      return;
+    }
 
-  // ============================================================
-  // Network Call: Send Organization OTP
-  // ============================================================
+    const timer = setTimeout(async () => {
+      try {
+        setIsSearchingInstitutions(true);
+        const results = await fetchInstitutions(q);
+        setInstitutionSuggestions(results);
+        setInstitutionDropdownOpen(results.length > 0);
+      } catch {
+        setInstitutionSuggestions([]);
+      } finally {
+        setIsSearchingInstitutions(false);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [institutionSearchQuery, selectedInstitution]);
 
   /**
-   * @description Sends a 6-digit verification code to the official administrative / work email
-   * @param {string} email - Official domain email
-   * @returns {Promise<OtpDispatchResponse>} Status confirmation
-   * @throws {Error} Dispatch rejection
+   * @description Uses Grok AI endpoint to search and crawl authentic registrar/academic emails for the selected college
    */
-  async function sendOrgVerificationOtp(email: string): Promise<OtpDispatchResponse> {
-    const response = await fetch(`${API_BASE}/api/onboarding/send-verification-otp`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, purpose: "organization" }),
-    });
+  async function crawlEmailsWithGrok(institutionName: string) {
+    try {
+      setIsCrawlingEmails(true);
+      const response = await fetch(`${API_BASE}/api/onboarding/crawl-college-emails`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ institutionName }),
+      });
 
-    const data = (await response.json()) as OtpDispatchResponse;
-    if (!response.ok) {
-      throw new Error(data.message || "Failed to dispatch verification code");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.emails && Array.isArray(data.emails) && data.emails.length > 0) {
+          setCrawledEmails(data.emails);
+          setOfficialEmail(data.emails[0]); // pre-select first email found
+          setIsManualEmailInput(false);
+        }
+      }
+    } catch (err) {
+      console.warn("Email crawl failed:", err);
+    } finally {
+      setIsCrawlingEmails(false);
     }
-
-    return data;
   }
 
+  const handleSelectInstitution = async (inst: AisheInstitution) => {
+    setSelectedInstitution(inst);
+    setInstitutionSearchQuery(inst.name);
+    setInstitutionDropdownOpen(false);
+    setInstitutionSuggestions([]);
+    setIsEmailVerified(false);
+    setIsOtpSent(false);
+    setOtpValue("");
+    setOtpMessage(null);
+    setOtpError(null);
+
+    if (inst.state && !location) {
+      setLocation(inst.state);
+      setCityInput(inst.state);
+    }
+
+    // Call official email discovery immediately
+    await crawlEmailsWithGrok(inst.name);
+  };
+
+  // ============================================================
+  // OTP Dispatch & Verification
+  // ============================================================
+
+  const getTargetEmail = () => {
+    if (activeType === "institution") {
+      return officialEmail.trim();
+    }
+    return workEmail.trim();
+  };
+
   const handleSendOtp = async () => {
-    const targetEmail = activeType === "institution" ? officialEmail : workEmail;
-    if (!targetEmail.trim()) {
-      setOtpError("Official email address is required.");
+    const targetEmail = getTargetEmail();
+    if (!targetEmail) {
+      setOtpError(
+        activeType === "institution"
+          ? "Please select or enter an official institutional email."
+          : "Please enter your work email."
+      );
       return;
     }
 
@@ -319,59 +414,62 @@ export default function OnboardingOrganization() {
       setIsSendingOtp(true);
       setOtpError(null);
       setOtpMessage(null);
-      const res = await sendOrgVerificationOtp(targetEmail.trim());
+
+      const response = await fetch(`${API_BASE}/api/onboarding/send-verification-otp`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: targetEmail, purpose: "organization" }),
+      });
+
+      const data = (await response.json()) as OtpDispatchResponse;
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to dispatch OTP");
+      }
+
       setIsOtpSent(true);
-      setOtpMessage(res.message || "Verification code dispatched to official inbox.");
+      setOtpMessage(data.message || `Verification code sent to ${targetEmail}`);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to dispatch token";
+      const msg = err instanceof Error ? err.message : "Failed to send verification code";
       setOtpError(msg);
     } finally {
       setIsSendingOtp(false);
     }
   };
 
-  // ============================================================
-  // Network Call: Verify OTP
-  // ============================================================
-
-  /**
-   * @description Validates the 6-digit OTP code against server storage
-   * @param {string} email - Target official email
-   * @param {string} otp - 6-digit string
-   * @returns {Promise<OtpVerifyResponse>} Verification status
-   * @throws {Error} Verification failure
-   */
-  async function verifyOrgOtp(email: string, otp: string): Promise<OtpVerifyResponse> {
-    const response = await fetch(`${API_BASE}/api/onboarding/verify-otp`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, otp: Number(otp) }),
-    });
-
-    const data = (await response.json()) as OtpVerifyResponse;
-    if (!response.ok || !data.verified) {
-      throw new Error(data.message || "Invalid or expired token");
-    }
-
-    return data;
-  }
-
   const handleVerifyOtp = async () => {
-    const targetEmail = activeType === "institution" ? officialEmail : workEmail;
+    const targetEmail = getTargetEmail();
     if (!otpValue.trim() || otpValue.trim().length !== 6) {
-      setOtpError("Please enter the 6-digit numerical code.");
+      setOtpError("Please enter the 6-digit OTP code.");
       return;
     }
 
     try {
       setIsVerifyingOtp(true);
       setOtpError(null);
-      await verifyOrgOtp(targetEmail.trim(), otpValue.trim());
+
+      const response = await fetch(`${API_BASE}/api/onboarding/verify-otp`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: targetEmail,
+          otp: Number(otpValue.trim()),
+          purpose: "organization",
+        }),
+      });
+
+      const data = (await response.json()) as OtpVerifyResponse;
+      if (!response.ok || !data.verified) {
+        throw new Error(data.message || "Invalid OTP code");
+      }
+
       setIsEmailVerified(true);
-      setOtpMessage("Official domain verified successfully!");
+      setVerifiedContactEmail(targetEmail);
+      setOtpMessage("Email verified successfully!");
+      setOtpError(null);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Verification failed";
+      const msg = err instanceof Error ? err.message : "OTP verification failed";
       setOtpError(msg);
     } finally {
       setIsVerifyingOtp(false);
@@ -379,44 +477,9 @@ export default function OnboardingOrganization() {
   };
 
   // ============================================================
-  // Step Navigation & Validation
+  // Form Submission
   // ============================================================
 
-  const validateStep1 = () => {
-    const resolvedName = activeType === "institution" ? orgName : companyName;
-    if (!resolvedName.trim()) {
-      setGeneralError(
-        activeType === "institution"
-          ? "Institution name is required."
-          : "Company / Enterprise name is required."
-      );
-      return false;
-    }
-    setGeneralError(null);
-    return true;
-  };
-
-  const handleNextStep = () => {
-    if (currentStep === 1 && !validateStep1()) return;
-    setCurrentStep((prev) => Math.min(prev + 1, 4));
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const handlePrevStep = () => {
-    setCurrentStep((prev) => Math.max(prev - 1, 1));
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  // ============================================================
-  // Network Call: Submit Organization Profile
-  // ============================================================
-
-  /**
-   * @description Persists organization profile data and marks isOnboarded: true
-   * @param {OrganizationProfilePayload} payload - Unified organization model
-   * @returns {Promise<ProfileSaveResponse>} Success confirmation
-   * @throws {Error} Profile validation error
-   */
   async function submitOrgProfile(payload: OrganizationProfilePayload): Promise<ProfileSaveResponse> {
     const response = await fetch(`${API_BASE}/api/profile`, {
       method: "POST",
@@ -427,39 +490,50 @@ export default function OnboardingOrganization() {
 
     const data = (await response.json()) as ProfileSaveResponse;
     if (!response.ok) {
-      throw new Error(data.message || "Failed to persist organization parameters");
+      throw new Error(data.message || "Failed to persist organization profile");
     }
 
     return data;
   }
 
-  const handleFinalSubmit = async () => {
-    const finalName = activeType === "institution" ? orgName.trim() : companyName.trim();
-    if (!finalName) {
-      setCurrentStep(1);
-      setGeneralError("Organization name is required.");
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const entityName = activeType === "institution" ? (selectedInstitution ? selectedInstitution.name : institutionSearchQuery.trim()) : companyName.trim();
+
+    if (!entityName) {
+      setGeneralError(activeType === "institution" ? "Please select or type your institution name." : "Please enter your company name.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    if (activeType === "institution" && !isEmailVerified) {
+      setGeneralError("Please verify your official institutional email via OTP before completing onboarding.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
     const payload: OrganizationProfilePayload = {
       category: "organization",
       accountType: activeType,
-      name: finalName,
+      name: entityName,
       profileImage: orgLogo || undefined,
       bio: bio.trim() || undefined,
       location: location.trim() || undefined,
-      website: website.trim() || undefined,
+      website: (activeType === "industry" ? officialWebsite.trim() : website.trim()) || undefined,
       linkedin: linkedin.trim() || undefined,
       isEmailVerified,
 
-      institutionName: activeType === "institution" ? finalName : undefined,
-      aisheCode: activeType === "institution" ? aisheCode.trim() : undefined,
+      // Institution specifics
+      institutionName: activeType === "institution" ? entityName : undefined,
+      aisheCode: activeType === "institution" ? selectedInstitution?.aisheCode : undefined,
       officialEmail: activeType === "institution" ? officialEmail.trim() : undefined,
-      contact: activeType === "institution" ? contactNumber.trim() : undefined,
+      contact: activeType === "institution" ? verifiedContactEmail.trim() || officialEmail.trim() : undefined,
 
-      companyName: activeType === "industry" ? finalName : undefined,
+      // Industry specifics
+      companyName: activeType === "industry" ? entityName : undefined,
       industryType: activeType === "industry" ? industryType : undefined,
-      officialWebsite: activeType === "industry" ? website.trim() : undefined,
+      officialWebsite: activeType === "industry" ? officialWebsite.trim() : undefined,
       workEmail: activeType === "industry" ? workEmail.trim() : undefined,
       employees: activeType === "industry" ? employees : undefined,
     };
@@ -468,14 +542,10 @@ export default function OnboardingOrganization() {
       setIsSubmitting(true);
       setGeneralError(null);
       await submitOrgProfile(payload);
-
-      // Refresh session
       await dispatch(checkAuthThunk());
-
-      // Navigate to consolidated dashboard
       navigate("/dashboard", { replace: true });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to complete onboarding";
+      const msg = err instanceof Error ? err.message : "Submission failed";
       setGeneralError(msg);
     } finally {
       setIsSubmitting(false);
@@ -483,466 +553,555 @@ export default function OnboardingOrganization() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-foreground transition-colors pb-16">
-      {/* Top Bar */}
-      <header className="sticky top-0 z-30 w-full border-b border-border bg-white/95 dark:bg-zinc-900/95">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-background text-foreground flex flex-col justify-between selection:bg-foreground selection:text-background transition-colors duration-200 relative overflow-hidden">
+      {/* Background Decorative Glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-primary/5 dark:bg-primary/10 rounded-full blur-3xl pointer-events-none -z-10" />
+
+      {/* Header */}
+      <header className="sticky top-0 z-40 w-full border-b border-border/80 bg-background/90 backdrop-blur-md px-4 sm:px-8 h-14 flex items-center justify-between shadow-xs">
+        <div className="flex items-center gap-3">
+          <Link to="/" className="font-semibold text-sm tracking-tight text-foreground flex items-center gap-2 group">
+            <div className="w-7 h-7 rounded-md bg-foreground text-background flex items-center justify-center font-bold text-xs group-hover:scale-105 transition-transform">
+              PA
+            </div>
+            <span className="font-bold text-base tracking-tight">PortalAcademia</span>
+          </Link>
+          <span className="text-muted-foreground/40 text-xs hidden sm:inline">&bull;</span>
+          <span className="text-xs text-muted-foreground font-mono hidden sm:inline-flex items-center gap-1.5">
+            <Building2 className="w-3.5 h-3.5 text-primary" />
+            Organization Verification
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Category Switcher Pill */}
+          <div className="inline-flex rounded-lg border border-border/70 p-0.5 bg-muted/40 text-xs font-medium">
             <Link
-              to="/onboarding/select-type"
-              className="flex items-center gap-2 hover:opacity-85 transition-opacity cursor-pointer"
+              to="/onboarding/individual"
+              className="px-3 py-1 rounded-md text-muted-foreground hover:text-foreground transition-all"
             >
-              <div className="w-6 h-6 rounded-sm bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 flex items-center justify-center font-mono font-bold text-xs">
-                PA
-              </div>
-              <span className="font-semibold text-sm tracking-tight text-foreground">
-                PortalAcademia
-              </span>
+              Individual
             </Link>
-            <span className="text-border font-light">|</span>
-            <span className="font-mono text-[11px] tabular-nums text-muted-foreground uppercase">
-              {activeType === "institution"
-                ? "Academic Institution Setup"
-                : "Industry & Recruiter Setup"}
+            <span className="px-3 py-1 rounded-md bg-background font-semibold text-foreground shadow-xs border border-border/40 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Organization
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-border bg-background hover:bg-muted text-foreground transition-colors cursor-pointer"
-              aria-label="Toggle theme"
-            >
-              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-            <Link
-              to="/onboarding/select-type"
-              className="inline-flex items-center gap-1 h-8 px-2.5 text-xs font-medium rounded-md border border-border bg-background hover:bg-muted text-foreground transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Change Type</span>
-            </Link>
-          </div>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="w-8 h-8 rounded-lg border border-border/70 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4 text-slate-700" />}
+          </button>
         </div>
       </header>
 
       {/* Main Container */}
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-8">
-        {/* Step Progress Bar */}
-        <div className="mb-8 border border-border rounded-md bg-white dark:bg-zinc-900 p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
-              Step {currentStep} of 4:{" "}
-              {currentStep === 1
-                ? "Organization Identity"
-                : currentStep === 2
-                ? activeType === "institution"
-                  ? "AISHE Governance Details"
-                  : "Industry & Operations"
-                : currentStep === 3
-                ? "Official Email Verification"
-                : "Review & Provision Console"}
-            </span>
-            <span className="text-xs font-mono font-bold text-foreground tabular-nums">
-              {Math.round((currentStep / 4) * 100)}%
-            </span>
+      <main className="max-w-2xl w-full mx-auto px-4 py-8 sm:py-10 flex-1">
+        {/* Page Hero Title */}
+        <div className="text-center mb-8 space-y-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[11px] font-mono font-medium text-primary mb-1">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            Institutional & Enterprise Onboarding
           </div>
-          <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-foreground transition-all duration-300"
-              style={{ width: `${(currentStep / 4) * 100}%` }}
-            />
-          </div>
-
-          <div className="grid grid-cols-4 gap-2 mt-4 pt-3 border-t border-border/80 text-[11px] font-mono">
-            {[
-              { num: 1, label: "Entity" },
-              { num: 2, label: activeType === "institution" ? "AISHE" : "Sector" },
-              { num: 3, label: "Verify" },
-              { num: 4, label: "Review" },
-            ].map((s) => (
-              <button
-                key={s.num}
-                type="button"
-                onClick={() => {
-                  if (s.num < currentStep || validateStep1()) {
-                    setCurrentStep(s.num);
-                  }
-                }}
-                className={cn(
-                  "flex items-center gap-1.5 py-1 px-1.5 rounded-sm transition-colors text-left",
-                  currentStep === s.num
-                    ? "text-foreground font-bold bg-muted"
-                    : s.num < currentStep
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-muted-foreground"
-                )}
-              >
-                <span>0{s.num}.</span>
-                <span className="truncate">{s.label}</span>
-              </button>
-            ))}
-          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            {activeType === "institution" ? "Accredited Institution Profile" : "Enterprise & Industry Partner Profile"}
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground max-w-lg mx-auto">
+            {activeType === "institution"
+              ? "Verify official university domain, link AISHE accreditation, and establish authentic academic presence."
+              : "Connect your enterprise with academic talent, research labs, and faculty innovation."}
+          </p>
         </div>
 
-        {/* Global Error Banner */}
-        {generalError && (
-          <div className="mb-6 p-3 rounded-md border border-destructive/40 bg-destructive/10 text-destructive text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{generalError}</span>
-          </div>
-        )}
-
-        {/* ============================================================
-            STEP 1: Organization Primary Identity
-            ============================================================ */}
-        {currentStep === 1 && (
-          <div className="rounded-md border border-border bg-white dark:bg-zinc-900 p-6 shadow-sm space-y-6">
-            <div className="border-b border-border pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-lg font-semibold tracking-tight text-foreground">
-                    Organization Entity Registration
-                  </h1>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Configure official representation for candidate discovery or cohort telemetry.
-                  </p>
-                </div>
-
-                {/* Subtype Switcher */}
-                <div className="p-0.5 bg-muted rounded-md border border-border flex items-center text-xs">
-                  <button
-                    type="button"
-                    onClick={() => handleTypeSwitch("institution")}
-                    className={cn(
-                      "px-2.5 py-1 rounded-sm font-medium transition-all",
-                      activeType === "institution"
-                        ? "bg-background text-foreground shadow-sm font-semibold"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    Institution
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleTypeSwitch("industry")}
-                    className={cn(
-                      "px-2.5 py-1 rounded-sm font-medium transition-all",
-                      activeType === "industry"
-                        ? "bg-background text-foreground shadow-sm font-semibold"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    Industry
-                  </button>
-                </div>
-              </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* General Error Alert */}
+          {generalError && (
+            <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2.5 animate-in fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span className="font-medium">{generalError}</span>
             </div>
+          )}
 
-            {/* Logo / Emblem Upload */}
-            <div>
-              <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-2">
-                Official Logo / Emblem
-              </label>
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-md border border-border bg-muted flex items-center justify-center overflow-hidden shrink-0 relative">
+          {/* Master Form Card */}
+          <div className="rounded-2xl border border-border/80 bg-card/95 backdrop-blur-xs p-6 sm:p-8 shadow-sm space-y-6">
+            {/* Top: Emblem / Logo Upload Zone */}
+            <div className="flex flex-col items-center justify-center text-center pb-2">
+              <div className="relative group cursor-pointer">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-2 border-dashed border-border/90 bg-muted/30 overflow-hidden flex items-center justify-center shadow-inner group-hover:border-primary/60 transition-all">
                   {orgLogo ? (
                     <img
                       src={orgLogo}
-                      alt="Organization Logo Preview"
-                      className="w-full h-full object-contain p-1"
+                      alt="Organization Emblem"
+                      className="w-full h-full object-contain p-2"
                     />
-                  ) : activeType === "institution" ? (
-                    <Building2 className="w-8 h-8 text-muted-foreground" />
                   ) : (
-                    <Briefcase className="w-8 h-8 text-muted-foreground" />
+                    <div className="flex flex-col items-center justify-center text-muted-foreground p-2">
+                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-1 group-hover:scale-105 transition-transform">
+                        <Camera className="w-5 h-5 opacity-70" />
+                      </div>
+                      <span className="text-[10px] font-mono font-medium">Emblem / Crest</span>
+                    </div>
                   )}
+
                   {isUploadingLogo && (
-                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-                      <Loader2 className="w-5 h-5 animate-spin text-foreground" />
+                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center backdrop-blur-xs">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
                     </div>
                   )}
                 </div>
 
-                <div className="space-y-1">
-                  <label
-                    htmlFor="logo-file-input"
-                    className="inline-flex items-center gap-2 h-8 px-3 text-xs font-medium rounded-md border border-border bg-background hover:bg-muted text-foreground cursor-pointer transition-colors"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Upload Logo</span>
-                  </label>
-                  <input
-                    id="logo-file-input"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoChange}
-                    className="hidden"
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Square PNG or SVG with transparent background recommended. Maximum 5MB.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Entity Name & Location */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
                 <label
-                  htmlFor="org-name-input"
-                  className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5"
+                  htmlFor="org-logo-upload-input"
+                  className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-foreground text-background border-2 border-background flex items-center justify-center cursor-pointer shadow-md hover:scale-110 active:scale-95 transition-all"
+                  title="Upload organization logo"
                 >
-                  {activeType === "institution" ? "Institution Legal Name" : "Company / Enterprise Name"}{" "}
-                  <span className="text-destructive">*</span>
+                  <Camera className="w-4 h-4" />
                 </label>
                 <input
-                  id="org-name-input"
-                  type="text"
-                  value={activeType === "institution" ? orgName : companyName}
-                  onChange={(e) => {
-                    if (activeType === "institution") {
-                      setOrgName(e.target.value);
-                    } else {
-                      setCompanyName(e.target.value);
-                    }
-                  }}
-                  placeholder={
-                    activeType === "institution"
-                      ? "e.g. Indian Institute of Technology Bombay"
-                      : "e.g. Tata Consultancy Services or Microsoft India"
-                  }
-                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-xs text-foreground focus-ring"
+                  id="org-logo-upload-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoChange}
+                  className="hidden"
                 />
               </div>
-
-              <div>
-                <label
-                  htmlFor="org-location-input"
-                  className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5"
-                >
-                  Headquarters / Campus Location
-                </label>
-                <input
-                  id="org-location-input"
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g. Mumbai, Maharashtra"
-                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-xs text-foreground focus-ring"
-                />
-              </div>
-            </div>
-
-            {/* Website & LinkedIn */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label
-                  htmlFor="org-website-input"
-                  className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5"
-                >
-                  Official Website URL
-                </label>
-                <input
-                  id="org-website-input"
-                  type="url"
-                  value={website}
-                  onChange={(e) => setWebsite(e.target.value)}
-                  placeholder="https://www.company.com or https://www.college.ac.in"
-                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-xs text-foreground focus-ring"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="org-linkedin-input"
-                  className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5"
-                >
-                  LinkedIn Organization Profile
-                </label>
-                <input
-                  id="org-linkedin-input"
-                  type="url"
-                  value={linkedin}
-                  onChange={(e) => setLinkedin(e.target.value)}
-                  placeholder="https://linkedin.com/company/organization-name"
-                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-xs text-foreground focus-ring"
-                />
-              </div>
-            </div>
-
-            {/* Bio / Mission Overview */}
-            <div>
-              <label
-                htmlFor="org-bio-textarea"
-                className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5"
-              >
-                Overview / Purpose Statement
-              </label>
-              <textarea
-                id="org-bio-textarea"
-                rows={3}
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder={
-                  activeType === "institution"
-                    ? "Accreditation status, academic faculties, and student enrollment scale..."
-                    : "Core products, engineering pillars, and hiring objectives..."
-                }
-                className="w-full p-2.5 rounded-md border border-input bg-background text-xs text-foreground focus-ring resize-y"
-              />
-            </div>
-
-            {/* Continue Button */}
-            <div className="pt-4 border-t border-border flex justify-end">
-              <button
-                type="button"
-                id="org-next-step-1-btn"
-                onClick={handleNextStep}
-                className="inline-flex items-center gap-2 h-9 px-4 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors cursor-pointer"
-              >
-                <span>Continue to Operational Parameters</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================
-            STEP 2: Subtype Operational & Governance Details
-            ============================================================ */}
-        {currentStep === 2 && (
-          <div className="rounded-md border border-border bg-white dark:bg-zinc-900 p-6 shadow-sm space-y-6">
-            <div className="border-b border-border pb-4">
-              <h2 className="text-lg font-semibold tracking-tight text-foreground">
-                {activeType === "institution"
-                  ? "AISHE Institutional Registry & Accreditation"
-                  : "Industry Domain & Talent Scale"}
-              </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {activeType === "institution"
-                  ? "Bind your portal to official Ministry of Education AISHE metrics."
-                  : "Specify hiring requirements, employee tier, and domain specialization."}
+              <p className="text-[11px] text-muted-foreground mt-3 font-medium">
+                {activeType === "institution" ? "Upload official university crest or seal" : "Upload official corporate brand logo"}
               </p>
             </div>
 
-            {/* Institution Specifics */}
-            {activeType === "institution" ? (
-              <div className="space-y-4">
-                {/* AISHE Search Tool */}
-                <div className="p-3.5 rounded-md border border-border bg-muted/20 space-y-3">
-                  <label
-                    htmlFor="aishe-search-input"
-                    className="block text-xs font-semibold text-foreground uppercase tracking-wider"
-                  >
-                    Quick Lookup in AISHE National Database
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      id="aishe-search-input"
-                      type="text"
-                      value={institutionSearchQuery}
-                      onChange={(e) => setInstitutionSearchQuery(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleSearchAishe();
-                        }
-                      }}
-                      placeholder="Search college name or AISHE code..."
-                      className="flex-1 h-9 px-3 rounded-md border border-input bg-background text-xs text-foreground focus-ring"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleSearchAishe}
-                      disabled={isSearchingAishe}
-                      className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-medium rounded-md border border-border bg-background hover:bg-muted text-foreground transition-colors disabled:opacity-50 cursor-pointer"
-                    >
-                      {isSearchingAishe ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Search className="w-3.5 h-3.5" />
+            {/* Role Switcher Cards: Institution vs Industry */}
+            <div>
+              <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2 font-mono">
+                Organization Category
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Option 1: Institution */}
+                <button
+                  type="button"
+                  onClick={() => handleTypeSwitch("institution")}
+                  className={cn(
+                    "p-3.5 rounded-xl border text-left flex items-start gap-3 transition-all cursor-pointer relative",
+                    activeType === "institution"
+                      ? "border-foreground/80 dark:border-primary/80 bg-foreground/5 dark:bg-primary/5 shadow-xs ring-1 ring-foreground/20"
+                      : "border-border/70 bg-background hover:bg-muted/40 text-muted-foreground"
+                  )}
+                >
+                  <div className={cn(
+                    "w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                    activeType === "institution"
+                      ? "bg-foreground text-background"
+                      : "bg-muted text-muted-foreground"
+                  )}>
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <h4 className={cn("text-xs font-bold", activeType === "institution" ? "text-foreground" : "text-muted-foreground")}>
+                        Institution
+                      </h4>
+                      {activeType === "institution" && (
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
                       )}
-                      <span>Lookup</span>
-                    </button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                      Colleges, Universities & AISHE recognized bodies
+                    </p>
+                  </div>
+                </button>
+
+                {/* Option 2: Industry */}
+                <button
+                  type="button"
+                  onClick={() => handleTypeSwitch("industry")}
+                  className={cn(
+                    "p-3.5 rounded-xl border text-left flex items-start gap-3 transition-all cursor-pointer relative",
+                    activeType === "industry"
+                      ? "border-foreground/80 dark:border-primary/80 bg-foreground/5 dark:bg-primary/5 shadow-xs ring-1 ring-foreground/20"
+                      : "border-border/70 bg-background hover:bg-muted/40 text-muted-foreground"
+                  )}
+                >
+                  <div className={cn(
+                    "w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                    activeType === "industry"
+                      ? "bg-foreground text-background"
+                      : "bg-muted text-muted-foreground"
+                  )}>
+                    <Briefcase className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <h4 className={cn("text-xs font-bold", activeType === "industry" ? "text-foreground" : "text-muted-foreground")}>
+                        Industry
+                      </h4>
+                      {activeType === "industry" && (
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                      Enterprises, Startups & R&D Corporations
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* ============================================================
+                CASE 1: INSTITUTION ONBOARDING
+                ============================================================ */}
+            {activeType === "institution" && (
+              <div className="space-y-5 pt-3 border-t border-border/80 animate-in fade-in duration-200">
+                {/* 1. Institution Name (AISHE Lookup) */}
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
+                      Institution Name <span className="text-destructive">*</span>
+                    </label>
+                    <span className="text-[10px] font-mono text-muted-foreground bg-muted/60 px-2 py-0.5 rounded border border-border/50">
+                      AISHE Integrated
+                    </span>
                   </div>
 
-                  {institutionList.length > 0 && (
-                    <div className="max-h-48 overflow-y-auto border border-border rounded-md divide-y divide-border bg-background shadow-sm">
-                      {institutionList.map((inst, index) => (
-                        <div
-                          key={index}
-                          onClick={() => handleSelectAisheInstitution(inst)}
-                          className="p-2.5 hover:bg-muted cursor-pointer text-xs flex items-center justify-between"
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={institutionSearchQuery}
+                      onChange={(e) => {
+                        setInstitutionSearchQuery(e.target.value);
+                        if (selectedInstitution && e.target.value !== selectedInstitution.name) {
+                          setSelectedInstitution(null);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (institutionSuggestions.length > 0 && !selectedInstitution) {
+                          setInstitutionDropdownOpen(true);
+                        }
+                      }}
+                      placeholder="Type college or university name (e.g. DIT University, IIT Delhi...)"
+                      className="w-full h-10 pl-9 pr-9 rounded-lg border border-input bg-background text-xs text-foreground focus-ring font-medium"
+                      autoComplete="off"
+                    />
+                    <Search className="w-4 h-4 absolute left-3 top-3 text-muted-foreground pointer-events-none" />
+                    {isSearchingInstitutions && (
+                      <Loader2 className="w-4 h-4 absolute right-3 top-3 text-primary animate-spin" />
+                    )}
+                  </div>
+
+                  {/* AISHE Suggestions Dropdown */}
+                  {institutionDropdownOpen && institutionSuggestions.length > 0 && (
+                    <div className="absolute z-50 left-0 right-0 mt-1.5 max-h-60 overflow-y-auto border border-border rounded-xl divide-y divide-border/60 bg-popover text-popover-foreground shadow-2xl animate-in fade-in zoom-in-95">
+                      {institutionSuggestions.map((inst, idx) => (
+                        <button
+                          key={`${inst.aisheCode}-${idx}`}
+                          type="button"
+                          onClick={() => handleSelectInstitution(inst)}
+                          className="w-full p-3 text-left hover:bg-muted/80 cursor-pointer text-xs flex items-center justify-between group transition-colors"
                         >
-                          <div>
-                            <p className="font-semibold text-foreground">{inst.name}</p>
-                            <p className="text-[11px] text-muted-foreground font-mono">
-                              AISHE: {inst.aisheCode} &bull; {inst.state}
+                          <div className="flex-1 pr-3">
+                            <p className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                              {inst.name}
                             </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-foreground border border-border/60">
+                                AISHE: {inst.aisheCode}
+                              </span>
+                              <span className="text-[11px] text-muted-foreground">
+                                &bull; {inst.state}
+                              </span>
+                            </div>
                           </div>
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-sm bg-muted text-muted-foreground border border-border">
-                            Auto-Fill
+                          <span className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-foreground text-background shrink-0 group-hover:opacity-90 transition-opacity">
+                            Select
                           </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Selected Institution Card */}
+                  {selectedInstitution && (
+                    <div className="mt-2.5 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                          <School className="w-4 h-4" />
                         </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-foreground text-xs">{selectedInstitution.name}</span>
+                            <BadgeCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono mt-0.5">
+                            <span>Code: {selectedInstitution.aisheCode}</span>
+                            <span>&bull;</span>
+                            <span>{selectedInstitution.state}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedInstitution(null)}
+                        className="text-[11px] font-mono text-muted-foreground hover:text-foreground underline px-2 py-1"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Official Institutional Email (Found by AI Crawler) + Send OTP */}
+                <div className="p-4 sm:p-5 rounded-xl border border-border/90 bg-muted/20 space-y-3.5 relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center text-primary">
+                        <Sparkles className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                        Official Institutional Email
+                      </span>
+                      {crawledEmails.length > 0 && (
+                        <span className="text-[10px] font-mono bg-primary/15 text-primary px-2 py-0.5 rounded-full border border-primary/20 hidden sm:inline">
+                          AI Discovered
+                        </span>
+                      )}
+                    </div>
+                    {isEmailVerified && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-semibold">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Verified Domain
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Grok AI Loading State */}
+                  {isCrawlingEmails && (
+                    <div className="p-3 rounded-lg bg-background border border-border/80 flex items-center gap-2.5 text-xs text-muted-foreground animate-pulse">
+                      <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                      <span>Discovering official verified registrar & academic emails for <strong>{selectedInstitution?.name}</strong>...</span>
+                    </div>
+                  )}
+
+                  {/* Email Input / Selection Box */}
+                  {!isCrawlingEmails && (
+                    <div className="space-y-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        {crawledEmails.length > 0 && !isManualEmailInput ? (
+                          <div className="relative flex-1">
+                            <select
+                              value={officialEmail}
+                              onChange={(e) => {
+                                setOfficialEmail(e.target.value);
+                                setIsEmailVerified(false);
+                                setIsOtpSent(false);
+                              }}
+                              disabled={isEmailVerified}
+                              className="w-full h-10 px-3 pr-8 rounded-lg border border-input bg-background text-xs text-foreground focus-ring font-mono disabled:opacity-60 cursor-pointer"
+                            >
+                              {crawledEmails.map((email) => (
+                                <option key={email} value={email}>
+                                  {email}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-2.5 top-3 pointer-events-none" />
+                          </div>
+                        ) : (
+                          <div className="relative flex-1">
+                            <input
+                              type="email"
+                              value={officialEmail}
+                              onChange={(e) => {
+                                setOfficialEmail(e.target.value);
+                                setIsEmailVerified(false);
+                                setIsOtpSent(false);
+                              }}
+                              disabled={isEmailVerified}
+                              placeholder="e.g. registrar@college.edu.in or admin@university.ac.in"
+                              className="w-full h-10 pl-9 pr-3 rounded-lg border border-input bg-background text-xs text-foreground focus-ring disabled:opacity-60 font-mono"
+                            />
+                            <Mail className="w-4 h-4 absolute left-3 top-3 text-muted-foreground pointer-events-none" />
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={handleSendOtp}
+                          disabled={isSendingOtp || !officialEmail.trim() || isEmailVerified}
+                          className="inline-flex items-center justify-center gap-1.5 h-10 px-4 text-xs font-semibold rounded-lg bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50 transition-colors shrink-0 cursor-pointer shadow-xs"
+                        >
+                          {isSendingOtp ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                          )}
+                          <span>Send OTP</span>
+                        </button>
+                      </div>
+
+                      {/* Manual input toggle */}
+                      {crawledEmails.length > 0 && !isEmailVerified && (
+                        <div className="flex justify-end pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setIsManualEmailInput(!isManualEmailInput)}
+                            className="text-[11px] text-muted-foreground hover:text-foreground font-mono underline transition-colors cursor-pointer"
+                          >
+                            {isManualEmailInput
+                              ? "← Pick from AI discovered emails"
+                              : "+ Enter specific departmental email"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* OTP Input Section */}
+                  {isOtpSent && !isEmailVerified && (
+                    <div className="pt-3 border-t border-border/70 space-y-2.5 animate-in fade-in">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-semibold text-foreground uppercase tracking-wider">
+                          Enter 6-Digit Verification Token
+                        </label>
+                        <span className="text-[11px] text-muted-foreground font-mono">
+                          Dispatched to {officialEmail}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <input
+                          type="text"
+                          value={otpValue}
+                          onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                          placeholder="••••••"
+                          className="w-36 h-10 px-3 text-center tracking-widest font-mono text-sm font-bold rounded-lg border border-input bg-background text-foreground focus-ring"
+                          maxLength={6}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleVerifyOtp}
+                          disabled={isVerifyingOtp || otpValue.length !== 6}
+                          className="inline-flex items-center gap-1.5 h-10 px-5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors cursor-pointer shadow-xs"
+                        >
+                          {isVerifyingOtp ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          )}
+                          <span>Verify OTP</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSendOtp}
+                          disabled={isSendingOtp}
+                          className="text-xs text-muted-foreground hover:text-foreground underline ml-2 cursor-pointer self-center"
+                        >
+                          Resend Code
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {otpMessage && (
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono font-medium">
+                      ✓ {otpMessage}
+                    </p>
+                  )}
+                  {otpError && (
+                    <p className="text-[11px] text-destructive font-mono font-medium">
+                      ✕ {otpError}
+                    </p>
+                  )}
+                </div>
+
+                {/* 3. Contact (Readonly Verified Email) */}
+                <div>
+                  <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
+                    Official Contact Identifier
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      readOnly
+                      value={isEmailVerified ? verifiedContactEmail : officialEmail || "Awaiting institutional OTP verification..."}
+                      className={cn(
+                        "w-full h-10 pl-9 pr-9 rounded-lg border text-xs font-mono transition-colors",
+                        isEmailVerified
+                          ? "bg-emerald-500/5 border-emerald-500/30 text-foreground font-semibold"
+                          : "bg-muted/20 border-input text-muted-foreground"
+                      )}
+                    />
+                    <Lock className="w-3.5 h-3.5 absolute left-3 top-3 text-muted-foreground pointer-events-none" />
+                    {isEmailVerified && (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 absolute right-3 top-3" />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    This email is cryptographically bound to your institution profile for authentic access.
+                  </p>
+                </div>
+
+                {/* 4. Location Dropdown (City/State via country-state-city) */}
+                <div className="relative">
+                  <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
+                    Campus Location (City / State)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={cityInput}
+                      onChange={(e) => handleCityInputChange(e.target.value)}
+                      onFocus={() => {
+                        if (citySuggestions.length > 0) setCityDropdownOpen(true);
+                      }}
+                      placeholder="Type campus city name (e.g. Dehradun, Bengaluru, New Delhi...)"
+                      className="w-full h-10 pl-9 pr-3 rounded-lg border border-input bg-background text-xs text-foreground focus-ring"
+                      autoComplete="off"
+                    />
+                    <MapPin className="w-4 h-4 absolute left-3 top-3 text-muted-foreground pointer-events-none" />
+                  </div>
+
+                  {cityDropdownOpen && citySuggestions.length > 0 && (
+                    <div className="absolute z-50 left-0 right-0 mt-1.5 max-h-52 overflow-y-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl text-xs py-1 divide-y divide-border/50 animate-in fade-in">
+                      {citySuggestions.map((city, idx) => (
+                        <button
+                          key={`${city.name}-${city.stateName}-${idx}`}
+                          type="button"
+                          onClick={() => handleSelectCity(city)}
+                          className="w-full px-3.5 py-2.5 text-left hover:bg-muted/80 flex items-center justify-between transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                            <span className="font-semibold text-foreground">{city.name}</span>
+                            <span className="text-muted-foreground text-[11px]">— {city.stateName}</span>
+                          </div>
+                          <span className="text-[10px] font-mono uppercase text-muted-foreground px-2 py-0.5 bg-muted rounded border border-border/40">
+                            {city.countryCode}
+                          </span>
+                        </button>
                       ))}
                     </div>
                   )}
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label
-                      htmlFor="aishe-code-input"
-                      className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5"
-                    >
-                      AISHE Institutional Code
-                    </label>
-                    <input
-                      id="aishe-code-input"
-                      type="text"
-                      value={aisheCode}
-                      onChange={(e) => setAisheCode(e.target.value)}
-                      placeholder="e.g. U-0275 or C-12345"
-                      className="w-full h-9 px-3 font-mono rounded-md border border-input bg-background text-xs text-foreground focus-ring"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="contact-number-input"
-                      className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5"
-                    >
-                      Official Administrative Contact
-                    </label>
-                    <input
-                      id="contact-number-input"
-                      type="tel"
-                      value={contactNumber}
-                      onChange={(e) => setContactNumber(e.target.value)}
-                      placeholder="+91 (022) 2576-7000"
-                      className="w-full h-9 px-3 font-mono rounded-md border border-input bg-background text-xs text-foreground focus-ring"
-                    />
-                  </div>
-                </div>
               </div>
-            ) : (
-              /* Industry Specifics */
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label
-                      htmlFor="industry-type-select"
-                      className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5"
-                    >
-                      Industry Sector / Domain
-                    </label>
+            )}
+
+            {/* ============================================================
+                CASE 2: INDUSTRY ONBOARDING
+                ============================================================ */}
+            {activeType === "industry" && (
+              <div className="space-y-5 pt-3 border-t border-border/80 animate-in fade-in duration-200">
+                {/* 1. Industry Sector */}
+                <div>
+                  <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
+                    Industry Sector
+                  </label>
+                  <div className="relative">
                     <select
-                      id="industry-type-select"
                       value={industryType}
                       onChange={(e) => setIndustryType(e.target.value)}
-                      className="w-full h-9 px-2.5 rounded-md border border-input bg-background text-xs text-foreground focus-ring"
+                      className="w-full h-10 px-3 pr-8 rounded-lg border border-input bg-background text-xs text-foreground focus-ring font-medium appearance-none cursor-pointer"
                     >
                       {INDUSTRY_DOMAINS.map((domain) => (
                         <option key={domain} value={domain}>
@@ -950,20 +1109,149 @@ export default function OnboardingOrganization() {
                         </option>
                       ))}
                     </select>
+                    <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-3 top-3 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* 2. Registered Company Name */}
+                <div>
+                  <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
+                    Company Name <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="e.g. Acme Innovations Pvt. Ltd."
+                    className="w-full h-10 px-3 rounded-lg border border-input bg-background text-xs text-foreground focus-ring"
+                    required
+                  />
+                </div>
+
+                {/* 3. Official Website */}
+                <div>
+                  <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
+                    Corporate Website
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="url"
+                      value={officialWebsite}
+                      onChange={(e) => setOfficialWebsite(e.target.value)}
+                      placeholder="https://company.com"
+                      className="w-full h-10 pl-9 pr-3 rounded-lg border border-input bg-background text-xs text-foreground focus-ring"
+                    />
+                    <Globe className="w-4 h-4 absolute left-3 top-3 text-muted-foreground pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* 4. Work Email + OTP Verification */}
+                <div className="p-4 sm:p-5 rounded-xl border border-border/90 bg-muted/20 space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                      Work Email Verification
+                    </span>
+                    {isEmailVerified && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-semibold">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Verified
+                      </span>
+                    )}
                   </div>
 
-                  <div>
-                    <label
-                      htmlFor="employees-tier-select"
-                      className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5"
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="email"
+                        value={workEmail}
+                        onChange={(e) => {
+                          setWorkEmail(e.target.value);
+                          setIsEmailVerified(false);
+                          setIsOtpSent(false);
+                        }}
+                        disabled={isEmailVerified}
+                        placeholder="e.g. talent@company.com or hr@enterprise.com"
+                        className="w-full h-10 pl-9 pr-3 rounded-lg border border-input bg-background text-xs text-foreground focus-ring disabled:opacity-60 font-mono"
+                      />
+                      <Mail className="w-4 h-4 absolute left-3 top-3 text-muted-foreground pointer-events-none" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={isSendingOtp || !workEmail.trim() || isEmailVerified}
+                      className="inline-flex items-center justify-center gap-1.5 h-10 px-4 text-xs font-semibold rounded-lg bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50 transition-colors shrink-0 cursor-pointer shadow-xs"
                     >
-                      Workforce Scale
-                    </label>
+                      {isSendingOtp ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                      )}
+                      <span>Send OTP</span>
+                    </button>
+                  </div>
+
+                  {/* OTP Section for Industry */}
+                  {isOtpSent && !isEmailVerified && (
+                    <div className="pt-3 border-t border-border/70 space-y-2.5 animate-in fade-in">
+                      <label className="block text-[11px] font-semibold text-foreground uppercase tracking-wider">
+                        Enter 6-digit Code (sent to {workEmail})
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={otpValue}
+                          onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                          placeholder="••••••"
+                          className="w-36 h-10 px-3 text-center tracking-widest font-mono text-sm font-bold rounded-lg border border-input bg-background text-foreground focus-ring"
+                          maxLength={6}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleVerifyOtp}
+                          disabled={isVerifyingOtp || otpValue.length !== 6}
+                          className="inline-flex items-center gap-1.5 h-10 px-5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors cursor-pointer"
+                        >
+                          {isVerifyingOtp ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          )}
+                          <span>Verify</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSendOtp}
+                          disabled={isSendingOtp}
+                          className="text-xs text-muted-foreground hover:text-foreground underline ml-2 cursor-pointer self-center"
+                        >
+                          Resend
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {otpMessage && (
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono font-medium">
+                      ✓ {otpMessage}
+                    </p>
+                  )}
+                  {otpError && (
+                    <p className="text-[11px] text-destructive font-mono font-medium">
+                      ✕ {otpError}
+                    </p>
+                  )}
+                </div>
+
+                {/* 5. Headcount Tier */}
+                <div>
+                  <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
+                    Company Size / Workforce
+                  </label>
+                  <div className="relative">
                     <select
-                      id="employees-tier-select"
                       value={employees}
                       onChange={(e) => setEmployees(e.target.value)}
-                      className="w-full h-9 px-2.5 rounded-md border border-input bg-background text-xs text-foreground focus-ring"
+                      className="w-full h-10 pl-9 pr-8 rounded-lg border border-input bg-background text-xs text-foreground focus-ring font-medium appearance-none cursor-pointer"
                     >
                       {WORKFORCE_RANGES.map((range) => (
                         <option key={range} value={range}>
@@ -971,308 +1259,165 @@ export default function OnboardingOrganization() {
                         </option>
                       ))}
                     </select>
+                    <Users className="w-4 h-4 absolute left-3 top-3 text-muted-foreground pointer-events-none" />
+                    <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-3 top-3 pointer-events-none" />
                   </div>
+                </div>
+
+                {/* 6. Headquarters Location */}
+                <div className="relative">
+                  <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
+                    Headquarters City
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={cityInput}
+                      onChange={(e) => handleCityInputChange(e.target.value)}
+                      onFocus={() => {
+                        if (citySuggestions.length > 0) setCityDropdownOpen(true);
+                      }}
+                      placeholder="Type city name (e.g. Gurugram, Bengaluru, Hyderabad...)"
+                      className="w-full h-10 pl-9 pr-3 rounded-lg border border-input bg-background text-xs text-foreground focus-ring"
+                      autoComplete="off"
+                    />
+                    <MapPin className="w-4 h-4 absolute left-3 top-3 text-muted-foreground pointer-events-none" />
+                  </div>
+
+                  {cityDropdownOpen && citySuggestions.length > 0 && (
+                    <div className="absolute z-50 left-0 right-0 mt-1.5 max-h-52 overflow-y-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl text-xs py-1 divide-y divide-border/50 animate-in fade-in">
+                      {citySuggestions.map((city, idx) => (
+                        <button
+                          key={`${city.name}-${city.stateName}-${idx}`}
+                          type="button"
+                          onClick={() => handleSelectCity(city)}
+                          className="w-full px-3.5 py-2.5 text-left hover:bg-muted/80 flex items-center justify-between transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                            <span className="font-semibold text-foreground">{city.name}</span>
+                            <span className="text-muted-foreground text-[11px]">— {city.stateName}</span>
+                          </div>
+                          <span className="text-[10px] font-mono uppercase text-muted-foreground px-2 py-0.5 bg-muted rounded border border-border/40">
+                            {city.countryCode}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
-            {/* Navigation Actions */}
-            <div className="pt-4 border-t border-border flex items-center justify-between">
+            {/* ============================================================
+                Optional Additional Information [+] Collapsible Section
+                ============================================================ */}
+            <div className="pt-2 border-t border-border/80">
               <button
                 type="button"
-                onClick={handlePrevStep}
-                className="inline-flex items-center gap-1.5 h-9 px-3 text-xs font-medium rounded-md border border-border bg-background hover:bg-muted text-foreground transition-colors cursor-pointer"
+                onClick={() => setShowAdditionalInfo(!showAdditionalInfo)}
+                className="w-full py-2 flex items-center justify-between text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer group"
               >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back</span>
+                <span className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-primary/70" />
+                  <span>Additional Organization Profile Details (Optional)</span>
+                </span>
+                <span className="w-6 h-6 rounded-md bg-muted/60 flex items-center justify-center text-foreground group-hover:bg-muted transition-colors">
+                  {showAdditionalInfo ? <Minus className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                </span>
               </button>
 
-              <button
-                type="button"
-                id="org-next-step-2-btn"
-                onClick={handleNextStep}
-                className="inline-flex items-center gap-2 h-9 px-4 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors cursor-pointer"
-              >
-                <span>Proceed to Official Email Verification</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================
-            STEP 3: Official / Work Email OTP Verification
-            ============================================================ */}
-        {currentStep === 3 && (
-          <div className="rounded-md border border-border bg-white dark:bg-zinc-900 p-6 shadow-sm space-y-6">
-            <div className="border-b border-border pb-4">
-              <h2 className="text-lg font-semibold tracking-tight text-foreground">
-                Domain Authenticity & Cryptographic Verification
-              </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Verify authority over your organization's domain via email token.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-md border border-border bg-card space-y-4">
-              <div>
-                <label
-                  htmlFor="org-official-email-input"
-                  className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5"
-                >
-                  {activeType === "institution"
-                    ? "Official Registrar / Administrative Email"
-                    : "Corporate Recruiter / HR Work Email"}{" "}
-                  <span className="text-destructive">*</span>
-                </label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Mail className="w-4 h-4 absolute left-3 top-2.5 text-muted-foreground" />
-                    <input
-                      id="org-official-email-input"
-                      type="email"
-                      value={activeType === "institution" ? officialEmail : workEmail}
-                      onChange={(e) => {
-                        if (activeType === "institution") {
-                          setOfficialEmail(e.target.value);
-                        } else {
-                          setWorkEmail(e.target.value);
-                        }
-                        setIsEmailVerified(false);
-                      }}
+              {showAdditionalInfo && (
+                <div className="space-y-4 pt-3 mt-2 border-t border-border/40 animate-in fade-in duration-150">
+                  {/* Bio / Description */}
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
+                      Overview / Bio
+                    </label>
+                    <textarea
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      rows={3}
                       placeholder={
                         activeType === "institution"
-                          ? "registrar@iitb.ac.in or dean.admin@college.ac.in"
-                          : "campus-recruitment@company.com or hr@corp.com"
+                          ? "Brief description of the university, key faculties, or academic mission..."
+                          : "Brief company overview, research focus, or industry mission..."
                       }
-                      disabled={isEmailVerified}
-                      className="w-full h-9 pl-9 pr-3 rounded-md border border-input bg-background text-xs text-foreground focus-ring disabled:opacity-60"
+                      className="w-full p-3 rounded-lg border border-input bg-background text-xs text-foreground focus-ring resize-none"
                     />
                   </div>
-                  <button
-                    type="button"
-                    id="org-send-otp-btn"
-                    onClick={handleSendOtp}
-                    disabled={
-                      isSendingOtp ||
-                      isEmailVerified ||
-                      !(activeType === "institution" ? officialEmail : workEmail).trim()
-                    }
-                    className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-medium rounded-md border border-border bg-background hover:bg-muted text-foreground transition-colors disabled:opacity-50 cursor-pointer"
-                  >
-                    {isSendingOtp ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                    )}
-                    <span>{isOtpSent ? "Resend Token" : "Send Code"}</span>
-                  </button>
-                </div>
-              </div>
 
-              {/* OTP Input Block */}
-              {isOtpSent && !isEmailVerified && (
-                <div className="p-3.5 rounded-md border border-border bg-muted/30 space-y-2">
-                  <label
-                    htmlFor="org-otp-input"
-                    className="block text-xs font-semibold text-foreground uppercase tracking-wider"
-                  >
-                    Enter 6-Digit Organization Verification Token
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      id="org-otp-input"
-                      type="text"
-                      maxLength={6}
-                      value={otpValue}
-                      onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ""))}
-                      placeholder="123456"
-                      className="w-36 h-9 px-3 font-mono font-bold text-center tracking-widest text-sm rounded-md border border-input bg-background text-foreground focus-ring"
-                    />
-                    <button
-                      type="button"
-                      id="org-verify-otp-btn"
-                      onClick={handleVerifyOtp}
-                      disabled={isVerifyingOtp || otpValue.length !== 6}
-                      className="inline-flex items-center gap-1.5 h-9 px-4 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors disabled:opacity-50 cursor-pointer"
-                    >
-                      {isVerifyingOtp ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                      )}
-                      <span>Verify Code</span>
-                    </button>
+                  {/* Web & LinkedIn URLs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
+                        Official Website
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="url"
+                          value={website}
+                          onChange={(e) => setWebsite(e.target.value)}
+                          placeholder="https://..."
+                          className="w-full h-9 pl-8 pr-3 rounded-lg border border-input bg-background text-xs text-foreground focus-ring"
+                        />
+                        <Globe className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-muted-foreground pointer-events-none" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
+                        LinkedIn Page
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="url"
+                          value={linkedin}
+                          onChange={(e) => setLinkedin(e.target.value)}
+                          placeholder="https://linkedin.com/company/..."
+                          className="w-full h-9 pl-8 pr-3 rounded-lg border border-input bg-background text-xs text-foreground focus-ring"
+                        />
+                        <ExternalLink className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-muted-foreground pointer-events-none" />
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
-
-              {/* Feedback messages */}
-              {otpMessage && (
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                  {otpMessage}
-                </p>
-              )}
-              {otpError && (
-                <p className="text-xs text-destructive font-medium">
-                  {otpError}
-                </p>
-              )}
             </div>
 
-            {/* Navigation Actions */}
-            <div className="pt-4 border-t border-border flex items-center justify-between">
-              <button
-                type="button"
-                onClick={handlePrevStep}
-                className="inline-flex items-center gap-1.5 h-9 px-3 text-xs font-medium rounded-md border border-border bg-background hover:bg-muted text-foreground transition-colors cursor-pointer"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back</span>
-              </button>
-
-              <button
-                type="button"
-                id="org-next-step-3-btn"
-                onClick={handleNextStep}
-                className="inline-flex items-center gap-2 h-9 px-4 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors cursor-pointer"
-              >
-                <span>Proceed to Confirmation</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================
-            STEP 4: Review & Final Submission
-            ============================================================ */}
-        {currentStep === 4 && (
-          <div className="rounded-md border border-border bg-white dark:bg-zinc-900 p-6 shadow-sm space-y-6">
-            <div className="border-b border-border pb-4">
-              <h2 className="text-lg font-semibold tracking-tight text-foreground">
-                Review Organization Telemetry & Initialize Console
-              </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Confirm your legal stakeholder parameters before activating portal permissions.
-              </p>
-            </div>
-
-            {/* High Density Definition Table */}
-            <div className="rounded-md border border-border divide-y divide-border text-xs">
-              <div className="px-4 py-2.5 bg-muted/40 flex items-center justify-between font-mono font-semibold">
-                <span>ENTITY SPECIFICATION</span>
-                <span className="uppercase text-foreground">{activeType}</span>
+            {/* Bottom Submit CTA */}
+            <div className="pt-4 border-t border-border/80 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-[11px] text-muted-foreground font-mono flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Verified profiles receive priority partner badge</span>
               </div>
 
-              <div className="px-4 py-2.5 flex items-center justify-between">
-                <span className="text-muted-foreground">Entity Legal Name:</span>
-                <span className="font-semibold text-foreground">
-                  {activeType === "institution" ? orgName : companyName}
-                </span>
-              </div>
-
-              <div className="px-4 py-2.5 flex items-center justify-between">
-                <span className="text-muted-foreground">Headquarters Location:</span>
-                <span className="text-foreground">{location || "Not specified"}</span>
-              </div>
-
-              <div className="px-4 py-2.5 flex items-center justify-between">
-                <span className="text-muted-foreground">Official Website:</span>
-                <span className="font-mono text-foreground">{website || "Not provided"}</span>
-              </div>
-
-              {activeType === "institution" ? (
-                <>
-                  <div className="px-4 py-2.5 flex items-center justify-between">
-                    <span className="text-muted-foreground">AISHE Code:</span>
-                    <span className="font-mono text-foreground">{aisheCode || "Pending"}</span>
-                  </div>
-                  <div className="px-4 py-2.5 flex items-center justify-between">
-                    <span className="text-muted-foreground">Administrative Contact:</span>
-                    <span className="font-mono text-foreground">{contactNumber || "N/A"}</span>
-                  </div>
-                  <div className="px-4 py-2.5 flex items-center justify-between">
-                    <span className="text-muted-foreground">Registrar Email:</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-foreground">{officialEmail}</span>
-                      {isEmailVerified ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-sm bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-[10px]">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Verified
-                        </span>
-                      ) : (
-                        <span className="font-mono text-[10px] text-muted-foreground">
-                          (Unverified)
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="px-4 py-2.5 flex items-center justify-between">
-                    <span className="text-muted-foreground">Industry Sector:</span>
-                    <span className="text-foreground">{industryType}</span>
-                  </div>
-                  <div className="px-4 py-2.5 flex items-center justify-between">
-                    <span className="text-muted-foreground">Workforce Size:</span>
-                    <span className="text-foreground">{employees}</span>
-                  </div>
-                  <div className="px-4 py-2.5 flex items-center justify-between">
-                    <span className="text-muted-foreground">Work Email:</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-foreground">{workEmail}</span>
-                      {isEmailVerified ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-sm bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-[10px]">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Verified
-                        </span>
-                      ) : (
-                        <span className="font-mono text-[10px] text-muted-foreground">
-                          (Unverified)
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Submission Actions */}
-            <div className="pt-4 border-t border-border flex items-center justify-between">
               <button
-                type="button"
-                onClick={handlePrevStep}
-                className="inline-flex items-center gap-1.5 h-9 px-3 text-xs font-medium rounded-md border border-border bg-background hover:bg-muted text-foreground transition-colors cursor-pointer"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Edit Parameters</span>
-              </button>
-
-              <button
-                type="button"
-                id="submit-org-onboarding-btn"
-                onClick={handleFinalSubmit}
+                type="submit"
                 disabled={isSubmitting}
-                className="inline-flex items-center gap-2 h-9 px-5 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors disabled:opacity-50 shadow-sm cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-11 px-7 text-xs font-bold rounded-xl bg-foreground text-background hover:bg-foreground/90 active:scale-98 disabled:opacity-50 shadow-md transition-all cursor-pointer"
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Configuring Organization Workspace…</span>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Saving Profile...</span>
                   </>
                 ) : (
                   <>
-                    <span>Complete Setup & Launch Console</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <span>Complete Organization Setup</span>
+                    <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
             </div>
           </div>
-        )}
+        </form>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-border/70 py-4 px-4 text-center text-xs text-muted-foreground bg-background/50">
+        &copy; {new Date().getFullYear()} PortalAcademia &bull; Secured Enterprise & Academic Network
+      </footer>
     </div>
   );
 }
