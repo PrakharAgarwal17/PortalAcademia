@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import nodemailer from "nodemailer";
+import { getCache, setCache } from "../config/redisClient.js";
 
 // In-memory store for Onboarding verification OTPs
 interface OnboardingOtpData {
@@ -182,6 +183,12 @@ export async function searchInstitutions(req: Request, res: Response): Promise<R
         const query = (req.query.search as string || "").trim();
         const limit = req.query.limit ? Number(req.query.limit) : 25;
 
+        const cacheKey = `cache:aishe:${query.toLowerCase()}:${limit}`;
+        const cached = await getCache<any>(cacheKey);
+        if (cached) {
+            return res.status(200).json({ institutions: cached, cached: true });
+        }
+
         // 1. Primary: Search using the installed aishe-institutions-list package
         if (query) {
             try {
@@ -193,6 +200,7 @@ export async function searchInstitutions(req: Request, res: Response): Promise<R
                         state: item.state || "",
                         district: item.district || "",
                     }));
+                    await setCache(cacheKey, formatted, 3600);
                     return res.status(200).json({ institutions: formatted });
                 }
             } catch (pkgErr) {

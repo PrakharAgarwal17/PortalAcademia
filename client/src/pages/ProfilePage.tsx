@@ -24,6 +24,7 @@ import {
   RefreshCw,
   Palette,
   ShieldCheck,
+  X,
 } from "lucide-react";
 import SkillBadge from "@/components/SkillBadge";
 import SkillInput from "@/components/SkillInput";
@@ -170,6 +171,7 @@ export default function ProfilePage() {
   const [saveFeedback, setSaveFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [showBannerPicker, setShowBannerPicker] = useState(false);
+  const [testedSkills, setTestedSkills] = useState<string[]>([]);
 
   // Tab: overview, skills, edit
   const initialTab = searchParams.get("edit") === "true" ? "edit" : "overview";
@@ -240,11 +242,12 @@ export default function ProfilePage() {
         body: JSON.stringify(updated),
       });
       const data = await res.json();
-      if (res.ok && data.success && data.profile) {
-        setProfile(data.profile);
-        setFormData(data.profile);
+      if (res.ok && data.success) {
+        const merged = { ...(data.profile || updated), headline: newHeadline.trim() };
+        setProfile(merged);
+        setFormData(merged);
         setIsEditingHeadline(false);
-        setSaveFeedback({ type: "success", text: "Headline saved to database!" });
+        setSaveFeedback({ type: "success", text: "Headline saved successfully!" });
         setTimeout(() => setSaveFeedback(null), 3000);
       } else {
         setSaveFeedback({ type: "error", text: data.message || "Failed to update headline." });
@@ -337,6 +340,26 @@ export default function ProfilePage() {
           certifications: data.profile.certifications ? [...data.profile.certifications] : [],
           pastExperience: data.profile.pastExperience ? [...data.profile.pastExperience] : [],
         });
+
+        // Fetch passed assessment results to display verified badges
+        try {
+          const resultsRes = await fetch(`${API_BASE}/api/assessments/my-results`, {
+            method: "GET",
+            credentials: "include",
+          });
+          const resultsData = await resultsRes.json();
+          if (resultsRes.ok && resultsData.success && Array.isArray(resultsData.data)) {
+            const verifiedSet = new Set<string>();
+            resultsData.data.forEach((r: any) => {
+              if (r.passed) {
+                (r.verifiedSkillsAdded || []).forEach((s: string) => verifiedSet.add(s.toLowerCase()));
+              }
+            });
+            setTestedSkills(Array.from(verifiedSet));
+          }
+        } catch (e) {
+          // ignore background test results failure
+        }
 
         const fetchedId = data.profile._id?.toString();
         const fetchedUserId = (
@@ -493,11 +516,13 @@ export default function ProfilePage() {
       if (res.ok && data.success && data.profile) {
         setProfile(data.profile);
         setFormData(data.profile);
-        setSaveFeedback({ type: "success", text: "Database updated successfully! All changes are live." });
+        setSaveFeedback({ type: "success", text: "Profile updated successfully! All changes are live." });
         setSearchParams({}); // remove ?edit=true
+        setActiveTab("overview"); // Close the edit tab and return to overview
+        window.scrollTo({ top: 0, behavior: "smooth" });
         setTimeout(() => setSaveFeedback(null), 4000);
       } else {
-        setSaveFeedback({ type: "error", text: data.message || "Failed to update profile in database." });
+        setSaveFeedback({ type: "error", text: data.message || "Failed to update profile." });
       }
     } catch (err: any) {
       setSaveFeedback({ type: "error", text: err.message || "Network error while saving profile." });
@@ -737,14 +762,14 @@ export default function ProfilePage() {
       {/* MAIN CONTAINER */}
       {/* ============================================================ */}
       <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
-        {/* Save Feedback Banner */}
+        {/* Floating Save Feedback Notification Toast */}
         {saveFeedback && (
           <div
             className={cn(
-              "p-3.5 rounded-xl text-xs font-medium flex items-center justify-between shadow-xs animate-in fade-in duration-300",
+              "fixed top-6 right-6 z-50 max-w-md p-3.5 rounded-md text-xs font-medium flex items-center justify-between shadow-xl border animate-in slide-in-from-top-2 duration-200",
               saveFeedback.type === "success"
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20"
-                : "bg-destructive/10 text-destructive border border-destructive/20"
+                ? "bg-card text-emerald-600 dark:text-emerald-400 border-emerald-500/40"
+                : "bg-card text-destructive border-destructive/40"
             )}
           >
             <div className="flex items-center gap-2">
@@ -753,14 +778,15 @@ export default function ProfilePage() {
               ) : (
                 <AlertCircle className="w-4 h-4 shrink-0 text-destructive" />
               )}
-              <span>{saveFeedback.text}</span>
+              <span className="font-semibold">{saveFeedback.text}</span>
             </div>
             <button
               type="button"
               onClick={() => setSaveFeedback(null)}
-              className="text-xs opacity-70 hover:opacity-100 cursor-pointer"
+              className="ml-3 p-1 rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors"
+              title="Dismiss notification"
             >
-              Dismiss
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
@@ -841,7 +867,7 @@ export default function ProfilePage() {
                   ))}
                 </div>
                 <p className="text-[10px] text-muted-foreground italic text-center">
-                  Tip: Remember to click &quot;Save Changes&quot; to persist in MongoDB.
+                  Tip: Remember to click &quot;Save Changes&quot; to apply your chosen banner.
                 </p>
               </div>
             )}
@@ -1306,7 +1332,12 @@ export default function ProfilePage() {
                 {formData.skills && formData.skills.length > 0 ? (
                   <div className="flex flex-wrap gap-2 pt-1">
                     {formData.skills.map((skill, idx) => (
-                      <SkillBadge key={idx} skill={skill} size="md" />
+                      <SkillBadge
+                        key={idx}
+                        skill={skill}
+                        size="md"
+                        isTested={testedSkills.some((ts) => ts.toLowerCase() === skill.toLowerCase())}
+                      />
                     ))}
                   </div>
                 ) : (
@@ -1790,6 +1821,7 @@ export default function ProfilePage() {
                         key={idx}
                         skill={skill}
                         size="md"
+                        isTested={testedSkills.some((ts) => ts.toLowerCase() === skill.toLowerCase())}
                         onRemove={isOwnProfile ? () => handleRemoveSkill(skill) : undefined}
                       />
                     ))}
@@ -1818,18 +1850,30 @@ export default function ProfilePage() {
                     Update Profile Details
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    All inputs below are validated and synchronized directly with your MongoDB document.
+                    All inputs below are validated and synchronized with your profile.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleSaveProfile}
-                  disabled={isSaving}
-                  className="inline-flex items-center gap-2 text-xs font-semibold px-5 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-md cursor-pointer disabled:opacity-50"
-                >
-                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                  <span>Save All Changes to DB</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab("overview");
+                      setSearchParams({});
+                    }}
+                    className="px-3.5 py-2 rounded-lg bg-secondary text-secondary-foreground text-xs font-semibold hover:bg-secondary/80 border border-border transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveProfile}
+                    disabled={isSaving}
+                    className="inline-flex items-center gap-2 text-xs font-semibold px-5 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-md cursor-pointer disabled:opacity-50"
+                  >
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    <span>Save Changes</span>
+                  </button>
+                </div>
               </div>
 
               {/* 1. Basic Info Section */}
@@ -2635,26 +2679,20 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* Bottom Sticky Action Bar */}
-              <div className="pt-4 border-t border-border flex items-center justify-end gap-3">
+              {/* Bottom Action Bar */}
+              <div className="pt-4 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground">
+                  Review your changes above and click <span className="text-foreground font-semibold">Save Changes</span> at the top to apply.
+                </p>
                 <button
                   type="button"
                   onClick={() => {
                     setActiveTab("overview");
                     setSearchParams({});
                   }}
-                  className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-xs font-semibold hover:bg-secondary/80 transition-colors"
+                  className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-xs font-semibold hover:bg-secondary/80 transition-colors cursor-pointer self-end sm:self-auto"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveProfile}
-                  disabled={isSaving}
-                  className="inline-flex items-center gap-2 text-xs font-semibold px-6 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-md cursor-pointer disabled:opacity-50"
-                >
-                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                  <span>Save All Changes to MongoDB</span>
+                  Close &amp; Return to Overview
                 </button>
               </div>
             </div>

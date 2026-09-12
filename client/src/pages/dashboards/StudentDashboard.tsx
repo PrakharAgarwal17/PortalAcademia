@@ -18,6 +18,7 @@ import {
   Zap,
   FileText,
   Check,
+  TrendingUp,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -220,6 +221,8 @@ function formatAiMessage(content: string) {
   return elements;
 }
 
+
+
 export default function StudentDashboard() {
   const navigate = useNavigate();
 
@@ -229,6 +232,23 @@ export default function StudentDashboard() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [testedSkills, setTestedSkills] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Derived verified skills count matching passed assessments
+  const verifiedSkillsCount = useMemo(() => {
+    return (profile?.skills || []).filter((skill) =>
+      testedSkills.some((ts) => ts.toLowerCase() === skill.toLowerCase())
+    ).length;
+  }, [profile?.skills, testedSkills]);
+
+  // Grounded career readiness score weighted by verified skills
+  const readinessScore = useMemo(() => {
+    const totalSkills = profile?.skills?.length || 0;
+    if (totalSkills === 0) return 0;
+    const verifiedRatio = (verifiedSkillsCount / totalSkills) * 60;
+    const profileRatio = Math.min(20, totalSkills * 4);
+    const appRatio = Math.min(20, applications.length * 10);
+    return Math.min(100, Math.round(verifiedRatio + profileRatio + appRatio));
+  }, [profile?.skills, verifiedSkillsCount, applications.length]);
 
   // Filters
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -297,11 +317,26 @@ export default function StudentDashboard() {
         credentials: "include",
       });
       const data = await res.json();
-      if (data.success) {
-        setOpportunities(data.data || []);
+      if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+        // Strict deduplication of incoming opportunities by ID and Title
+        const seen = new Set<string>();
+        const uniqueData: Opportunity[] = [];
+        for (const opp of data.data) {
+          const idKey = opp._id ? String(opp._id).trim() : "";
+          const titleKey = opp.title ? opp.title.toLowerCase().trim() : "";
+          if (idKey && seen.has(idKey)) continue;
+          if (titleKey && seen.has(titleKey)) continue;
+          if (idKey) seen.add(idKey);
+          if (titleKey) seen.add(titleKey);
+          uniqueData.push(opp);
+        }
+        setOpportunities(uniqueData.length > 0 ? uniqueData : []);
+      } else {
+        setOpportunities([]);
       }
     } catch (err) {
       console.error("Failed to fetch opportunities:", err);
+      setOpportunities([]);
     }
   }, []);
 
@@ -582,7 +617,19 @@ export default function StudentDashboard() {
 
   // Filtered opportunities
   const filteredOpportunities = useMemo(() => {
-    const list = opportunities.filter((opp) => {
+    // Strict deduplication by ID and normalized title
+    const seen = new Set<string>();
+    const uniqueOpportunities = opportunities.filter((opp) => {
+      const idKey = opp._id ? String(opp._id).trim() : "";
+      const titleKey = opp.title ? opp.title.toLowerCase().trim() : "";
+      if (idKey && seen.has(idKey)) return false;
+      if (titleKey && seen.has(titleKey)) return false;
+      if (idKey) seen.add(idKey);
+      if (titleKey) seen.add(titleKey);
+      return true;
+    });
+
+    const list = uniqueOpportunities.filter((opp) => {
       const matchesAudience =
         opp.targetAudience === "student" ||
         opp.targetAudience === "both" ||
@@ -685,8 +732,13 @@ export default function StudentDashboard() {
             <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
               <div className="px-4 py-2 rounded-xl bg-secondary/50 border border-border hover:border-primary/30 transition-colors">
                 <span className="text-muted-foreground block text-[10px] uppercase tracking-wider">Verified Skills</span>
-                <span className="font-bold text-foreground tabular-nums text-base">
-                  {profile?.skills?.length || 0}
+                <span className="font-bold text-foreground tabular-nums text-base flex items-baseline gap-1">
+                  <span className={verifiedSkillsCount > 0 ? "text-emerald-500 font-bold" : "text-foreground"}>
+                    {verifiedSkillsCount}
+                  </span>
+                  <span className="text-xs font-normal text-muted-foreground font-sans">
+                    / {profile?.skills?.length || 0}
+                  </span>
                 </span>
               </div>
               <div className="px-4 py-2 rounded-xl bg-secondary/50 border border-border hover:border-primary/30 transition-colors">
@@ -698,9 +750,7 @@ export default function StudentDashboard() {
               <div className="px-4 py-2 rounded-xl bg-primary/10 border border-primary/20 hover:border-primary/40 transition-colors">
                 <span className="text-primary block text-[10px] uppercase tracking-wider font-bold">Readiness Score</span>
                 <span className="font-bold text-primary tabular-nums text-base">
-                  {profile?.skills && profile.skills.length > 0
-                    ? `${Math.min(100, profile.skills.length * 15)}%`
-                    : "0%"}
+                  {readinessScore}%
                 </span>
               </div>
             </div>
@@ -711,15 +761,19 @@ export default function StudentDashboard() {
             <div className="flex flex-wrap items-center gap-1.5 flex-1">
               <span className="text-xs text-muted-foreground mr-1">Skills:</span>
               {profile?.skills && profile.skills.length > 0 ? (
-                profile.skills.map((skill, idx) => (
-                  <SkillBadge
-                    key={idx}
-                    skill={skill}
-                    size="sm"
-                    isTested={testedSkills.some((ts) => ts.toLowerCase() === skill.toLowerCase())}
-                    onRemove={() => handleRemoveSkill(skill)}
-                  />
-                ))
+                profile.skills.map((skill, idx) => {
+                  const isTested = testedSkills.some((ts) => ts.toLowerCase() === skill.toLowerCase());
+                  return (
+                    <SkillBadge
+                      key={idx}
+                      skill={skill}
+                      size="sm"
+                      isTested={isTested}
+                      onClick={!isTested ? () => openTestConfirmation(skill) : undefined}
+                      onRemove={() => handleRemoveSkill(skill)}
+                    />
+                  );
+                })
               ) : (
                 <span className="text-xs text-muted-foreground italic">No skills listed yet</span>
               )}
@@ -803,16 +857,27 @@ export default function StudentDashboard() {
               </p>
             </div>
 
-            {/* Search Input */}
-            <div className="relative w-full md:w-64">
-              <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search skills, domain, company…"
-                className="w-full text-xs pl-8 pr-3 py-1.5 rounded-md bg-background border border-border text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-              />
+            {/* Search Input & Trends Action */}
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <div className="relative w-full md:w-64">
+                <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search skills, domain, company…"
+                  className="w-full text-xs pl-8 pr-3 py-1.5 rounded-md bg-background border border-border text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate("/trends/student")}
+                className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-secondary text-foreground hover:bg-secondary/80 border border-border transition-colors cursor-pointer"
+                title="View Student Market Trends & Hiring Demand"
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-primary" />
+                <span className="hidden sm:inline">Hiring Trends</span>
+              </button>
             </div>
           </div>
 

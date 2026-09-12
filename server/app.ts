@@ -3,6 +3,9 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 import connectDB from './config/connectDB.js'
+import "./config/redisClient.js"
+import { isRedisAvailable } from "./config/redisClient.js"
+import mongoose from "mongoose"
 import authRoute from "./routes/authRoute.js"
 import profileRoute from "./routes/profileRoute.js"
 import onboardingRoute from "./routes/onboardingRoute.js"
@@ -46,6 +49,20 @@ app.use(express.urlencoded({extended:true}))
 
 app.get('/',(req,res)=>{
     res.send("Working website")
+})
+
+app.get('/api/health', (req, res) => {
+    const mongoStatus = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+    const redisStatus = isRedisAvailable() ? "connected" : "in-memory-fallback";
+    res.status(200).json({
+        status: "healthy",
+        uptime: process.uptime(),
+        database: {
+            mongodb: mongoStatus,
+            redis: redisStatus,
+        },
+        timestamp: new Date().toISOString(),
+    });
 })
 app.use("/api/auth",authRoute)
 app.use("/api/profile",profileRoute)
