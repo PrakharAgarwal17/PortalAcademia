@@ -18,9 +18,10 @@ export async function getPendingVerifications(req: Request, res: Response) {
         // Query students: if institution has a known name, filter by it, otherwise show all unverified student credentials
         const studentFilter: any = { accountType: "student" };
         if (instName) {
+            const escapedName = instName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
             studentFilter.$or = [
-                { institution: { $regex: new RegExp(instName, "i") } },
-                { institutionName: { $regex: new RegExp(instName, "i") } },
+                { institution: { $regex: new RegExp(escapedName, "i") } },
+                { institutionName: { $regex: new RegExp(escapedName, "i") } },
             ];
         }
 

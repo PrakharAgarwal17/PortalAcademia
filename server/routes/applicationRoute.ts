@@ -6,7 +6,7 @@ import {
     updateApplicationStatus,
 } from "../controllers/applicationController.js";
 import isloggedIn from "../middleware/isloggedIn.js";
-import { isIndustry } from "../middleware/rbacMiddleware.js";
+import { isPublisher } from "../middleware/rbacMiddleware.js";
 
 const router = express.Router();
 
@@ -16,10 +16,10 @@ router.post("/", isloggedIn, applyToOpportunity);
 // Applicant views their active applications
 router.get("/my-applications", isloggedIn, getMyApplications);
 
-// Industry recruiter views applicants for an opportunity
-router.get("/opportunity/:opportunityId", isloggedIn, isIndustry, getApplicantsForOpportunity);
+// Publisher (Industry or Institution) recruiter views applicants for an opportunity
+router.get("/opportunity/:opportunityId", isloggedIn, isPublisher, getApplicantsForOpportunity);
 
 // Recruiter transitions applicant state (Shortlisted, Interview, Offered, Rejected)
-router.patch("/:id/status", isloggedIn, isIndustry, updateApplicationStatus);
+router.patch("/:id/status", isloggedIn, isPublisher, updateApplicationStatus);
 
 export default router;

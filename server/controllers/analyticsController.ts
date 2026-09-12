@@ -20,9 +20,10 @@ export async function getCohortAnalytics(req: Request, res: Response) {
         // Match criteria for students in this institution
         const studentMatch: any = { accountType: "student" };
         if (instName) {
+            const escapedName = instName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
             studentMatch.$or = [
-                { institution: { $regex: new RegExp(instName, "i") } },
-                { institutionName: { $regex: new RegExp(instName, "i") } },
+                { institution: { $regex: new RegExp(escapedName, "i") } },
+                { institutionName: { $regex: new RegExp(escapedName, "i") } },
             ];
         }
 

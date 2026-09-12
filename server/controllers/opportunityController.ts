@@ -36,7 +36,8 @@ export async function getOpportunities(req: Request, res: Response) {
         }
 
         if (search) {
-            const searchRegex = new RegExp(String(search), "i");
+            const escapedSearch = String(search).replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+            const searchRegex = new RegExp(escapedSearch, "i");
             filter.$or = [
                 { title: searchRegex },
                 { organization: searchRegex },
@@ -242,7 +243,7 @@ export async function updateOpportunity(req: Request, res: Response) {
             return res.status(404).json({ success: false, message: "Opportunity not found" });
         }
 
-        if (opportunity.createdBy.toString() !== req.userId) {
+        if (!opportunity.createdBy || opportunity.createdBy.toString() !== req.userId) {
             return res.status(403).json({
                 success: false,
                 message: "Forbidden: You do not have permission to edit this opportunity",
@@ -282,7 +283,7 @@ export async function deleteOpportunity(req: Request, res: Response) {
             return res.status(404).json({ success: false, message: "Opportunity not found" });
         }
 
-        if (opportunity.createdBy.toString() !== req.userId) {
+        if (!opportunity.createdBy || opportunity.createdBy.toString() !== req.userId) {
             return res.status(403).json({
                 success: false,
                 message: "Forbidden: You do not have permission to delete this opportunity",

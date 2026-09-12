@@ -172,8 +172,8 @@ export async function submitAssessment(req: Request, res: Response) {
                 assessment.skillVectors.forEach((skill) => currentSkills.add(skill));
                 profile.skills = Array.from(currentSkills);
 
-                // For faculty profiles, also add to expertise if defined
-                if (profile.accountType === "faculty" && Array.isArray(profile.expertise)) {
+                // For faculty profiles, also add to expertise
+                if (profile.accountType === "faculty") {
                     const currentExpertise = new Set(profile.expertise || []);
                     assessment.skillVectors.forEach((skill) => currentExpertise.add(skill));
                     profile.expertise = Array.from(currentExpertise);
@@ -501,6 +501,11 @@ Strict requirements:
                     if (cleaned.startsWith("```")) {
                         cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
                     }
+                    const firstBrace = cleaned.indexOf("{");
+                    const lastBrace = cleaned.lastIndexOf("}");
+                    if (firstBrace !== -1 && lastBrace > firstBrace) {
+                        cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+                    }
                     const parsed = JSON.parse(cleaned);
                     if (Array.isArray(parsed.questions) && parsed.questions.length >= 8) {
                         const sanitizedQuestions: IAssessmentQuestion[] = parsed.questions.slice(0, 10).map((q: any, idx: number) => {
@@ -550,14 +555,16 @@ Strict requirements:
  */
 export async function generateSkillAssessment(req: Request, res: Response) {
     try {
-        const { selectedSkills, targetSkill: explicitTarget } = req.body as {
+        const { selectedSkills, targetSkill: explicitTarget, skill } = req.body as {
             selectedSkills?: string[];
             targetSkill?: string;
+            skill?: string;
         };
 
         // Determine primary target skill/technology for this dedicated test
         const rawSkill =
             explicitTarget ||
+            skill ||
             (selectedSkills && selectedSkills.length > 0 ? selectedSkills[0] : undefined) ||
             "Full-Stack Web Development";
         const mainSkill = String(rawSkill).trim();
@@ -595,9 +602,16 @@ export async function generateSkillAssessment(req: Request, res: Response) {
             createdBy: req.userId ? (req.userId as any) : undefined,
         } as any);
 
+        // Sanitize questions so correct answers aren't exposed in initial payload
+        const sanitized = newAssessment.toObject();
+        sanitized.questions = (sanitized.questions || []).map((q: any) => {
+            const { correctOptionIndex, explanation, ...rest } = q;
+            return rest;
+        });
+
         return res.status(201).json({
             success: true,
-            data: newAssessment,
+            data: sanitized,
         });
     } catch (error) {
         console.error("generateSkillAssessment error:", error);

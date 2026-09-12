@@ -7,7 +7,6 @@ import {
     generateSkillAssessment,
 } from "../controllers/assessmentController.js";
 import isloggedIn from "../middleware/isloggedIn.js";
-import { isStudent } from "../middleware/rbacMiddleware.js";
 
 const router = express.Router();
 
@@ -17,8 +16,9 @@ router.get("/", isloggedIn, getAssessments);
 // Past assessment attempts for authenticated user (student, faculty, etc.)
 router.get("/my-results", isloggedIn, getMyResults);
 
-// Generate custom skill assessment based on selected profile skills
+// Generate custom skill assessment based on selected profile skills or on-the-spot target skill
 router.post("/generate", isloggedIn, generateSkillAssessment);
+router.post("/generate-for-user", isloggedIn, generateSkillAssessment);
 
 // Specific assessment questions (without answer keys)
 router.get("/:id", isloggedIn, getAssessmentById);
