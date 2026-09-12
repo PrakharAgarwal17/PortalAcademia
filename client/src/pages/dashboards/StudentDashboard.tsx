@@ -320,6 +320,23 @@ export default function StudentDashboard() {
   const [testedSkills, setTestedSkills] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Derived verified skills count matching passed assessments
+  const verifiedSkillsCount = useMemo(() => {
+    return (profile?.skills || []).filter((skill) =>
+      testedSkills.some((ts) => ts.toLowerCase() === skill.toLowerCase())
+    ).length;
+  }, [profile?.skills, testedSkills]);
+
+  // Grounded career readiness score weighted by verified skills
+  const readinessScore = useMemo(() => {
+    const totalSkills = profile?.skills?.length || 0;
+    if (totalSkills === 0) return 0;
+    const verifiedRatio = (verifiedSkillsCount / totalSkills) * 60;
+    const profileRatio = Math.min(20, totalSkills * 4);
+    const appRatio = Math.min(20, applications.length * 10);
+    return Math.min(100, Math.round(verifiedRatio + profileRatio + appRatio));
+  }, [profile?.skills, verifiedSkillsCount, applications.length]);
+
   // Filters
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -795,8 +812,13 @@ export default function StudentDashboard() {
             <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
               <div className="px-4 py-2 rounded-xl bg-secondary/50 border border-border hover:border-primary/30 transition-colors">
                 <span className="text-muted-foreground block text-[10px] uppercase tracking-wider">Verified Skills</span>
-                <span className="font-bold text-foreground tabular-nums text-base">
-                  {profile?.skills?.length || 0}
+                <span className="font-bold text-foreground tabular-nums text-base flex items-baseline gap-1">
+                  <span className={verifiedSkillsCount > 0 ? "text-emerald-500 font-bold" : "text-foreground"}>
+                    {verifiedSkillsCount}
+                  </span>
+                  <span className="text-xs font-normal text-muted-foreground font-sans">
+                    / {profile?.skills?.length || 0}
+                  </span>
                 </span>
               </div>
               <div className="px-4 py-2 rounded-xl bg-secondary/50 border border-border hover:border-primary/30 transition-colors">
@@ -808,9 +830,7 @@ export default function StudentDashboard() {
               <div className="px-4 py-2 rounded-xl bg-primary/10 border border-primary/20 hover:border-primary/40 transition-colors">
                 <span className="text-primary block text-[10px] uppercase tracking-wider font-bold">Readiness Score</span>
                 <span className="font-bold text-primary tabular-nums text-base">
-                  {profile?.skills && profile.skills.length > 0
-                    ? `${Math.min(100, profile.skills.length * 15)}%`
-                    : "0%"}
+                  {readinessScore}%
                 </span>
               </div>
             </div>
@@ -821,15 +841,19 @@ export default function StudentDashboard() {
             <div className="flex flex-wrap items-center gap-1.5 flex-1">
               <span className="text-xs text-muted-foreground mr-1">Skills:</span>
               {profile?.skills && profile.skills.length > 0 ? (
-                profile.skills.map((skill, idx) => (
-                  <SkillBadge
-                    key={idx}
-                    skill={skill}
-                    size="sm"
-                    isTested={testedSkills.some((ts) => ts.toLowerCase() === skill.toLowerCase())}
-                    onRemove={() => handleRemoveSkill(skill)}
-                  />
-                ))
+                profile.skills.map((skill, idx) => {
+                  const isTested = testedSkills.some((ts) => ts.toLowerCase() === skill.toLowerCase());
+                  return (
+                    <SkillBadge
+                      key={idx}
+                      skill={skill}
+                      size="sm"
+                      isTested={isTested}
+                      onClick={!isTested ? () => openTestConfirmation(skill) : undefined}
+                      onRemove={() => handleRemoveSkill(skill)}
+                    />
+                  );
+                })
               ) : (
                 <span className="text-xs text-muted-foreground italic">No skills listed yet</span>
               )}

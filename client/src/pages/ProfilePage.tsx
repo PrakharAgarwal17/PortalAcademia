@@ -171,6 +171,7 @@ export default function ProfilePage() {
   const [saveFeedback, setSaveFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [showBannerPicker, setShowBannerPicker] = useState(false);
+  const [testedSkills, setTestedSkills] = useState<string[]>([]);
 
   // Tab: overview, skills, edit
   const initialTab = searchParams.get("edit") === "true" ? "edit" : "overview";
@@ -339,6 +340,26 @@ export default function ProfilePage() {
           certifications: data.profile.certifications ? [...data.profile.certifications] : [],
           pastExperience: data.profile.pastExperience ? [...data.profile.pastExperience] : [],
         });
+
+        // Fetch passed assessment results to display verified badges
+        try {
+          const resultsRes = await fetch(`${API_BASE}/api/assessments/my-results`, {
+            method: "GET",
+            credentials: "include",
+          });
+          const resultsData = await resultsRes.json();
+          if (resultsRes.ok && resultsData.success && Array.isArray(resultsData.data)) {
+            const verifiedSet = new Set<string>();
+            resultsData.data.forEach((r: any) => {
+              if (r.passed) {
+                (r.verifiedSkillsAdded || []).forEach((s: string) => verifiedSet.add(s.toLowerCase()));
+              }
+            });
+            setTestedSkills(Array.from(verifiedSet));
+          }
+        } catch (e) {
+          // ignore background test results failure
+        }
 
         const fetchedId = data.profile._id?.toString();
         const fetchedUserId = (
@@ -1311,7 +1332,12 @@ export default function ProfilePage() {
                 {formData.skills && formData.skills.length > 0 ? (
                   <div className="flex flex-wrap gap-2 pt-1">
                     {formData.skills.map((skill, idx) => (
-                      <SkillBadge key={idx} skill={skill} size="md" />
+                      <SkillBadge
+                        key={idx}
+                        skill={skill}
+                        size="md"
+                        isTested={testedSkills.some((ts) => ts.toLowerCase() === skill.toLowerCase())}
+                      />
                     ))}
                   </div>
                 ) : (
@@ -1795,6 +1821,7 @@ export default function ProfilePage() {
                         key={idx}
                         skill={skill}
                         size="md"
+                        isTested={testedSkills.some((ts) => ts.toLowerCase() === skill.toLowerCase())}
                         onRemove={isOwnProfile ? () => handleRemoveSkill(skill) : undefined}
                       />
                     ))}

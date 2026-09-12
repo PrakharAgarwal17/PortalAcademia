@@ -479,6 +479,13 @@ export default function FacultyDashboard() {
     return Array.from(new Set(list));
   }, [profile?.skills, profile?.expertise]);
 
+  // Derived verified competencies count matching passed assessments
+  const verifiedCompetenciesCount = useMemo(() => {
+    return facultyCompetencies.filter((skill) =>
+      testedSkills.some((ts) => ts.toLowerCase() === skill.toLowerCase())
+    ).length;
+  }, [facultyCompetencies, testedSkills]);
+
 
 
   /**
@@ -856,8 +863,13 @@ export default function FacultyDashboard() {
             <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
               <div className="px-4 py-2 rounded-xl bg-secondary/50 border border-border hover:border-primary/30 transition-colors">
                 <span className="text-muted-foreground block text-[10px] uppercase tracking-wider">Verified Expertise</span>
-                <span className="font-bold text-foreground tabular-nums text-base">
-                  {facultyCompetencies.length}
+                <span className="font-bold text-foreground tabular-nums text-base flex items-baseline gap-1">
+                  <span className={verifiedCompetenciesCount > 0 ? "text-emerald-500 font-bold" : "text-foreground"}>
+                    {verifiedCompetenciesCount}
+                  </span>
+                  <span className="text-xs font-normal text-muted-foreground font-sans">
+                    / {facultyCompetencies.length}
+                  </span>
                 </span>
               </div>
               <div className="px-4 py-2 rounded-xl bg-secondary/50 border border-border hover:border-primary/30 transition-colors">
@@ -882,15 +894,19 @@ export default function FacultyDashboard() {
             <div className="flex flex-wrap items-center gap-1.5 flex-1">
               <span className="text-xs text-muted-foreground mr-1">Expertise & Skills:</span>
               {facultyCompetencies.length > 0 ? (
-                facultyCompetencies.map((skill, idx) => (
-                  <SkillBadge
-                    key={idx}
-                    skill={skill}
-                    size="sm"
-                    isTested={testedSkills.some((ts) => ts.toLowerCase() === skill.toLowerCase())}
-                    onRemove={() => handleRemoveSkill(skill)}
-                  />
-                ))
+                facultyCompetencies.map((skill, idx) => {
+                  const isTested = testedSkills.some((ts) => ts.toLowerCase() === skill.toLowerCase());
+                  return (
+                    <SkillBadge
+                      key={idx}
+                      skill={skill}
+                      size="sm"
+                      isTested={isTested}
+                      onClick={!isTested ? () => openTestConfirmation(skill) : undefined}
+                      onRemove={() => handleRemoveSkill(skill)}
+                    />
+                  );
+                })
               ) : (
                 <span className="text-xs text-muted-foreground italic">No domains listed yet</span>
               )}
