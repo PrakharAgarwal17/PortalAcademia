@@ -241,11 +241,12 @@ export default function ProfilePage() {
         body: JSON.stringify(updated),
       });
       const data = await res.json();
-      if (res.ok && data.success && data.profile) {
-        setProfile(data.profile);
-        setFormData(data.profile);
+      if (res.ok && data.success) {
+        const merged = { ...(data.profile || updated), headline: newHeadline.trim() };
+        setProfile(merged);
+        setFormData(merged);
         setIsEditingHeadline(false);
-        setSaveFeedback({ type: "success", text: "Headline saved to database!" });
+        setSaveFeedback({ type: "success", text: "Headline saved successfully!" });
         setTimeout(() => setSaveFeedback(null), 3000);
       } else {
         setSaveFeedback({ type: "error", text: data.message || "Failed to update headline." });
