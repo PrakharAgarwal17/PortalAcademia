@@ -17,6 +17,7 @@ import {
   FileCheck,
   Info,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
 import SkillBadge from "./SkillBadge";
 
 export interface ResumeData {
@@ -302,6 +303,216 @@ export default function ResumeBuilderModal({
       ...prev,
       certifications: prev.certifications.filter((_, i) => i !== index),
     }));
+  };
+
+  // 1-Click Direct ATS PDF Download using jsPDF
+  const handleDownloadJsPDF = () => {
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "pt",
+      format: "a4",
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 40;
+    const contentWidth = pageWidth - margin * 2;
+    let y = 45;
+
+    const addSectionHeader = (title: string) => {
+      if (y > 750) {
+        doc.addPage();
+        y = 45;
+      }
+      y += 10;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(17, 24, 39);
+      doc.text(title.toUpperCase(), margin, y);
+      y += 4;
+      doc.setDrawColor(209, 213, 219);
+      doc.setLineWidth(0.75);
+      doc.line(margin, y, margin + contentWidth, y);
+      y += 12;
+    };
+
+    // Header: Full Name
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(17, 24, 39);
+    doc.text(resume.fullName.toUpperCase(), margin, y);
+    y += 15;
+
+    // Headline
+    if (resume.headline) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(75, 85, 99);
+      doc.text(resume.headline.toUpperCase(), margin, y);
+      y += 13;
+    }
+
+    // Contact info line
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(107, 114, 128);
+    const contactParts = [
+      resume.email,
+      resume.phone,
+      resume.location,
+      resume.linkedin ? `LinkedIn: ${resume.linkedin}` : null,
+      resume.github ? `GitHub: ${resume.github}` : null,
+    ].filter(Boolean);
+    const contactLine = contactParts.join("  |  ");
+    const splitContact = doc.splitTextToSize(contactLine, contentWidth);
+    doc.text(splitContact, margin, y);
+    y += splitContact.length * 11 + 6;
+
+    // Divider
+    doc.setDrawColor(17, 24, 39);
+    doc.setLineWidth(1.5);
+    doc.line(margin, y, margin + contentWidth, y);
+    y += 6;
+
+    // Professional Summary
+    if (resume.summary) {
+      addSectionHeader("Professional Summary");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(55, 65, 81);
+      const splitSummary = doc.splitTextToSize(resume.summary, contentWidth);
+      doc.text(splitSummary, margin, y);
+      y += splitSummary.length * 12 + 4;
+    }
+
+    // Technical Skills
+    if (resume.skills.length > 0) {
+      addSectionHeader("Technical & Core Skills");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(55, 65, 81);
+      const skillsStr = resume.skills.join("   •   ");
+      const splitSkills = doc.splitTextToSize(skillsStr, contentWidth);
+      doc.text(splitSkills, margin, y);
+      y += splitSkills.length * 12 + 4;
+    }
+
+    // Work Experience
+    if (resume.experience.length > 0) {
+      addSectionHeader("Work Experience & Internships");
+      resume.experience.forEach((exp) => {
+        if (y > 760) {
+          doc.addPage();
+          y = 45;
+        }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(17, 24, 39);
+        doc.text(exp.title, margin, y);
+
+        if (exp.timeline) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(107, 114, 128);
+          doc.text(exp.timeline, margin + contentWidth - doc.getTextWidth(exp.timeline), y);
+        }
+        y += 12;
+
+        if (exp.organization) {
+          doc.setFont("helvetica", "italic");
+          doc.setFontSize(9);
+          doc.setTextColor(75, 85, 99);
+          doc.text(exp.organization, margin, y);
+          y += 12;
+        }
+
+        if (exp.description) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(55, 65, 81);
+          const splitDesc = doc.splitTextToSize(exp.description, contentWidth);
+          doc.text(splitDesc, margin, y);
+          y += splitDesc.length * 11 + 6;
+        }
+      });
+    }
+
+    // Education
+    if (resume.education.length > 0) {
+      addSectionHeader("Education & Qualifications");
+      resume.education.forEach((edu) => {
+        if (y > 760) {
+          doc.addPage();
+          y = 45;
+        }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(17, 24, 39);
+        const eduTitle = edu.course ? `${edu.education} — ${edu.course}` : edu.education;
+        doc.text(eduTitle, margin, y);
+
+        if (edu.timeline) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(107, 114, 128);
+          doc.text(edu.timeline, margin + contentWidth - doc.getTextWidth(edu.timeline), y);
+        }
+        y += 12;
+
+        if (edu.institution) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(75, 85, 99);
+          doc.text(edu.institution, margin, y);
+          if (edu.grade) {
+            doc.text(edu.grade, margin + contentWidth - doc.getTextWidth(edu.grade), y);
+          }
+          y += 12;
+        }
+      });
+    }
+
+    // Certifications
+    if (resume.certifications.length > 0) {
+      addSectionHeader("Certifications & Licenses");
+      resume.certifications.forEach((cert) => {
+        if (y > 760) {
+          doc.addPage();
+          y = 45;
+        }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(17, 24, 39);
+        doc.text(cert.title, margin, y);
+
+        if (cert.timeline) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(107, 114, 128);
+          doc.text(cert.timeline, margin + contentWidth - doc.getTextWidth(cert.timeline), y);
+        }
+        y += 12;
+
+        if (cert.issuer) {
+          doc.setFont("helvetica", "italic");
+          doc.setFontSize(9);
+          doc.setTextColor(75, 85, 99);
+          doc.text(cert.issuer, margin, y);
+          y += 11;
+        }
+
+        if (cert.summary) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(55, 65, 81);
+          const splitSummary = doc.splitTextToSize(cert.summary, contentWidth);
+          doc.text(splitSummary, margin, y);
+          y += splitSummary.length * 11 + 6;
+        }
+      });
+    }
+
+    const filename = `${resume.fullName.trim().replace(/\s+/g, "_") || "Candidate"}_ATS_Resume.pdf`;
+    doc.save(filename);
   };
 
   // Client-Side Print/Download PDF
@@ -921,14 +1132,27 @@ export default function ResumeBuilderModal({
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                   ATS-Standard Formatted Document Ready
                 </span>
-                <button
-                  type="button"
-                  onClick={handlePrintPDF}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Print / Download PDF</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleDownloadJsPDF}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer shadow-xs"
+                    title="1-Click Direct Vector PDF Download using jsPDF"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download PDF (jsPDF)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handlePrintPDF}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 text-xs font-semibold border border-border transition-colors cursor-pointer"
+                    title="Open browser print dialog"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>Print View</span>
+                  </button>
+                </div>
               </div>
 
               {/* ATS Resume Sheet */}
@@ -1064,11 +1288,22 @@ export default function ResumeBuilderModal({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handlePrintPDF}
+              onClick={handleDownloadJsPDF}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 text-xs font-semibold border border-border transition-colors cursor-pointer"
+              title="Direct ATS PDF Download via jsPDF"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Download PDF</span>
+              <span>Download PDF (jsPDF)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handlePrintPDF}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 text-xs font-semibold border border-border transition-colors cursor-pointer"
+              title="Open print view"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print View</span>
             </button>
 
             <button
