@@ -814,7 +814,7 @@ export default function StudentTrendsPage() {
                       fontSize: "12px",
                       color: "#fff",
                     }}
-                    formatter={(val: number) => [
+                    formatter={(val: any) => [
                       trajectoryMetric === "stipend" ? `₹${val},000 / month` : `${val} pts`,
                     ]}
                   />

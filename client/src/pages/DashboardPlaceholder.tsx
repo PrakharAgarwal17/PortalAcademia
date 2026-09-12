@@ -1,6 +1,6 @@
 import { LogOut, Sun, Moon, Construction, CheckCircle2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAppDispatch, useAppSelector } from "@/context/store";
+import { useAppDispatch } from "@/context/store";
 import { signOutThunk } from "@/context/authSlice";
 import { useTheme } from "@/context/theme";
 
@@ -8,7 +8,6 @@ export default function DashboardPlaceholder() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const user = useAppSelector((s) => s.auth.user);
 
   const handleSignOut = async () => {
     await dispatch(signOutThunk());

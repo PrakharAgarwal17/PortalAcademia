@@ -7,8 +7,6 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-  AreaChart,
-  Area,
 } from "recharts";
 import {
   Building2,
@@ -18,13 +16,9 @@ import {
   ArrowLeft,
   ArrowRight,
   Landmark,
-  Award,
   AlertTriangle,
   Briefcase,
   TrendingUp,
-  PieChart as PieChartIcon,
-  CheckCircle2,
-  FileText,
   School,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";

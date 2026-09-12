@@ -19,7 +19,6 @@ import {
   BookOpen,
   Landmark,
   ArrowLeft,
-  ArrowRight,
   GraduationCap,
   Scale,
   Award,
