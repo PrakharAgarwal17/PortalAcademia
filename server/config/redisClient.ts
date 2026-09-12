@@ -16,18 +16,17 @@ const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 
 try {
     redisClient = new Redis(REDIS_URL, {
-        lazyConnect: true,
+        lazyConnect: false,
         maxRetriesPerRequest: 1,
-        connectTimeout: 2000,
+        connectTimeout: 3000,
+        enableOfflineQueue: false,
         retryStrategy(times) {
-            if (times > 3) {
-                if (!hasLoggedDisconnectWarning) {
-                    console.warn("⚠️  Redis server unreachable on", REDIS_URL, "— activating in-memory caching fallback.");
-                    hasLoggedDisconnectWarning = true;
-                }
-                return null; // Stop reconnecting to prevent log spam
+            if (times === 1 && !hasLoggedDisconnectWarning) {
+                console.warn("⚠️  Redis not currently reachable on", REDIS_URL, "— activating in-memory caching fallback.");
+                hasLoggedDisconnectWarning = true;
             }
-            return Math.min(times * 300, 1000);
+            // Reconnect attempt every 5 seconds so it picks up the container when started
+            return 5000;
         },
     });
 
@@ -37,25 +36,22 @@ try {
         console.log("⚡ Connected to Redis Cache successfully.");
     });
 
+    redisClient.on("ready", () => {
+        isRedisConnected = true;
+        hasLoggedDisconnectWarning = false;
+        console.log("⚡ Redis Cache is READY and ACTIVE.");
+    });
+
     redisClient.on("error", (err: any) => {
         isRedisConnected = false;
         if (!hasLoggedDisconnectWarning) {
-            console.warn(`⚠️  Redis warning (${err.code || err.message}). Fallback to in-memory cache active.`);
+            console.warn(`⚠️  Redis connection standby (${err.code || err.message}). Fallback to in-memory cache active.`);
             hasLoggedDisconnectWarning = true;
         }
     });
 
     redisClient.on("close", () => {
         isRedisConnected = false;
-    });
-
-    // Attempt initial connect asynchronously without blocking server start
-    redisClient.connect().catch((err) => {
-        isRedisConnected = false;
-        if (!hasLoggedDisconnectWarning) {
-            console.warn("ℹ️  Redis not detected on localhost:6379 — using in-memory cache fallback.");
-            hasLoggedDisconnectWarning = true;
-        }
     });
 } catch (err) {
     redisClient = null;
