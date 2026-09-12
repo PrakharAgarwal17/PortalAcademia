@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import profileModel from "../models/profileModel.js";
 import opportunityModel from "../models/opportunityModel.js";
 import assessmentResultModel from "../models/assessmentResultModel.js";
+import { getCache, setCache } from "../config/redisClient.js";
 
 /**
  * @description Compute cohort readiness, skill distribution, and curriculum deficits via MongoDB Aggregation Pipelines
@@ -151,6 +152,16 @@ export async function getCohortAnalytics(req: Request, res: Response) {
  */
 export async function getMarketTrends(req: Request, res: Response) {
     try {
+        const cacheKey = "cache:analytics:market-trends";
+        const cached = await getCache<{ demandVsSupply: any[]; categoryVolume: any[] }>(cacheKey);
+        if (cached) {
+            return res.status(200).json({
+                success: true,
+                cached: true,
+                data: cached,
+            });
+        }
+
         // Aggregate top in-demand skills from active postings
         const skillDemand = await opportunityModel.aggregate([
             { $match: { status: "active" } },
@@ -204,12 +215,18 @@ export async function getMarketTrends(req: Request, res: Response) {
             };
         });
 
+        const resultData = {
+            demandVsSupply,
+            categoryVolume,
+        };
+
+        // Cache in Redis for 10 minutes (600 seconds)
+        await setCache(cacheKey, resultData, 600);
+
         return res.status(200).json({
             success: true,
-            data: {
-                demandVsSupply,
-                categoryVolume,
-            },
+            cached: false,
+            data: resultData,
         });
     } catch (error) {
         console.error("getMarketTrends error:", error);

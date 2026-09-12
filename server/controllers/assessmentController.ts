@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import assessmentModel, { type IAssessmentQuestion } from "../models/assessmentModel.js";
 import assessmentResultModel from "../models/assessmentResultModel.js";
 import profileModel from "../models/profileModel.js";
+import { getCache, setCache, deleteCache } from "../config/redisClient.js";
 
 /**
  * @description List all standardized skill assessments
@@ -10,6 +11,15 @@ import profileModel from "../models/profileModel.js";
  */
 export async function getAssessments(req: Request, res: Response) {
     try {
+        const cacheKey = `cache:assessments:${JSON.stringify(req.query)}`;
+        const cached = await getCache<any>(cacheKey);
+        if (cached) {
+            return res.status(200).json({
+                ...cached,
+                cached: true,
+            });
+        }
+
         const { category, skill } = req.query;
         const query: any = {};
 
@@ -26,11 +36,16 @@ export async function getAssessments(req: Request, res: Response) {
             .select("-questions.correctOptionIndex -questions.explanation")
             .sort({ createdAt: -1 });
 
-        return res.status(200).json({
+        const payload = {
             success: true,
             count: assessments.length,
             data: assessments,
-        });
+        };
+
+        // Cache for 10 minutes
+        await setCache(cacheKey, payload, 600);
+
+        return res.status(200).json(payload);
     } catch (error) {
         console.error("getAssessments error:", error);
         return res.status(500).json({
@@ -608,6 +623,9 @@ export async function generateSkillAssessment(req: Request, res: Response) {
             const { correctOptionIndex, explanation, ...rest } = q;
             return rest;
         });
+
+        // Invalidate assessments cache
+        await deleteCache("cache:assessments:*");
 
         return res.status(201).json({
             success: true,
