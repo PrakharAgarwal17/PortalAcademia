@@ -16,6 +16,7 @@ import {
   Coins,
   ShieldCheck,
   Zap,
+  TrendingUp,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -793,16 +794,27 @@ export default function StudentDashboard() {
               </p>
             </div>
 
-            {/* Search Input */}
-            <div className="relative w-full md:w-64">
-              <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search skills, domain, company…"
-                className="w-full text-xs pl-8 pr-3 py-1.5 rounded-md bg-background border border-border text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-              />
+            {/* Search Input & Trends Action */}
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <div className="relative w-full md:w-64">
+                <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search skills, domain, company…"
+                  className="w-full text-xs pl-8 pr-3 py-1.5 rounded-md bg-background border border-border text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate("/trends/student")}
+                className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-secondary text-foreground hover:bg-secondary/80 border border-border transition-colors cursor-pointer"
+                title="View Student Market Trends & Hiring Demand"
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-primary" />
+                <span className="hidden sm:inline">Hiring Trends</span>
+              </button>
             </div>
           </div>
 
