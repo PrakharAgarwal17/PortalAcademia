@@ -336,6 +336,10 @@ export default function StudentTrendsPage() {
     ])
       .then(([profData, oppData, analyticsRes]) => {
         if (profData?.success && profData?.profile) {
+          if (profData.profile.accountType !== "student") {
+            navigate("/trends");
+            return;
+          }
           setProfile(profData.profile);
         }
         if (oppData?.success && Array.isArray(oppData?.data)) {
@@ -533,26 +537,6 @@ export default function StudentTrendsPage() {
       <Navbar userName={profile?.name} profileId={profile?._id} userRole={profile?.accountType || "student"} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 space-y-6">
-        {/* Role Notice Banner for Faculty visiting Student Trends */}
-        {profile?.accountType === "faculty" && (
-          <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-primary" />
-              <span className="text-foreground">
-                You are logged in as Faculty and currently viewing <strong>Student Placement & Internship Telemetry</strong>.
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => navigate("/trends/faculty")}
-              className="inline-flex items-center gap-1 font-bold text-primary hover:underline cursor-pointer"
-            >
-              <span>Switch to Faculty R&D & Grants Observatory</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-
         {/* Navigation & Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
           <div>

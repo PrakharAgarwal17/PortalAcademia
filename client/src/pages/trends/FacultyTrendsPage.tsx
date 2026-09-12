@@ -233,12 +233,16 @@ export default function FacultyTrendsPage() {
       .then((res) => res.json())
       .then((profData) => {
         if (profData?.success && profData?.profile) {
+          if (profData.profile.accountType !== "faculty") {
+            navigate("/trends");
+            return;
+          }
           setProfile(profData.profile);
         }
       })
       .catch((err) => console.error("Faculty profile load error:", err))
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [navigate]);
 
   if (isLoading) {
     return (
@@ -256,25 +260,6 @@ export default function FacultyTrendsPage() {
       <Navbar userName={profile?.name} profileId={profile?._id} userRole={profile?.accountType || "faculty"} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 space-y-6">
-        {/* Role Notice Banner for Students visiting Faculty Trends */}
-        {profile?.accountType === "student" && (
-          <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-primary" />
-              <span className="text-foreground">
-                You are logged in as a Student and currently viewing <strong>Faculty Academic R&D & Grants Telemetry</strong>.
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => navigate("/trends/student")}
-              className="inline-flex items-center gap-1 font-bold text-primary hover:underline cursor-pointer"
-            >
-              <span>Switch to Student Career Observatory</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
 
         {/* Navigation & Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
