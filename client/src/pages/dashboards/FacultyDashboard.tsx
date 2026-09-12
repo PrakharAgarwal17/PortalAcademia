@@ -123,97 +123,7 @@ const FACULTY_CONCERN_CHIPS = [
   "What skills are high in demand for sponsored research grants?",
 ];
 
-const DEFAULT_FACULTY_OPPORTUNITIES: Opportunity[] = [
-  {
-    _id: "opp-fdp-1",
-    title: "Faculty Development Program (FDP) on AI & Pedagogical Modernization",
-    description: "Intensive 2-week hybrid refresher program empowering university professors to integrate live industry telemetry, case studies, and ML tools into syllabus design.",
-    organization: "IIT Bombay & Ministry of Education",
-    category: "fdp",
-    domain: "Higher Education Curriculum Modernization",
-    location: "Mumbai, Maharashtra",
-    mode: "Hybrid",
-    duration: "2 Weeks",
-    stipendOrPrize: "MHRD Certified Credit Badge",
-    requiredSkills: ["Machine Learning", "Curriculum Design", "Python"],
-    deadline: "2026-10-25",
-    recommendedToFacultyBy: ["Academic Council", "Department Chair"],
-    recommendedByColleges: ["IIT Bombay"],
-    targetAudience: "faculty",
-    applicantCount: 9,
-  },
-  {
-    _id: "opp-res-1",
-    title: "Joint DST-SERB Research Grant on Clean Energy & Smart Grids",
-    description: "Co-funded grant for university faculty to spearhead smart microgrid optimization, renewable energy forecasting, and distributed IoT sensing research.",
-    organization: "DST-SERB & Tata Power Labs",
-    category: "research",
-    domain: "Renewable Energy & Power Systems",
-    location: "New Delhi / Host Campus",
-    mode: "Hybrid",
-    duration: "1 - 2 Years",
-    stipendOrPrize: "₹35,00,000 Research Grant",
-    requiredSkills: ["Power Systems", "IoT", "MATLAB", "Data Modeling"],
-    deadline: "2026-12-15",
-    recommendedToFacultyBy: ["Dean of Sponsored Research (DSR)"],
-    recommendedByColleges: ["IIT Delhi"],
-    targetAudience: "faculty",
-    applicantCount: 6,
-  },
-  {
-    _id: "opp-conf-1",
-    title: "IEEE International Conference on Advanced Computing & Communications (ACC-2026)",
-    description: "Premier academic symposium calling for faculty research papers, panel discussions, and keynote presentations on emerging computing paradigms and distributed networks.",
-    organization: "IEEE India Council & IIT Madras",
-    category: "conference",
-    domain: "Computer Science & Communications",
-    location: "Chennai, Tamil Nadu",
-    mode: "On-site",
-    duration: "3 Days",
-    stipendOrPrize: "Scopus / IEEE Xplore Indexing",
-    requiredSkills: ["Research Publishing", "Peer Review", "Cloud Architecture"],
-    deadline: "2026-10-30",
-    recommendedToFacultyBy: ["Department of CSE"],
-    recommendedByColleges: ["IIT Madras"],
-    targetAudience: "faculty",
-    applicantCount: 42,
-  },
-  {
-    _id: "opp-ws-1",
-    title: "AWS Cloud Practitioner & Serverless Architecture Masterclass",
-    description: "4-week hands-on deep dive covering AWS Lambda, API Gateway, DynamoDB, and infrastructure-as-code with official certification examination vouchers.",
-    organization: "AWS Academy & PortalAcademia",
-    category: "workshop",
-    domain: "Cloud Architecture & DevOps",
-    location: "Remote (Interactive Virtual Lab)",
-    mode: "Remote",
-    duration: "4 Weeks",
-    stipendOrPrize: "Free Certified Voucher (Value ₹12,000)",
-    requiredSkills: ["Cloud", "Linux", "Docker"],
-    deadline: "2026-10-15",
-    recommendedToFacultyBy: ["Institution Innovation Council (IIC)"],
-    targetAudience: "faculty",
-    applicantCount: 28,
-  },
-  {
-    _id: "opp-ind-1",
-    title: "Industrial Sabbatical in Autonomous Systems & Robotics",
-    description: "Corporate sabbatical residency at DRDO laboratories for university faculty to conduct defense robotics research, unmanned aerial system simulation, and embedded control testing.",
-    organization: "DRDO Research & Development Center",
-    category: "sabbatical",
-    domain: "Robotics, Autonomous Navigation & Control",
-    location: "Pune, Maharashtra",
-    mode: "On-site",
-    duration: "3 - 6 Months",
-    stipendOrPrize: "₹1,20,000 / mo Fellowship",
-    requiredSkills: ["Robotics", "Embedded Systems", "C++", "Linux"],
-    deadline: "2026-11-30",
-    recommendedToFacultyBy: ["Dean Research & Development"],
-    recommendedByColleges: ["DRDO Academia Center"],
-    targetAudience: "faculty",
-    applicantCount: 11,
-  },
-];
+
 
 function formatAiMessage(content: string) {
   const lines = content.split("\n");
@@ -403,13 +313,13 @@ export default function FacultyDashboard() {
           if (titleKey) seen.add(titleKey);
           uniqueData.push(opp);
         }
-        setOpportunities(uniqueData.length > 0 ? uniqueData : DEFAULT_FACULTY_OPPORTUNITIES);
+        setOpportunities(uniqueData.length > 0 ? uniqueData : []);
       } else {
-        setOpportunities(DEFAULT_FACULTY_OPPORTUNITIES);
+        setOpportunities([]);
       }
     } catch (err) {
       console.error("Failed to fetch opportunities:", err);
-      setOpportunities(DEFAULT_FACULTY_OPPORTUNITIES);
+      setOpportunities([]);
     }
   }, []);
 

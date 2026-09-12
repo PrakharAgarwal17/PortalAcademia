@@ -32,14 +32,19 @@ export default function Navbar({ profileId, userName, userRole }: NavbarProps) {
     location.pathname.includes("/trends/faculty");
   const isInstitution =
     userRole === "institution" ||
-    location.pathname.includes("/dashboard/institution");
+    location.pathname.includes("/dashboard/institution") ||
+    location.pathname.includes("/trends/institution");
 
   const dashboardPath = isFaculty
     ? "/dashboard/faculty"
     : isInstitution
     ? "/dashboard/institution"
     : "/dashboard/student";
-  const trendsPath = isFaculty ? "/trends/faculty" : "/trends/student";
+  const trendsPath = isFaculty
+    ? "/trends/faculty"
+    : isInstitution
+    ? "/trends/institution"
+    : "/trends/student";
 
   const navLinks = [
     {

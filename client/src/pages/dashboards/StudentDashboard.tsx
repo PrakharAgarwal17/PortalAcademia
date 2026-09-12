@@ -218,97 +218,7 @@ function formatAiMessage(content: string) {
   return elements;
 }
 
-const DEFAULT_STUDENT_OPPORTUNITIES: Opportunity[] = [
-  {
-    _id: "opp-stud-intern-1",
-    title: "AI Research & Applied NLP Engineering Intern",
-    description: "Work directly with senior AI researchers at TCS Innovation Labs developing domain-adapted LLMs, RAG pipelines, and knowledge graphs for enterprise search.",
-    organization: "Tata Consultancy Services",
-    category: "internship",
-    domain: "Machine Learning & Natural Language Processing",
-    location: "Bengaluru, KA",
-    mode: "Hybrid",
-    duration: "6 Months",
-    stipendOrPrize: "₹45,00,0 / mo",
-    requiredSkills: ["Python", "PyTorch", "NLP", "React"],
-    deadline: "2026-10-30",
-    recommendedToStudentsBy: ["Dean of Academic Affairs"],
-    recommendedByColleges: ["IIT Bombay"],
-    targetAudience: "student",
-    applicantCount: 18,
-  },
-  {
-    _id: "opp-stud-hack-1",
-    title: "National CleanTech & Smart Grid Innovation Hackathon 2026",
-    description: "48-hour national innovation sprint challenging students to architect IoT edge sensors, power telemetry pipelines, and predictive solar forecasting dashboards.",
-    organization: "Ministry of Power & Tata Power Labs",
-    category: "hackathon",
-    domain: "CleanTech & IoT Sensing",
-    location: "New Delhi (Grand Finale) / Hybrid Sprints",
-    mode: "Hybrid",
-    duration: "48 Hours",
-    stipendOrPrize: "₹3,50,000 Prize Pool",
-    requiredSkills: ["React", "Node.js", "IoT", "Data Analysis"],
-    deadline: "2026-11-15",
-    recommendedToStudentsBy: ["Institution Innovation Council (IIC)"],
-    recommendedByColleges: ["IIT Delhi"],
-    targetAudience: "student",
-    applicantCount: 42,
-  },
-  {
-    _id: "opp-stud-ws-1",
-    title: "AWS Cloud Practitioner & Serverless Architecture Masterclass",
-    description: "4-week hands-on deep dive covering AWS Lambda, API Gateway, DynamoDB, and infrastructure-as-code with official certification examination vouchers.",
-    organization: "AWS Academy & PortalAcademia",
-    category: "workshop",
-    domain: "Cloud Architecture & DevOps",
-    location: "Remote (Interactive Virtual Lab)",
-    mode: "Remote",
-    duration: "4 Weeks",
-    stipendOrPrize: "Free Certified Voucher (Value ₹12,000)",
-    requiredSkills: ["Cloud", "Linux", "Docker"],
-    deadline: "2026-10-15",
-    recommendedToStudentsBy: ["Career Development Cell"],
-    recommendedByColleges: ["IIT Bombay"],
-    targetAudience: "student",
-    applicantCount: 28,
-  },
-  {
-    _id: "opp-stud-intern-2",
-    title: "Full-Stack Cloud Systems & Microservices Engineering Intern",
-    description: "Build distributed REST microservices, Redis caching layers, and high-performance React client consoles for high-throughput healthcare telemetry.",
-    organization: "Microsoft Research India & Apollo Telehealth",
-    category: "internship",
-    domain: "Full-Stack Cloud & Healthcare Tech",
-    location: "Hyderabad, Telangana",
-    mode: "Hybrid",
-    duration: "3 - 6 Months",
-    stipendOrPrize: "₹50,000 / mo",
-    requiredSkills: ["React", "TypeScript", "Node.js", "Docker", "MongoDB"],
-    deadline: "2026-11-20",
-    recommendedToStudentsBy: ["Department of Computer Science"],
-    recommendedByColleges: ["IIT Madras"],
-    targetAudience: "student",
-    applicantCount: 34,
-  },
-  {
-    _id: "opp-stud-hack-2",
-    title: "Autonomous Robotics & Computer Vision Innovation Sprint",
-    description: "University student competition to design real-time obstacle avoidance algorithms, SLAM navigation, and embedded vision models on NVIDIA Jetson hardware.",
-    organization: "DRDO Academia Robotics Center",
-    category: "hackathon",
-    domain: "Robotics & Edge Vision",
-    location: "Pune, Maharashtra",
-    mode: "Hybrid",
-    duration: "3 Days",
-    stipendOrPrize: "₹2,00,000 + Research Mentorship",
-    requiredSkills: ["Python", "Computer Vision", "C++", "PyTorch"],
-    deadline: "2026-12-05",
-    recommendedToStudentsBy: ["Robotics Club"],
-    targetAudience: "student",
-    applicantCount: 23,
-  },
-];
+
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -414,13 +324,13 @@ export default function StudentDashboard() {
           if (titleKey) seen.add(titleKey);
           uniqueData.push(opp);
         }
-        setOpportunities(uniqueData.length > 0 ? uniqueData : DEFAULT_STUDENT_OPPORTUNITIES);
+        setOpportunities(uniqueData.length > 0 ? uniqueData : []);
       } else {
-        setOpportunities(DEFAULT_STUDENT_OPPORTUNITIES);
+        setOpportunities([]);
       }
     } catch (err) {
       console.error("Failed to fetch opportunities:", err);
-      setOpportunities(DEFAULT_STUDENT_OPPORTUNITIES);
+      setOpportunities([]);
     }
   }, []);
 
