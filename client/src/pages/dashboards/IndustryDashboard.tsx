@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Briefcase,
   X,
@@ -18,6 +18,9 @@ import {
   Sparkles,
   Building2,
   SlidersHorizontal,
+  FileText,
+  Printer,
+  Download,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppDispatch } from "@/context/store";
@@ -71,6 +74,9 @@ interface CandidateApplication {
   applicantInstitution: string;
   applicantSkills: string[];
   matchScore: number;
+  atsScore?: number;
+  resumeUrl?: string;
+  resumeData?: any;
   status: string;
   appliedAt: string;
   notes?: string;
@@ -96,6 +102,49 @@ export default function IndustryDashboard() {
 
   // Navigation state: "dashboard" | "opportunities" | "review"
   const [activeNavTab, setActiveNavTab] = useState<"dashboard" | "opportunities" | "review">("dashboard");
+
+  // Applicant Filtering & Sorting State
+  const [applicantSearch, setApplicantSearch] = useState("");
+  const [minSkillMatchFilter, setMinSkillMatchFilter] = useState<number>(0);
+  const [minAtsScoreFilter, setMinAtsScoreFilter] = useState<number>(0);
+  const [applicantStatusFilter, setApplicantStatusFilter] = useState<string>("all");
+  const [applicantSortBy, setApplicantSortBy] = useState<"atsScore" | "matchScore" | "appliedAt">("atsScore");
+  const [selectedResumeViewer, setSelectedResumeViewer] = useState<CandidateApplication | null>(null);
+
+  // Compute Filtered & Sorted Applicants
+  const filteredApplicants = useMemo(() => {
+    return applicants
+      .filter((cand) => {
+        // Search Filter
+        const searchLower = applicantSearch.toLowerCase().trim();
+        const matchSearch =
+          !searchLower ||
+          cand.applicantName.toLowerCase().includes(searchLower) ||
+          cand.applicantEmail.toLowerCase().includes(searchLower) ||
+          cand.applicantInstitution.toLowerCase().includes(searchLower) ||
+          (cand.applicantSkills || []).some((s) => s.toLowerCase().includes(searchLower));
+
+        // Skill Match Filter
+        const matchSkill = (cand.matchScore || 0) >= minSkillMatchFilter;
+
+        // ATS Score Filter
+        const matchATS = (cand.atsScore || 0) >= minAtsScoreFilter;
+
+        // Status Filter
+        const matchStatus = applicantStatusFilter === "all" || cand.status === applicantStatusFilter;
+
+        return matchSearch && matchSkill && matchATS && matchStatus;
+      })
+      .sort((a, b) => {
+        if (applicantSortBy === "atsScore") {
+          return (b.atsScore || 0) - (a.atsScore || 0);
+        } else if (applicantSortBy === "matchScore") {
+          return (b.matchScore || 0) - (a.matchScore || 0);
+        } else {
+          return new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime();
+        }
+      });
+  }, [applicants, applicantSearch, minSkillMatchFilter, minAtsScoreFilter, applicantStatusFilter, applicantSortBy]);
 
   // Search & Filtering State
   const [searchQuery, setSearchQuery] = useState("");
@@ -904,50 +953,204 @@ export default function IndustryDashboard() {
               </div>
             </div>
 
+            {/* Candidate Sourcing & ATS Filtering Controls Bar */}
+            <div className="p-4 rounded-xl bg-secondary/30 border border-border space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="relative flex-1 min-w-[220px]">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={applicantSearch}
+                    onChange={(e) => setApplicantSearch(e.target.value)}
+                    placeholder="Filter by candidate name, email, or skill…"
+                    className="w-full text-xs pl-8 pr-3 py-2 rounded-lg bg-background border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Min Skill Match Filter */}
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="text-muted-foreground font-mono text-[11px] shrink-0">Min Skill %:</span>
+                    <select
+                      value={minSkillMatchFilter}
+                      onChange={(e) => setMinSkillMatchFilter(Number(e.target.value))}
+                      className="text-xs px-2.5 py-1.5 rounded-lg bg-background border border-border text-foreground font-mono shadow-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                    >
+                      <option value={0}>All Matches</option>
+                      <option value={40}>&ge; 40% Match</option>
+                      <option value={60}>&ge; 60% Match</option>
+                      <option value={75}>&ge; 75% Match</option>
+                      <option value={90}>&ge; 90% High Match</option>
+                    </select>
+                  </div>
+
+                  {/* Min ATS Score Filter */}
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="text-muted-foreground font-mono text-[11px] shrink-0">Min ATS Score:</span>
+                    <select
+                      value={minAtsScoreFilter}
+                      onChange={(e) => setMinAtsScoreFilter(Number(e.target.value))}
+                      className="text-xs px-2.5 py-1.5 rounded-lg bg-background border border-border text-foreground font-mono shadow-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                    >
+                      <option value={0}>All ATS Scores</option>
+                      <option value={50}>&ge; 50 ATS</option>
+                      <option value={70}>&ge; 70 ATS</option>
+                      <option value={85}>&ge; 85 High ATS</option>
+                    </select>
+                  </div>
+
+                  {/* Pipeline Stage Filter */}
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="text-muted-foreground font-mono text-[11px] shrink-0">Stage:</span>
+                    <select
+                      value={applicantStatusFilter}
+                      onChange={(e) => setApplicantStatusFilter(e.target.value)}
+                      className="text-xs px-2.5 py-1.5 rounded-lg bg-background border border-border text-foreground shadow-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                    >
+                      <option value="all">All Stages</option>
+                      <option value="Applied">Applied</option>
+                      <option value="Under Review">Under Review</option>
+                      <option value="Shortlisted">Shortlisted</option>
+                      <option value="Technical Interview">Technical Interview</option>
+                      <option value="Offered">Offered</option>
+                      <option value="Rejected">Rejected</option>
+                    </select>
+                  </div>
+
+                  {/* Sort By Dropdown */}
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="text-muted-foreground font-mono text-[11px] shrink-0">Sort:</span>
+                    <select
+                      value={applicantSortBy}
+                      onChange={(e) => setApplicantSortBy(e.target.value as any)}
+                      className="text-xs px-2.5 py-1.5 rounded-lg bg-background border border-border text-foreground font-semibold shadow-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                    >
+                      <option value="atsScore">Highest ATS Score</option>
+                      <option value="matchScore">Highest Skill Match</option>
+                      <option value="appliedAt">Application Date</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Filter Metrics */}
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/60 font-mono">
+                <span>
+                  Showing {filteredApplicants.length} of {applicants.length} candidates
+                </span>
+                {(applicantSearch || minSkillMatchFilter > 0 || minAtsScoreFilter > 0 || applicantStatusFilter !== "all") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setApplicantSearch("");
+                      setMinSkillMatchFilter(0);
+                      setMinAtsScoreFilter(0);
+                      setApplicantStatusFilter("all");
+                    }}
+                    className="text-primary hover:underline font-semibold cursor-pointer"
+                  >
+                    Reset Filters
+                  </button>
+                )}
+              </div>
+            </div>
+
             {isLoadingApplicants ? (
               <div className="py-20 flex flex-col items-center justify-center gap-4">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-xs font-mono text-muted-foreground">Computing candidate vector match scores…</p>
+                <p className="text-xs font-mono text-muted-foreground">Computing candidate vector match &amp; ATS scores…</p>
               </div>
             ) : applicants.length === 0 ? (
               <div className="py-20 text-center border border-dashed border-border rounded-xl space-y-3">
                 <p className="text-sm font-semibold text-foreground">No applications received yet</p>
                 <p className="text-xs text-muted-foreground">
-                  Applications submitted for "{selectedOpportunity?.title}" will appear here automatically.
+                  Applications submitted for &quot;{selectedOpportunity?.title}&quot; will appear here automatically.
                 </p>
+              </div>
+            ) : filteredApplicants.length === 0 ? (
+              <div className="py-16 text-center border border-dashed border-border rounded-xl space-y-3">
+                <p className="text-sm font-semibold text-foreground">No candidates match current filter criteria</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setApplicantSearch("");
+                    setMinSkillMatchFilter(0);
+                    setMinAtsScoreFilter(0);
+                    setApplicantStatusFilter("all");
+                  }}
+                  className="text-xs text-primary font-semibold hover:underline"
+                >
+                  Clear filters to view all {applicants.length} applicants
+                </button>
               </div>
             ) : (
               <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-background shadow-sm">
-                {applicants.map((cand) => (
+                {filteredApplicants.map((cand) => (
                   <div key={cand._id} className="p-5 space-y-4 hover:bg-secondary/30 transition-colors">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
                           <h4 className="text-sm font-bold text-foreground">{cand.applicantName}</h4>
-                          <span className="text-[10px] font-mono px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold">
-                            {cand.matchScore}% Match Score
+
+                          {/* Skill Match Badge */}
+                          <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold">
+                            {cand.matchScore}% Skill Match
+                          </span>
+
+                          {/* ATS Score Badge */}
+                          <span
+                            className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full border font-bold flex items-center gap-1 ${
+                              (cand.atsScore || 0) >= 80
+                                ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20"
+                                : (cand.atsScore || 0) >= 60
+                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                                : "bg-muted text-muted-foreground border-border"
+                            }`}
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            ATS Score: {cand.atsScore || Math.round(cand.matchScore * 0.85)}%
                           </span>
                         </div>
+
                         <p className="text-xs text-muted-foreground mt-1">
                           {cand.applicantInstitution} • {cand.applicantEmail}
                         </p>
                       </div>
 
-                      {/* Candidate Status Selector */}
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-xs text-muted-foreground font-medium">Pipeline Stage:</span>
-                        <select
-                          value={cand.status}
-                          onChange={(e) => handleUpdateStatus(cand._id, e.target.value)}
-                          className="text-xs px-3 py-2 rounded-lg bg-card border border-border text-foreground font-semibold focus:outline-none focus:ring-1 focus:ring-primary font-mono shadow-sm"
-                        >
-                          <option value="Applied">Applied</option>
-                          <option value="Under Review">Under Review</option>
-                          <option value="Shortlisted">Shortlisted</option>
-                          <option value="Technical Interview">Technical Interview</option>
-                          <option value="Offered">Offered</option>
-                          <option value="Rejected">Rejected</option>
-                        </select>
+                      {/* Candidate Action Strip */}
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        {/* View ATS Resume Button */}
+                        {(cand.resumeData || cand.resumeUrl) ? (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedResumeViewer(cand)}
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-colors cursor-pointer"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>View ATS Resume</span>
+                          </button>
+                        ) : (
+                          <span className="text-[11px] font-mono text-muted-foreground italic px-2">
+                            Standard Profile Application
+                          </span>
+                        )}
+
+                        {/* Candidate Status Selector */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground font-medium">Stage:</span>
+                          <select
+                            value={cand.status}
+                            onChange={(e) => handleUpdateStatus(cand._id, e.target.value)}
+                            className="text-xs px-3 py-1.5 rounded-lg bg-card border border-border text-foreground font-semibold focus:outline-none focus:ring-1 focus:ring-primary font-mono shadow-sm"
+                          >
+                            <option value="Applied">Applied</option>
+                            <option value="Under Review">Under Review</option>
+                            <option value="Shortlisted">Shortlisted</option>
+                            <option value="Technical Interview">Technical Interview</option>
+                            <option value="Offered">Offered</option>
+                            <option value="Rejected">Rejected</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
 
@@ -1359,6 +1562,246 @@ export default function IndustryDashboard() {
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Candidate ATS Resume Viewer Modal */}
+      {selectedResumeViewer && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-muted/30">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground">
+                    {selectedResumeViewer.applicantName}&apos;s ATS Resume
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedResumeViewer.applicantInstitution} • {selectedResumeViewer.applicantEmail}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                  ATS Score: {selectedResumeViewer.atsScore || 85}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedResumeViewer(null)}
+                  className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary border border-border transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body - Rendered Resume Sheet */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {selectedResumeViewer.resumeData ? (
+                <div className="bg-white text-gray-900 p-8 rounded-xl border border-gray-300 shadow-md space-y-5 text-left font-sans">
+                  {/* Header */}
+                  <div className="border-b-2 border-gray-900 pb-3">
+                    <h2 className="text-2xl font-black tracking-tight uppercase">
+                      {selectedResumeViewer.resumeData.fullName || selectedResumeViewer.applicantName}
+                    </h2>
+                    {selectedResumeViewer.resumeData.headline && (
+                      <p className="text-xs font-bold text-gray-700 mt-0.5 uppercase tracking-wide">
+                        {selectedResumeViewer.resumeData.headline}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600 mt-2 font-mono">
+                      <span>{selectedResumeViewer.resumeData.email || selectedResumeViewer.applicantEmail}</span>
+                      {selectedResumeViewer.resumeData.phone && (
+                        <span>• {selectedResumeViewer.resumeData.phone}</span>
+                      )}
+                      {selectedResumeViewer.resumeData.location && (
+                        <span>• {selectedResumeViewer.resumeData.location}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Summary */}
+                  {selectedResumeViewer.resumeData.summary && (
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 border-b border-gray-300 pb-1 mb-1.5 font-mono">
+                        Professional Summary
+                      </h4>
+                      <p className="text-xs text-gray-700 leading-relaxed">
+                        {selectedResumeViewer.resumeData.summary}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Skills */}
+                  {selectedResumeViewer.resumeData.skills && selectedResumeViewer.resumeData.skills.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 border-b border-gray-300 pb-1 mb-1.5 font-mono">
+                        Core Competencies &amp; Technical Skills
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {selectedResumeViewer.resumeData.skills.map((sk: string, idx: number) => (
+                          <span
+                            key={idx}
+                            className="text-[11px] font-mono px-2.5 py-0.5 rounded bg-gray-100 text-gray-800 border border-gray-300 font-semibold"
+                          >
+                            {sk}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Experience */}
+                  {selectedResumeViewer.resumeData.experience &&
+                    selectedResumeViewer.resumeData.experience.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 border-b border-gray-300 pb-1 mb-1.5 font-mono">
+                          Experience &amp; Internships
+                        </h4>
+                        <div className="space-y-3">
+                          {selectedResumeViewer.resumeData.experience.map((exp: any, idx: number) => (
+                            <div key={idx} className="space-y-0.5">
+                              <div className="flex justify-between items-baseline text-xs font-bold">
+                                <span>{exp.title}</span>
+                                <span className="font-mono text-[11px] text-gray-600">{exp.timeline}</span>
+                              </div>
+                              {exp.organization && (
+                                <p className="text-xs font-medium text-gray-700">{exp.organization}</p>
+                              )}
+                              {exp.description && (
+                                <p className="text-xs text-gray-600 leading-relaxed pt-0.5">{exp.description}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Education */}
+                  {selectedResumeViewer.resumeData.education &&
+                    selectedResumeViewer.resumeData.education.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 border-b border-gray-300 pb-1 mb-1.5 font-mono">
+                          Education
+                        </h4>
+                        <div className="space-y-2">
+                          {selectedResumeViewer.resumeData.education.map((edu: any, idx: number) => (
+                            <div key={idx} className="flex justify-between items-baseline text-xs">
+                              <div>
+                                <span className="font-bold">{edu.education}</span>
+                                {edu.course && <span className="text-gray-600"> — {edu.course}</span>}
+                              </div>
+                              <span className="font-mono text-[11px] text-gray-600">{edu.timeline}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Certifications */}
+                  {selectedResumeViewer.resumeData.certifications &&
+                    selectedResumeViewer.resumeData.certifications.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 border-b border-gray-300 pb-1 mb-1.5 font-mono">
+                          Certifications &amp; Licenses
+                        </h4>
+                        <div className="space-y-2">
+                          {selectedResumeViewer.resumeData.certifications.map((cert: any, idx: number) => (
+                            <div key={idx} className="flex justify-between items-baseline text-xs">
+                              <div>
+                                <span className="font-bold">{cert.title}</span>
+                                {cert.issuer && <span className="text-gray-600"> — {cert.issuer}</span>}
+                                {cert.summary && (
+                                  <p className="text-[11px] text-gray-600 leading-tight pt-0.5">{cert.summary}</p>
+                                )}
+                              </div>
+                              <span className="font-mono text-[11px] text-gray-600">{cert.timeline}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                </div>
+              ) : selectedResumeViewer.resumeUrl ? (
+                <div className="p-10 text-center space-y-3">
+                  <p className="text-xs text-muted-foreground">Candidate attached an external resume file</p>
+                  <a
+                    href={selectedResumeViewer.resumeUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold shadow-md hover:bg-primary/90"
+                  >
+                    <Download className="w-4 h-4" />
+                    Open Attached Resume PDF
+                  </a>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic text-center py-10">
+                  No custom resume uploaded. Application was submitted with standard profile benchmarks.
+                </p>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3.5 border-t border-border flex items-center justify-between bg-muted/20">
+              <span className="text-xs text-muted-foreground font-mono">
+                Pipeline Stage: <strong className="text-foreground">{selectedResumeViewer.status}</strong>
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const printWindow = window.open("", "_blank");
+                    if (!printWindow) return;
+                    printWindow.document.write(`
+                      <html>
+                        <head>
+                          <title>${selectedResumeViewer.applicantName}_Resume</title>
+                          <style>
+                            body { font-family: system-ui, sans-serif; padding: 40px; color: #111; line-height: 1.5; }
+                            h1 { font-size: 24px; margin-bottom: 4px; text-transform: uppercase; }
+                            .contact { font-size: 11px; color: #555; margin-bottom: 20px; border-bottom: 2px solid #222; padding-bottom: 10px; }
+                            .section { font-size: 13px; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-top: 16px; margin-bottom: 8px; }
+                            .item { margin-bottom: 10px; }
+                            .header { display: flex; justify-content: space-between; font-weight: 700; font-size: 12px; }
+                            .sub { font-size: 11px; color: #444; }
+                          </style>
+                        </head>
+                        <body>
+                          <h1>${selectedResumeViewer.resumeData?.fullName || selectedResumeViewer.applicantName}</h1>
+                          <div class="contact">
+                            ${selectedResumeViewer.resumeData?.email || selectedResumeViewer.applicantEmail} | ${selectedResumeViewer.applicantInstitution}
+                          </div>
+                          ${selectedResumeViewer.resumeData?.summary ? `<div class="section">Summary</div><p style="font-size:11px;">${selectedResumeViewer.resumeData.summary}</p>` : ""}
+                          <div class="section">Skills</div>
+                          <p style="font-size:11px;">${(selectedResumeViewer.resumeData?.skills || selectedResumeViewer.applicantSkills || []).join(", ")}</p>
+                          <script>window.onload = function() { window.print(); };</script>
+                        </body>
+                      </html>
+                    `);
+                    printWindow.document.close();
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 text-xs font-semibold border border-border transition-colors cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print / Save PDF</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedResumeViewer(null)}
+                  className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold cursor-pointer"
+                >
+                  Close Viewer
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

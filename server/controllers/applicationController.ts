@@ -15,7 +15,7 @@ export async function applyToOpportunity(req: Request, res: Response) {
             return res.status(401).json({ success: false, message: "Unauthorized: Please log in." });
         }
 
-        const { opportunityId, notes } = req.body;
+        const { opportunityId, notes, resumeUrl, resumeData, customAtsScore } = req.body;
 
         if (!opportunityId) {
             return res.status(400).json({
@@ -95,6 +95,21 @@ export async function applyToOpportunity(req: Request, res: Response) {
             Math.max(10, Math.round(skillScore * 0.7 + assessmentScore * 0.3))
         );
 
+        // 3. ATS Score Calculation (Zero LLM Token Usage - Fast & Deterministic)
+        let atsScore = customAtsScore;
+        if (atsScore === undefined || typeof atsScore !== "number") {
+            const skillWeight = Math.round(skillScore * 0.45);
+            const resumeWeight = (resumeUrl || resumeData) ? 25 : 10;
+
+            let profileWeight = 0;
+            if (profile.bio) profileWeight += 5;
+            if (profile.education && profile.education.length > 0) profileWeight += 10;
+            if (profile.pastExperience && profile.pastExperience.length > 0) profileWeight += 10;
+            if (profile.certifications && profile.certifications.length > 0) profileWeight += 5;
+
+            atsScore = Math.min(100, Math.max(15, skillWeight + resumeWeight + profileWeight));
+        }
+
         const application = await applicationModel.create({
             opportunityId,
             applicantId: req.userId,
@@ -103,6 +118,9 @@ export async function applyToOpportunity(req: Request, res: Response) {
             applicantInstitution: profile.institution || profile.institutionName || "Academic Cohort",
             applicantSkills: profile.skills || [],
             matchScore,
+            atsScore,
+            resumeUrl: resumeUrl || "",
+            resumeData: resumeData || null,
             status: "Applied",
             appliedAt: new Date(),
             notes: notes || "",

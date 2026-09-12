@@ -16,6 +16,8 @@ import {
   Coins,
   ShieldCheck,
   Zap,
+  FileText,
+  Check,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -23,6 +25,7 @@ import SkillBadge from "@/components/SkillBadge";
 import { searchSkillSuggestions } from "@/lib/skillIcons";
 import TestConfirmationModal from "@/components/TestConfirmationModal";
 import SkillTestRunnerModal from "@/components/SkillTestRunnerModal";
+import ResumeBuilderModal, { type ResumeData } from "@/components/ResumeBuilderModal";
 import Navbar from "@/components/Navbar";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
@@ -244,11 +247,14 @@ export default function StudentDashboard() {
     setIsConfirmationOpen(true);
   };
 
-  // Apply Modal State
+  // Apply Modal & Resume Builder State
   const [applyingOpportunity, setApplyingOpportunity] = useState<Opportunity | null>(null);
   const [applyNotes, setApplyNotes] = useState("");
   const [isSubmittingApp, setIsSubmittingApp] = useState(false);
   const [appFeedback, setAppFeedback] = useState<string | null>(null);
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+  const [attachedResume, setAttachedResume] = useState<ResumeData | null>(null);
+  const [attachedResumeScore, setAttachedResumeScore] = useState<number | undefined>(undefined);
 
   // AI Chat Drawer State
   const [isAiOpen, setIsAiOpen] = useState(false);
@@ -443,6 +449,8 @@ export default function StudentDashboard() {
         body: JSON.stringify({
           opportunityId: applyingOpportunity._id,
           notes: applyNotes,
+          resumeData: attachedResume || undefined,
+          customAtsScore: attachedResumeScore,
         }),
       });
       const data = await res.json();
@@ -452,6 +460,8 @@ export default function StudentDashboard() {
         setTimeout(() => {
           setApplyingOpportunity(null);
           setApplyNotes("");
+          setAttachedResume(null);
+          setAttachedResumeScore(undefined);
           setAppFeedback(null);
         }, 1500);
       } else {
@@ -1022,63 +1032,108 @@ export default function StudentDashboard() {
 
       {/* 6. One-Click Application Modal */}
       {applyingOpportunity && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-md w-full max-w-md p-5 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-2xl w-full max-w-lg p-6 space-y-5 shadow-2xl">
+            <div className="flex items-start justify-between pb-3.5 border-b border-border">
               <div>
-                <h3 className="text-sm font-bold text-foreground">Submit Application</h3>
+                <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-primary px-2 py-0.5 rounded bg-primary/10 border border-primary/20 inline-block mb-1">
+                  Application Gateway
+                </span>
+                <h3 className="text-base font-bold text-foreground tracking-tight">Submit Application</h3>
                 <p className="text-xs text-muted-foreground">{applyingOpportunity.title}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setApplyingOpportunity(null)}
-                className="p-1 rounded-md text-muted-foreground hover:text-foreground border border-border"
+                className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary border border-border transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3">
-              <div className="p-3 rounded-md bg-background border border-border text-xs space-y-1">
-                <p className="text-muted-foreground">
-                  Organization: <span className="font-semibold text-foreground">{applyingOpportunity.organization}</span>
-                </p>
-                <p className="text-muted-foreground">
-                  Stipend / Prize: <span className="font-semibold text-foreground font-mono">{applyingOpportunity.stipendOrPrize}</span>
-                </p>
-                <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 pt-0.5">
-                  <span>Required Skills:</span>
-                  {applyingOpportunity.requiredSkills.map((sk, idx) => (
-                    <SkillBadge key={idx} skill={sk} size="xs" />
-                  ))}
+            <div className="space-y-4">
+              {/* Opportunity Snapshot */}
+              <div className="p-3.5 rounded-xl bg-secondary/30 border border-border text-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Organization:</span>
+                  <span className="font-bold text-foreground">{applyingOpportunity.organization}</span>
+                </div>
+                <div className="flex items-center justify-between font-mono">
+                  <span className="text-muted-foreground">Stipend / Prize:</span>
+                  <span className="font-bold text-foreground">{applyingOpportunity.stipendOrPrize}</span>
+                </div>
+                <div className="pt-1 border-t border-border/60">
+                  <span className="text-[11px] text-muted-foreground block mb-1">Required Skills:</span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {applyingOpportunity.requiredSkills.map((sk, idx) => (
+                      <SkillBadge key={idx} skill={sk} size="xs" />
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  Candidate Cover Note (Optional)
+              {/* Build Custom ATS Resume Card */}
+              <div className={`p-4 rounded-xl border transition-all ${
+                attachedResume
+                  ? "bg-emerald-500/5 border-emerald-500/30"
+                  : "bg-primary/5 border-primary/20"
+              }`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <FileText className={`w-4 h-4 ${attachedResume ? "text-emerald-500" : "text-primary"}`} />
+                      <span className="text-xs font-bold text-foreground">
+                        {attachedResume ? "Tailored ATS Resume Attached" : "Build / Tailor ATS Resume"}
+                      </span>
+                      {attachedResume && (
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                          <Check className="w-3 h-3" />
+                          ATS Score: {attachedResumeScore || 85}%
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      {attachedResume
+                        ? "Resume customized with your profile data, education, and credentials ready for submission."
+                        : "This data is directly fetched from your profile — tailor fields and skills specifically for this opportunity."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsResumeModalOpen(true)}
+                    className="text-xs font-semibold px-3.5 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0 cursor-pointer shadow-sm"
+                  >
+                    {attachedResume ? "Edit Resume" : "Build a Resume"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Cover Note Textarea */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-foreground">
+                  Candidate Note to Recruiter (Optional)
                 </label>
                 <textarea
                   value={applyNotes}
                   onChange={(e) => setApplyNotes(e.target.value)}
-                  placeholder="Summarize your hands-on experience and project links relevant to this position…"
-                  rows={4}
-                  className="w-full text-xs p-2.5 rounded-md bg-background border border-border text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                  placeholder="Summarize your motivation, key contributions, or project repositories relevant to this role…"
+                  rows={3}
+                  className="w-full text-xs p-3 rounded-xl bg-background border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed shadow-xs"
                 />
               </div>
 
               {appFeedback && (
-                <p className="text-xs font-medium text-primary text-center font-mono">
+                <div className="p-2.5 rounded-lg bg-primary/10 border border-primary/20 text-xs font-medium text-primary text-center font-mono">
                   {appFeedback}
-                </p>
+                </div>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border">
                 <button
                   type="button"
                   onClick={() => setApplyingOpportunity(null)}
                   disabled={isSubmittingApp}
-                  className="text-xs font-semibold px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border"
+                  className="text-xs font-semibold px-4 py-2 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1086,10 +1141,10 @@ export default function StudentDashboard() {
                   type="button"
                   onClick={handleApply}
                   disabled={isSubmittingApp}
-                  className="text-xs font-semibold px-4 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1.5"
+                  className="text-xs font-bold px-5 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 shadow-sm transition-all cursor-pointer"
                 >
                   {isSubmittingApp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                  Confirm & Apply
+                  <span>Confirm &amp; Submit</span>
                 </button>
               </div>
             </div>
@@ -1202,6 +1257,18 @@ export default function StudentDashboard() {
           </form>
         </div>
       )}
+
+      {/* 7. ATS Resume Builder Modal */}
+      <ResumeBuilderModal
+        isOpen={isResumeModalOpen}
+        onClose={() => setIsResumeModalOpen(false)}
+        profileData={profile || {}}
+        opportunity={applyingOpportunity}
+        onAttachResume={(resumeData, _pdfUrl, score) => {
+          setAttachedResume(resumeData);
+          setAttachedResumeScore(score);
+        }}
+      />
     </div>
   );
 }

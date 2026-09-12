@@ -948,7 +948,7 @@ export default function ProfilePage() {
                 {formData.isEmailVerified && (
                   <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 font-semibold">
                     <ShieldCheck className="w-3.5 h-3.5" />
-                    Verified Stakeholder
+                    Verified
                   </span>
                 )}
               </div>

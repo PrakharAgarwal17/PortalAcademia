@@ -16,6 +16,9 @@ export interface IApplication extends Document {
     applicantInstitution: string;
     applicantSkills: string[];
     matchScore: number; // 0-100 derived from skill overlap and verified assessment scores
+    atsScore: number;   // 0-100 ATS compliance score
+    resumeUrl?: string; // Cloudinary or generated PDF link
+    resumeData?: Record<string, any>; // Custom resume fields
     status: ApplicationStatus;
     appliedAt: Date;
     notes?: string;
@@ -43,6 +46,9 @@ const applicationSchema = new Schema<IApplication>(
         applicantInstitution: { type: String, default: "Independent" },
         applicantSkills: [{ type: String }],
         matchScore: { type: Number, default: 0 },
+        atsScore: { type: Number, default: 0 },
+        resumeUrl: { type: String, default: "" },
+        resumeData: { type: Schema.Types.Mixed, default: null },
         status: {
             type: String,
             enum: [
