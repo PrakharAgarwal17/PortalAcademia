@@ -21,31 +21,50 @@ interface NavbarProps {
   profileId?: string;
 }
 
-export default function Navbar({ profileId, userName }: NavbarProps) {
+export default function Navbar({ profileId, userName, userRole }: NavbarProps) {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const dispatch = useAppDispatch();
 
+  const isFaculty =
+    userRole === "faculty" ||
+    location.pathname.includes("/dashboard/faculty") ||
+    location.pathname.includes("/trends/faculty");
+  const isInstitution =
+    userRole === "institution" ||
+    location.pathname.includes("/dashboard/institution");
+
+  const dashboardPath = isFaculty
+    ? "/dashboard/faculty"
+    : isInstitution
+    ? "/dashboard/institution"
+    : "/dashboard/student";
+  const trendsPath = isFaculty ? "/trends/faculty" : "/trends/student";
+
   const navLinks = [
     {
       name: "Dashboard",
-      path: "/dashboard/student",
+      path: dashboardPath,
       icon: LayoutDashboard,
+      isActive: location.pathname.startsWith("/dashboard"),
     },
     {
       name: "Market Trends",
-      path: "/trends",
+      path: trendsPath,
       icon: TrendingUp,
+      isActive: location.pathname.startsWith("/trends"),
     },
     {
       name: "Test Your Skills",
       path: "/assessments",
       icon: Award,
+      isActive: location.pathname === "/assessments",
     },
     {
       name: "Current Applications",
       path: "/applications",
       icon: Briefcase,
+      isActive: location.pathname === "/applications",
     },
   ];
 
@@ -63,7 +82,7 @@ export default function Navbar({ profileId, userName }: NavbarProps) {
         <nav className="hidden md:flex items-center gap-1">
           {navLinks.map((link) => {
             const Icon = link.icon;
-            const isActive = location.pathname === link.path;
+            const isActive = link.isActive;
 
             return (
               <Link
@@ -90,7 +109,7 @@ export default function Navbar({ profileId, userName }: NavbarProps) {
         <div className="flex md:hidden items-center gap-1 pr-1">
           {navLinks.map((link) => {
             const Icon = link.icon;
-            const isActive = location.pathname === link.path;
+            const isActive = link.isActive;
             return (
               <Link
                 key={link.path}

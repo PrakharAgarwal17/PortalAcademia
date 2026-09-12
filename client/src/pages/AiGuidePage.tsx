@@ -1,10 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Bot, Send, Loader2, ArrowLeft, ShieldAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { cn } from "@/lib/utils";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
+
+interface UserProfile {
+  _id?: string;
+  name?: string;
+  category?: string;
+  accountType?: string;
+}
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
 
 const CONCERN_CHIPS = [
   "Why is my match score low & how do I improve it?",
@@ -88,9 +100,9 @@ function formatAiMessage(content: string) {
 }
 
 export default function AiGuidePage() {
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [query, setQuery] = useState("");
-  const [chatHistory, setChatHistory] = useState<Array<{ role: "user" | "assistant"; content: string }>>([
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
     {
       role: "assistant",
       content: "Hello! I am your PortalAcademia Contextual AI Career Guide. Ask me about your skill gaps, assessment preparation, interview strategy, or market trends!",
@@ -98,6 +110,32 @@ export default function AiGuidePage() {
   ]);
   const [isLoading, setIsLoading] = useState(false);
 
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior,
+      });
+    }
+    messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
+  };
+
+  useEffect(() => {
+    scrollToBottom("smooth");
+    const frameId = requestAnimationFrame(() => {
+      scrollToBottom("smooth");
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [chatHistory, isLoading]);
+
+  /**
+   * @description Fetch student profile for AI Guide context
+   * @returns {Promise<{ success: boolean; profile?: UserProfile }>} Output profile response
+   * @throws {Error} HTTP status handling
+   */
   useEffect(() => {
     fetch(`${API_BASE}/api/profile/me`, { credentials: "include" })
       .then((res) => res.json())
@@ -107,6 +145,12 @@ export default function AiGuidePage() {
       .catch((err) => console.error(err));
   }, []);
 
+  /**
+   * @description Send query to AI career counselor endpoint
+   * @param {string} userText - User text query
+   * @returns {Promise<void>} Updates chat history state
+   * @throws {Error} HTTP status handling
+   */
   const handleSendMessage = async (userText: string) => {
     if (!userText.trim() || isLoading) return;
     const textToSend = userText.trim();
@@ -185,7 +229,10 @@ export default function AiGuidePage() {
         </div>
 
         {/* Chat Messages Box */}
-        <div className="flex-1 bg-card border border-border rounded-lg p-4 overflow-y-auto space-y-4 min-h-[450px] max-h-[600px] shadow-xs">
+        <div
+          ref={chatContainerRef}
+          className="flex-1 bg-card border border-border rounded-lg p-4 overflow-y-auto space-y-4 min-h-[450px] max-h-[600px] shadow-xs scroll-smooth"
+        >
           {chatHistory.map((msg, idx) => (
             <div
               key={idx}
@@ -206,6 +253,7 @@ export default function AiGuidePage() {
               <span>Analyzing telemetry & generating career recommendations…</span>
             </div>
           )}
+          <div ref={messagesEndRef} className="h-px w-full" />
         </div>
 
         {/* Starter Concern Chips */}

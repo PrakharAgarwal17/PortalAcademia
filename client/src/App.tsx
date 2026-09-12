@@ -22,6 +22,8 @@ import OnboardingOrganization from "@/pages/onboarding/OnboardingOrganization";
 import ProfilePage from "@/pages/ProfilePage";
 import AiGuidePage from "@/pages/AiGuidePage";
 import MarketTrendsPage from "@/pages/MarketTrendsPage";
+import StudentTrendsPage from "@/pages/trends/StudentTrendsPage";
+import FacultyTrendsPage from "@/pages/trends/FacultyTrendsPage";
 import SkillAssessmentsPage from "@/pages/SkillAssessmentsPage";
 import ApplicationsTrackerPage from "@/pages/ApplicationsTrackerPage";
 
@@ -254,6 +256,22 @@ function AppShell() {
         element={
           <ProtectedRoute>
             <MarketTrendsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/trends/student"
+        element={
+          <ProtectedRoute>
+            <StudentTrendsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/trends/faculty"
+        element={
+          <ProtectedRoute>
+            <FacultyTrendsPage />
           </ProtectedRoute>
         }
       />

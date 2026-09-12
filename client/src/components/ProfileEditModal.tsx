@@ -252,8 +252,15 @@ export default function ProfileEditModal({ profileData, onSaveSuccess }: Profile
       });
 
       const data = await res.json();
-      if (res.ok && data.success && data.profile) {
-        onSaveSuccess(data.profile);
+      if (res.ok && data.success) {
+        const updatedProfile = {
+          ...payload,
+          ...(data.profile || {}),
+        } as ProfileData;
+        if (payload.headline !== undefined) {
+          updatedProfile.headline = payload.headline;
+        }
+        onSaveSuccess(updatedProfile);
         dispatch(closeEditModal());
       } else {
         setErrorMsg(data.message || "Failed to update profile section.");

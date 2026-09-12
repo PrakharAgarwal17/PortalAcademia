@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import opportunityModel, { type OpportunityCategory, type OpportunityMode } from "../models/opportunityModel.js";
 import profileModel from "../models/profileModel.js";
+import { getCache, setCache, deleteCache } from "../config/redisClient.js";
 
 /**
  * @description Fetch active opportunities with filtering by category, mode, domain, and recommendation
@@ -9,6 +10,15 @@ import profileModel from "../models/profileModel.js";
  */
 export async function getOpportunities(req: Request, res: Response) {
     try {
+        const cacheKey = `cache:opportunities:${JSON.stringify(req.query)}`;
+        const cached = await getCache<any>(cacheKey);
+        if (cached) {
+            return res.status(200).json({
+                ...cached,
+                cached: true,
+            });
+        }
+
         const { category, mode, search, targetAudience, recommendedFor, limit = "50", page = "1" } = req.query;
         const filter: any = { status: "active" };
 
@@ -36,7 +46,8 @@ export async function getOpportunities(req: Request, res: Response) {
         }
 
         if (search) {
-            const searchRegex = new RegExp(String(search), "i");
+            const escapedSearch = String(search).replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+            const searchRegex = new RegExp(escapedSearch, "i");
             filter.$or = [
                 { title: searchRegex },
                 { organization: searchRegex },
@@ -65,14 +76,19 @@ export async function getOpportunities(req: Request, res: Response) {
             opportunityModel.countDocuments(filter),
         ]);
 
-        return res.status(200).json({
+        const responsePayload = {
             success: true,
             count: opportunities.length,
             total,
             page: pageNum,
             totalPages: Math.ceil(total / limitNum),
             data: opportunities,
-        });
+        };
+
+        // Cache public feed for 3 minutes
+        await setCache(cacheKey, responsePayload, 180);
+
+        return res.status(200).json(responsePayload);
     } catch (error) {
         console.error("getOpportunities error:", error);
         return res.status(500).json({
@@ -214,6 +230,12 @@ export async function createOpportunity(req: Request, res: Response) {
             status: "active",
         });
 
+        // Invalidate opportunities & analytics cache
+        await Promise.all([
+            deleteCache("cache:opportunities:*"),
+            deleteCache("cache:analytics:market-trends"),
+        ]);
+
         return res.status(201).json({
             success: true,
             message: "Opportunity published successfully",
@@ -242,7 +264,7 @@ export async function updateOpportunity(req: Request, res: Response) {
             return res.status(404).json({ success: false, message: "Opportunity not found" });
         }
 
-        if (opportunity.createdBy.toString() !== req.userId) {
+        if (!opportunity.createdBy || opportunity.createdBy.toString() !== req.userId) {
             return res.status(403).json({
                 success: false,
                 message: "Forbidden: You do not have permission to edit this opportunity",
@@ -253,6 +275,12 @@ export async function updateOpportunity(req: Request, res: Response) {
             new: true,
             runValidators: true,
         });
+
+        // Invalidate cache
+        await Promise.all([
+            deleteCache("cache:opportunities:*"),
+            deleteCache("cache:analytics:market-trends"),
+        ]);
 
         return res.status(200).json({
             success: true,
@@ -282,7 +310,7 @@ export async function deleteOpportunity(req: Request, res: Response) {
             return res.status(404).json({ success: false, message: "Opportunity not found" });
         }
 
-        if (opportunity.createdBy.toString() !== req.userId) {
+        if (!opportunity.createdBy || opportunity.createdBy.toString() !== req.userId) {
             return res.status(403).json({
                 success: false,
                 message: "Forbidden: You do not have permission to delete this opportunity",
@@ -291,6 +319,12 @@ export async function deleteOpportunity(req: Request, res: Response) {
 
         opportunity.status = "closed";
         await opportunity.save();
+
+        // Invalidate cache
+        await Promise.all([
+            deleteCache("cache:opportunities:*"),
+            deleteCache("cache:analytics:market-trends"),
+        ]);
 
         return res.status(200).json({
             success: true,

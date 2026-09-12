@@ -107,8 +107,10 @@ export async function createOrUpdateProfile(req: Request, res: Response): Promis
             category,
             accountType,
             name,
+            headline,
             profileImage,
             image,
+            bannerImage,
             bio,
             location,
             website,
@@ -152,6 +154,7 @@ export async function createOrUpdateProfile(req: Request, res: Response): Promis
         if (category !== undefined) updateData.category = category;
         if (accountType !== undefined) updateData.accountType = accountType;
         if (name !== undefined) updateData.name = name;
+        if (headline !== undefined) updateData.headline = headline;
 
         // Handle profile image
         const resolvedImage = profileImage || image;
@@ -160,6 +163,7 @@ export async function createOrUpdateProfile(req: Request, res: Response): Promis
             updateData.image = resolvedImage;
         }
 
+        if (bannerImage !== undefined) updateData.bannerImage = bannerImage;
         if (bio !== undefined) updateData.bio = bio;
         if (location !== undefined) updateData.location = location;
         if (website !== undefined) updateData.website = website;

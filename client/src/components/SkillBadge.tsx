@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 interface SkillBadgeProps {
   skill: string;
   onRemove?: () => void;
+  onClick?: () => void;
   size?: "xs" | "sm" | "md";
   className?: string;
   showColor?: boolean;
@@ -14,6 +15,7 @@ interface SkillBadgeProps {
 export default function SkillBadge({
   skill,
   onRemove,
+  onClick,
   size = "sm",
   className,
   showColor = true,
@@ -35,8 +37,12 @@ export default function SkillBadge({
 
   return (
     <span
+      onClick={onClick}
+      title={onClick ? (isTested ? `${skill} (Verified) - Click to re-test` : `${skill} (Unverified) - Click to verify skill`) : undefined}
       className={cn(
-        "inline-flex items-center rounded-md font-medium border border-border bg-muted/80 text-foreground transition-all select-none shadow-2xs hover:border-foreground/30",
+        "inline-flex items-center rounded-md font-medium border border-border bg-muted/80 text-foreground transition-all select-none shadow-2xs",
+        onClick && "cursor-pointer hover:border-primary/50 hover:bg-muted/90",
+        isTested && "border-emerald-500/40 bg-emerald-500/5",
         sizeClasses[size],
         className
       )}
@@ -56,9 +62,9 @@ export default function SkillBadge({
       )}
       <span className="truncate max-w-[170px]">{skill}</span>
       {isTested && (
-        <span className="inline-flex items-center gap-0.5 text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold ml-0.5" title="Tested & Verified Competency">
+        <span className="inline-flex items-center gap-0.5 text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold ml-0.5" title="Verified Competency Badge">
           <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" />
-          Tested
+          Verified
         </span>
       )}
       {onRemove && (

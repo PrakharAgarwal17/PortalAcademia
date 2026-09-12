@@ -180,7 +180,7 @@ export async function getApplicantsForOpportunity(req: Request, res: Response) {
         }
 
         // Verify that logged-in user is the creator or has admin/industry privileges
-        if (opportunity.createdBy.toString() !== req.userId) {
+        if (!opportunity.createdBy || opportunity.createdBy.toString() !== req.userId) {
             return res.status(403).json({
                 success: false,
                 message: "Forbidden: You are not the recruiter for this opportunity",

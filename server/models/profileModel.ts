@@ -46,8 +46,10 @@ export interface IProfile extends Document {
     accountType: AccountType;
 
     name: string;
+    headline?: string;
     profileImage?: string;
     image?: string; // backward compatibility
+    bannerImage?: string;
     bio?: string;
     location?: string;
     website?: string;
@@ -156,12 +158,23 @@ const profileSchema = new Schema<IProfile>(
             trim: true,
         },
 
+        headline: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+
         profileImage: {
             type: String,
             default: "",
         },
 
         image: {
+            type: String,
+            default: "",
+        },
+
+        bannerImage: {
             type: String,
             default: "",
         },
