@@ -20,13 +20,16 @@ try {
         maxRetriesPerRequest: 1,
         connectTimeout: 3000,
         enableOfflineQueue: false,
-        retryStrategy(times) {
+        retryStrategy(times: number) {
+            if (times > 2) {
+                // Redis is not running locally; gracefully discontinue reconnect loops and use in-memory cache
+                return null;
+            }
             if (times === 1 && !hasLoggedDisconnectWarning) {
-                console.warn("⚠️  Redis not currently reachable on", REDIS_URL, "— activating in-memory caching fallback.");
+                console.log("ℹ️  Redis server not reachable locally — seamless in-memory cache active.");
                 hasLoggedDisconnectWarning = true;
             }
-            // Reconnect attempt every 5 seconds so it picks up the container when started
-            return 5000;
+            return 2000;
         },
     });
 
