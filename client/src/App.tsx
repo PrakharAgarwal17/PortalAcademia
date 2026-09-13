@@ -23,8 +23,11 @@ import ProfilePage from "@/pages/ProfilePage";
 import AiGuidePage from "@/pages/AiGuidePage";
 import MarketTrendsPage from "@/pages/MarketTrendsPage";
 import StudentTrendsPage from "@/pages/trends/StudentTrendsPage";
+import StudentDiagnosisPage from "@/pages/trends/StudentDiagnosisPage";
 import FacultyTrendsPage from "@/pages/trends/FacultyTrendsPage";
 import InstitutionTrendsPage from "@/pages/trends/InstitutionTrendsPage";
+import InstitutionDirectoryPage from "@/pages/institution/InstitutionDirectoryPage";
+import InstitutionMemberProfilePage from "@/pages/institution/InstitutionMemberProfilePage";
 import SkillAssessmentsPage from "@/pages/SkillAssessmentsPage";
 import ApplicationsTrackerPage from "@/pages/ApplicationsTrackerPage";
 
@@ -269,6 +272,14 @@ function AppShell() {
         }
       />
       <Route
+        path="/trends/diagnosis"
+        element={
+          <RoleProtectedRoute allowedRole="student">
+            <StudentDiagnosisPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
         path="/trends/faculty"
         element={
           <RoleProtectedRoute allowedRole="faculty">
@@ -281,6 +292,22 @@ function AppShell() {
         element={
           <RoleProtectedRoute allowedRole="institution">
             <InstitutionTrendsPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/institution/directory"
+        element={
+          <RoleProtectedRoute allowedRole="institution">
+            <InstitutionDirectoryPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/institution/member/:id"
+        element={
+          <RoleProtectedRoute allowedRole="institution">
+            <InstitutionMemberProfilePage />
           </RoleProtectedRoute>
         }
       />

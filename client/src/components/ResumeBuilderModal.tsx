@@ -12,7 +12,6 @@ import {
   GraduationCap,
   Briefcase,
   Award,
-  ShieldCheck,
   Printer,
   FileCheck,
   Info,
@@ -1279,12 +1278,7 @@ export default function ResumeBuilderModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-border flex items-center justify-between gap-3 bg-muted/20">
-          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            <span>ATS Compatibility: {atsAnalysis.score}%</span>
-          </div>
-
+        <div className="px-6 py-4 border-t border-border flex items-center justify-end gap-3 bg-muted/20">
           <div className="flex items-center gap-2">
             <button
               type="button"

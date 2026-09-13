@@ -390,6 +390,9 @@ export async function recommendOpportunity(req: Request, res: Response) {
 
         await opportunity.save();
 
+        // Invalidate opportunities cache so all feeds reflect this recommendation immediately
+        await deleteCache("cache:opportunities:*");
+
         return res.status(200).json({
             success: true,
             message: `Opportunity successfully recommended to ${target}`,

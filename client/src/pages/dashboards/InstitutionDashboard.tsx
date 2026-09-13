@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Building2,
   CheckCircle2,
@@ -12,6 +12,15 @@ import {
   ArrowRight,
   Landmark,
   CheckCheck,
+  GraduationCap,
+  Search,
+  Mail,
+  Users,
+  UserCheck,
+  TrendingUp,
+  X,
+  Briefcase,
+  MapPin,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -31,6 +40,33 @@ interface InstitutionProfile {
   location?: string;
   accountType: string;
   bio?: string;
+}
+
+export interface EnrolledStudent {
+  _id: string;
+  userId: string;
+  name: string;
+  headline?: string;
+  profileImage?: string;
+  institution: string;
+  institutionEmail?: string;
+  isEmailVerified?: boolean;
+  skills: string[];
+  education: Array<{
+    institution?: string;
+    education?: string;
+    course?: string;
+    start?: string;
+    end?: string;
+  }>;
+  academicYear: string;
+  graduationBatch: string;
+  primaryDegree: string;
+  verifiedCertsCount: number;
+  totalCertsCount: number;
+  experienceCount: number;
+  bio?: string;
+  createdAt?: string;
 }
 
 interface CohortTelemetry {
@@ -74,6 +110,8 @@ interface Opportunity {
   duration: string;
   stipendOrPrize: string;
   requiredSkills: string[];
+  targetAudience?: "student" | "faculty" | "both";
+  recommendedByColleges?: string[];
   recommendedToStudentsBy?: string[];
   recommendedToFacultyBy?: string[];
 }
@@ -87,8 +125,25 @@ export default function InstitutionDashboard() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Active Desk Tabs: "verification" | "cohort" | "endorsement" | "accreditation"
-  const [activeTab, setActiveTab] = useState<"verification" | "cohort" | "endorsement" | "accreditation">("verification");
+  // Active Desk Tabs: "verification" | "students" | "cohort" | "endorsement" | "accreditation"
+  const [activeTab, setActiveTab] = useState<"verification" | "students" | "cohort" | "endorsement" | "accreditation">("verification");
+
+  // Enrolled Students Directory state
+  const [enrolledStudents, setEnrolledStudents] = useState<EnrolledStudent[]>([]);
+  const [isStudentsLoading, setIsStudentsLoading] = useState(false);
+  const [selectedYearFilter, setSelectedYearFilter] = useState<string>("all");
+  const [studentSearchQuery, setStudentSearchQuery] = useState<string>("");
+
+  // Endorsement Desk filter & confirmation modal
+  const [oppAudienceFilter, setOppAudienceFilter] = useState<"all" | "student" | "faculty">("all");
+  const [oppCategoryFilter, setOppCategoryFilter] = useState<string>("all");
+  const [oppSearchQuery, setOppSearchQuery] = useState<string>("");
+  const [confirmRecommendModal, setConfirmRecommendModal] = useState<{
+    oppId: string;
+    oppTitle: string;
+    organization: string;
+    target: "students" | "faculty";
+  } | null>(null);
 
   // In-flight actions
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
@@ -171,6 +226,30 @@ export default function InstitutionDashboard() {
     }
   }, []);
 
+  /**
+   * @description Fetch enrolled students for this institution from profile DB
+   */
+  const fetchEnrolledStudents = useCallback(async (year = selectedYearFilter, search = studentSearchQuery) => {
+    setIsStudentsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (year && year !== "all") params.append("year", year);
+      if (search && search.trim()) params.append("search", search.trim());
+      const res = await fetch(`${API_BASE}/api/verification/institution-students?${params.toString()}`, {
+        method: "GET",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.students)) {
+        setEnrolledStudents(data.students);
+      }
+    } catch (err) {
+      console.error("Failed to fetch enrolled students:", err);
+    } finally {
+      setIsStudentsLoading(false);
+    }
+  }, [selectedYearFilter, studentSearchQuery]);
+
   useEffect(() => {
     setIsLoading(true);
     Promise.all([
@@ -178,8 +257,19 @@ export default function InstitutionDashboard() {
       fetchCohortTelemetry(),
       fetchPendingQueue(),
       fetchOpportunities(),
+      fetchEnrolledStudents(),
     ]).finally(() => setIsLoading(false));
-  }, [fetchProfile, fetchCohortTelemetry, fetchPendingQueue, fetchOpportunities]);
+  }, [fetchProfile, fetchCohortTelemetry, fetchPendingQueue, fetchOpportunities, fetchEnrolledStudents]);
+
+  // Re-fetch students on filter or search changes
+  useEffect(() => {
+    if (activeTab === "students") {
+      const handler = setTimeout(() => {
+        fetchEnrolledStudents(selectedYearFilter, studentSearchQuery);
+      }, 250);
+      return () => clearTimeout(handler);
+    }
+  }, [selectedYearFilter, studentSearchQuery, activeTab, fetchEnrolledStudents]);
 
   /**
    * @description Audit and verify student credential with official placement stamp
@@ -228,6 +318,9 @@ export default function InstitutionDashboard() {
       });
       const data = await res.json();
       if (data.success) {
+        setVerifiedSuccessMessage(
+          `Opportunity successfully endorsed to all affiliated ${target === "students" ? "enrolled students" : "faculty members"}!`
+        );
         await fetchOpportunities();
       }
     } catch (err) {
@@ -236,6 +329,41 @@ export default function InstitutionDashboard() {
       setRecommendingId(null);
     }
   };
+
+  // Filtered opportunities based on posted audience, category, and search query
+  const filteredOpportunities = useMemo(() => {
+    return opportunities.filter((opp) => {
+      // Audience filter
+      if (oppAudienceFilter === "student") {
+        const matchAudience = opp.targetAudience === "student" || opp.targetAudience === "both" || !opp.targetAudience;
+        if (!matchAudience) return false;
+      } else if (oppAudienceFilter === "faculty") {
+        const matchAudience = opp.targetAudience === "faculty" || opp.targetAudience === "both";
+        if (!matchAudience) return false;
+      }
+
+      // Category filter
+      if (oppCategoryFilter !== "all") {
+        if (opp.category?.toLowerCase() !== oppCategoryFilter.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // Search query filter
+      if (oppSearchQuery && oppSearchQuery.trim()) {
+        const q = oppSearchQuery.toLowerCase().trim();
+        const matchesTitle = opp.title?.toLowerCase().includes(q);
+        const matchesOrg = opp.organization?.toLowerCase().includes(q);
+        const matchesDomain = opp.domain?.toLowerCase().includes(q);
+        const matchesSkills = (opp.requiredSkills || []).some((s) => s.toLowerCase().includes(q));
+        if (!matchesTitle && !matchesOrg && !matchesDomain && !matchesSkills) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [opportunities, oppAudienceFilter, oppCategoryFilter, oppSearchQuery]);
 
   const initials = profile?.institutionName || profile?.name
     ? (profile.institutionName || profile.name)
@@ -301,7 +429,7 @@ export default function InstitutionDashboard() {
                     title="AISHE Code Registered"
                   >
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                    AISHE: {profile?.aisheCode || "C-12840 (Active)"}
+                    {profile?.aisheCode ? `AISHE: ${profile.aisheCode}` : "Affiliated Institute"}
                   </span>
                   <button
                     type="button"
@@ -364,6 +492,46 @@ export default function InstitutionDashboard() {
           </div>
         )}
 
+        {/* Navigation Action Shortcuts */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => navigate("/institution/directory")}
+              className="inline-flex items-center gap-2 text-xs font-bold px-4 py-2.5 rounded-xl bg-card border border-border hover:border-primary/40 hover:bg-secondary/40 text-foreground transition-all cursor-pointer shadow-2xs group"
+            >
+              <Users className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
+              <span>Full Faculty & Student Directory</span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                Roster
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/trends/institution")}
+              className="inline-flex items-center gap-2 text-xs font-bold px-4 py-2.5 rounded-xl bg-card border border-border hover:border-primary/40 hover:bg-secondary/40 text-foreground transition-all cursor-pointer shadow-2xs group"
+            >
+              <TrendingUp className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
+              <span>Macro Market Trends</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("endorsement")}
+              className={cn(
+                "inline-flex items-center gap-2 text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-2xs group",
+                activeTab === "endorsement"
+                  ? "bg-primary text-primary-foreground border border-primary shadow-xs"
+                  : "bg-card border border-border hover:border-primary/40 hover:bg-secondary/40 text-foreground"
+              )}
+            >
+              <Award className={cn("w-4 h-4 transition-transform group-hover:scale-110", activeTab === "endorsement" ? "text-primary-foreground" : "text-primary")} />
+              <span>Posted Opportunities ({opportunities.length})</span>
+            </button>
+          </div>
+        </div>
+
         {/* 3. Desk Navigation Tabs */}
         <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-secondary/50 border border-border">
           <button
@@ -392,6 +560,30 @@ export default function InstitutionDashboard() {
 
           <button
             type="button"
+            onClick={() => setActiveTab("students")}
+            className={cn(
+              "text-xs font-semibold px-3.5 py-2 rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
+              activeTab === "students"
+                ? "bg-primary text-primary-foreground shadow-xs font-bold"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <GraduationCap className="w-3.5 h-3.5" />
+            <span>Enrolled Students</span>
+            <span
+              className={cn(
+                "ml-1 font-mono text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+                activeTab === "students"
+                  ? "bg-primary-foreground/20 text-primary-foreground"
+                  : "bg-secondary text-muted-foreground"
+              )}
+            >
+              {enrolledStudents.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab("cohort")}
             className={cn(
               "text-xs font-semibold px-3.5 py-2 rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
@@ -415,7 +607,17 @@ export default function InstitutionDashboard() {
             )}
           >
             <Award className="w-3.5 h-3.5" />
-            <span>Opportunity Endorsement Desk</span>
+            <span>Posted Opportunities</span>
+            <span
+              className={cn(
+                "ml-1 font-mono text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+                activeTab === "endorsement"
+                  ? "bg-primary-foreground/20 text-primary-foreground"
+                  : "bg-secondary text-muted-foreground"
+              )}
+            >
+              {opportunities.length}
+            </span>
           </button>
 
           <button
@@ -517,6 +719,248 @@ export default function InstitutionDashboard() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ========================================================================= */}
+        {/* DESK: ENROLLED STUDENTS & COHORT DIRECTORY */}
+        {/* ========================================================================= */}
+        {activeTab === "students" && (
+          <section className="bg-card border border-border rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs animate-in fade-in duration-300">
+            {/* Header with Title and Overview */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
+              <div>
+                <h2 className="text-base font-bold text-foreground tracking-tight flex items-center gap-2">
+                  <GraduationCap className="w-5 h-5 text-primary" />
+                  Enrolled Students Directory & Academic Cohorts
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Browse verified students currently enrolled at your institution. Filter by academic year, search talent by skills or name, and click any profile to inspect detailed academic credentials.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-bold border border-primary/20">
+                  {enrolledStudents.length} Students Showing
+                </span>
+              </div>
+            </div>
+
+            {/* Filter and Search Bar */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-secondary/30 p-3.5 rounded-xl border border-border/60">
+              {/* Year Filter Pills */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-semibold text-muted-foreground font-mono uppercase text-[10px] mr-1">
+                  Academic Year:
+                </span>
+                {[
+                  { id: "all", label: "All Years" },
+                  { id: "1st Year", label: "1st Year" },
+                  { id: "2nd Year", label: "2nd Year" },
+                  { id: "3rd Year", label: "3rd Year" },
+                  { id: "4th Year", label: "4th Year" },
+                  { id: "Alumni", label: "Alumni / Postgrad" },
+                ].map((yr) => (
+                  <button
+                    key={yr.id}
+                    type="button"
+                    onClick={() => setSelectedYearFilter(yr.id)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                      selectedYearFilter === yr.id
+                        ? "bg-primary text-primary-foreground shadow-xs font-bold"
+                        : "bg-card border border-border/80 text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {yr.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search Bar Input */}
+              <div className="relative min-w-[240px] md:w-72">
+                <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={studentSearchQuery}
+                  onChange={(e) => setStudentSearchQuery(e.target.value)}
+                  placeholder="Search name, email, or skill..."
+                  className="w-full bg-card border border-border rounded-lg pl-9 pr-8 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:border-primary transition-colors"
+                />
+                {studentSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setStudentSearchQuery("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Students List or Loading or Empty State */}
+            {isStudentsLoading ? (
+              <div className="py-16 flex flex-col items-center justify-center gap-3">
+                <Loader2 className="w-7 h-7 animate-spin text-primary" />
+                <p className="text-xs font-mono text-muted-foreground">
+                  Fetching institutional student roster from database…
+                </p>
+              </div>
+            ) : enrolledStudents.length === 0 ? (
+              <div className="py-14 text-center border border-dashed border-border rounded-xl space-y-2.5 bg-secondary/10">
+                <Users className="w-8 h-8 text-muted-foreground mx-auto opacity-70" />
+                <p className="text-xs font-bold text-foreground">No Enrolled Students Found</p>
+                <p className="text-[11px] text-muted-foreground max-w-md mx-auto">
+                  {studentSearchQuery || selectedYearFilter !== "all"
+                    ? "No students match the current filters. Try resetting the academic year filter or search term."
+                    : "No students currently specify this institution in their profile education record."}
+                </p>
+                {(studentSearchQuery || selectedYearFilter !== "all") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedYearFilter("all");
+                      setStudentSearchQuery("");
+                    }}
+                    className="text-xs font-semibold text-primary hover:underline cursor-pointer pt-1"
+                  >
+                    Clear all filters
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {enrolledStudents.map((student) => {
+                  const studentInitials = student.name
+                    ? student.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .slice(0, 2)
+                        .toUpperCase()
+                    : "ST";
+
+                  return (
+                    <div
+                      key={student._id}
+                      onClick={() => navigate(`/profile/${student.userId || student._id}`)}
+                      className="group p-4 rounded-xl border border-border/80 bg-secondary/20 hover:bg-secondary/40 hover:border-primary/50 transition-all cursor-pointer flex flex-col justify-between space-y-3.5 shadow-xs hover:shadow-md"
+                    >
+                      {/* Top Row: Avatar + Name + Academic Year Badge */}
+                      <div className="space-y-2.5">
+                        <div className="flex items-start justify-between gap-2.5">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-primary/20 via-secondary to-muted border border-border flex items-center justify-center font-bold text-xs text-foreground overflow-hidden shrink-0 group-hover:border-primary transition-colors">
+                              {student.profileImage ? (
+                                <img
+                                  src={student.profileImage}
+                                  alt={student.name}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                />
+                              ) : (
+                                <span className="font-mono">{studentInitials}</span>
+                              )}
+                            </div>
+
+                            <div className="min-w-0">
+                              <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors truncate flex items-center gap-1.5">
+                                <span className="truncate">{student.name}</span>
+                                {student.isEmailVerified && (
+                                  <span title="Verified Student">
+                                    <UserCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                  </span>
+                                )}
+                              </h3>
+                              <p className="text-[11px] text-muted-foreground truncate">
+                                {student.headline || student.primaryDegree}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Academic Year Tag */}
+                          <span
+                            className={cn(
+                              "text-[10px] font-mono px-2 py-0.5 rounded-md font-bold shrink-0 uppercase",
+                              student.academicYear === "1st Year" && "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20",
+                              student.academicYear === "2nd Year" && "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20",
+                              student.academicYear === "3rd Year" && "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20",
+                              student.academicYear === "4th Year" && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20",
+                              student.academicYear.includes("Alumni") && "bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20"
+                            )}
+                          >
+                            {student.academicYear}
+                          </span>
+                        </div>
+
+                        {/* Batch & Degree Row */}
+                        <div className="flex flex-wrap items-center gap-1.5 text-[10.5px] font-mono text-muted-foreground">
+                          <span className="px-1.5 py-0.5 rounded bg-card border border-border/80 text-foreground font-semibold">
+                            {student.graduationBatch}
+                          </span>
+                          <span>•</span>
+                          <span className="truncate text-foreground/80">
+                            {student.primaryDegree}
+                          </span>
+                        </div>
+
+                        {/* Verification & Experience Stats */}
+                        <div className="grid grid-cols-2 gap-2 py-2 border-y border-border/50 text-[11px] font-mono">
+                          <div>
+                            <span className="text-[9.5px] text-muted-foreground block uppercase">Verified Credentials</span>
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                              <ShieldCheck className="w-3 h-3" />
+                              {student.verifiedCertsCount} / {student.totalCertsCount || student.verifiedCertsCount} verified
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[9.5px] text-muted-foreground block uppercase">Industry Experience</span>
+                            <span className="font-bold text-foreground">
+                              {student.experienceCount > 0 ? `${student.experienceCount} roles` : "Entry-level"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Skills Chips */}
+                        {student.skills && student.skills.length > 0 && (
+                          <div className="space-y-1">
+                            <span className="text-[9.5px] font-mono text-muted-foreground uppercase tracking-wider block">
+                              Verified Skills & Competencies:
+                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {student.skills.slice(0, 4).map((sk) => (
+                                <span
+                                  key={sk}
+                                  className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-card border border-border text-foreground"
+                                >
+                                  {sk}
+                                </span>
+                              ))}
+                              {student.skills.length > 4 && (
+                                <span className="text-[9.5px] font-mono px-1.5 py-0.2 rounded bg-secondary text-muted-foreground font-bold">
+                                  +{student.skills.length - 4} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Card Footer: Email + View Profile Link */}
+                      <div className="pt-2 border-t border-border/50 flex items-center justify-between text-xs">
+                        <span className="text-[10.5px] font-mono text-muted-foreground flex items-center gap-1 truncate max-w-[65%]">
+                          <Mail className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{student.institutionEmail || "Verified Campus Registry"}</span>
+                        </span>
+                        <span className="text-[11px] font-semibold text-primary flex items-center gap-1 group-hover:underline shrink-0">
+                          <span>View Profile</span>
+                          <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
@@ -656,71 +1100,244 @@ export default function InstitutionDashboard() {
         )}
 
         {/* ========================================================================= */}
-        {/* DESK 3: OPPORTUNITY ENDORSEMENT DESK */}
+        {/* DESK 3: POSTED OPPORTUNITIES & ENDORSEMENT DESK */}
         {/* ========================================================================= */}
         {activeTab === "endorsement" && (
-          <section className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-border">
+          <section className="bg-card border border-border rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs">
+            {/* Header with Title & Audience Filter Pills */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-border">
               <div>
-                <h2 className="text-sm font-bold text-foreground tracking-tight flex items-center gap-2">
+                <h2 className="text-sm sm:text-base font-bold text-foreground tracking-tight flex items-center gap-2">
                   <Award className="w-4 h-4 text-primary" />
-                  Institutional Opportunity Endorsement Desk
+                  <span>Posted Opportunities & Institutional Endorsement Desk</span>
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Endorse vetted corporate postings to your student and faculty feeds with an official university recommendation badge.
+                  Browse live opportunities posted by industry partners. Endorse them to enrolled students or faculty with official university verified recognition.
                 </p>
+              </div>
+
+              {/* Posted Audience Filter Pills */}
+              <div className="flex items-center gap-1.5 p-1 bg-secondary/60 rounded-xl border border-border text-xs font-semibold self-start lg:self-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setOppAudienceFilter("all")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg transition-all cursor-pointer",
+                    oppAudienceFilter === "all"
+                      ? "bg-card text-foreground font-bold shadow-2xs border border-border/80"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  All ({opportunities.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOppAudienceFilter("student")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1",
+                    oppAudienceFilter === "student"
+                      ? "bg-card text-foreground font-bold shadow-2xs border border-border/80"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <GraduationCap className="w-3.5 h-3.5 text-primary" />
+                  <span>For Students</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOppAudienceFilter("faculty")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1",
+                    oppAudienceFilter === "faculty"
+                      ? "bg-card text-foreground font-bold shadow-2xs border border-border/80"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Briefcase className="w-3.5 h-3.5 text-purple-500" />
+                  <span>For Faculty</span>
+                </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-              {opportunities.map((opp) => (
-                <div
-                  key={opp._id}
-                  className="bg-card border border-border/80 hover:border-primary/40 rounded-xl p-5 flex flex-col justify-between space-y-3 transition-colors shadow-2xs"
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase font-bold border border-primary/20">
-                        {opp.category}
-                      </span>
-                      <span className="text-[11px] font-mono font-bold text-foreground">
-                        {opp.stipendOrPrize}
-                      </span>
-                    </div>
+            {/* Search & Category Filter Strip */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={oppSearchQuery}
+                  onChange={(e) => setOppSearchQuery(e.target.value)}
+                  placeholder="Search opportunities by title, company, skills..."
+                  className="w-full pl-8 pr-8 py-2 rounded-xl bg-secondary/40 border border-border text-xs focus:outline-none focus:border-primary/50 text-foreground placeholder:text-muted-foreground"
+                />
+                {oppSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setOppSearchQuery("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
 
-                    <h3 className="text-sm font-bold text-foreground tracking-tight leading-snug">
-                      {opp.title}
-                    </h3>
-                    <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5 text-primary" />
-                      <span>{opp.organization}</span> • <span className="font-mono">{opp.location}</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                      {opp.description}
-                    </p>
-                  </div>
-
-                  <div className="pt-3 border-t border-border flex items-center justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleRecommend(opp._id, "students")}
-                      disabled={recommendingId === opp._id}
-                      className="flex-1 text-xs font-semibold py-1.5 px-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-center transition-colors cursor-pointer shadow-xs"
-                    >
-                      Endorse to Students
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRecommend(opp._id, "faculty")}
-                      disabled={recommendingId === opp._id}
-                      className="flex-1 text-xs font-semibold py-1.5 px-3 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 border border-border text-center transition-colors cursor-pointer"
-                    >
-                      Endorse to Faculty
-                    </button>
-                  </div>
-                </div>
-              ))}
+              {/* Category Filter Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                {["all", "internship", "job", "hackathon", "workshop", "research", "fdp", "sabbatical"].map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setOppCategoryFilter(cat)}
+                    className={cn(
+                      "px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer capitalize whitespace-nowrap",
+                      oppCategoryFilter === cat
+                        ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                        : "bg-secondary/40 hover:bg-secondary text-muted-foreground hover:text-foreground border border-border/60"
+                    )}
+                  >
+                    {cat === "all" ? "All Categories" : cat === "fdp" ? "FDP" : cat}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Opportunities Cards Grid */}
+            {filteredOpportunities.length === 0 ? (
+              <div className="py-16 text-center border border-dashed border-border rounded-xl text-xs text-muted-foreground space-y-1">
+                <p className="font-semibold text-foreground">No opportunities found.</p>
+                <p>
+                  {opportunities.length === 0
+                    ? "No live opportunities posted on the platform yet."
+                    : "No opportunities match the current audience, category, or search filters."}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
+                {filteredOpportunities.map((opp) => {
+                  const isEndorsedStudents = (opp.recommendedToStudentsBy?.length || 0) > 0;
+                  const isEndorsedFaculty = (opp.recommendedToFacultyBy?.length || 0) > 0;
+
+                  return (
+                    <div
+                      key={opp._id}
+                      className="bg-card border border-border/80 hover:border-primary/40 rounded-2xl p-5 flex flex-col justify-between space-y-4 transition-colors shadow-2xs"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase font-bold border border-primary/20">
+                              {opp.category}
+                            </span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-secondary text-muted-foreground font-semibold border border-border">
+                              Target: {opp.targetAudience === "faculty" ? "Faculty" : opp.targetAudience === "both" ? "Students & Faculty" : "Students"}
+                            </span>
+                          </div>
+                          {opp.stipendOrPrize && (
+                            <span className="text-[11px] font-mono font-bold text-foreground bg-secondary/50 px-2 py-0.5 rounded border border-border">
+                              {opp.stipendOrPrize}
+                            </span>
+                          )}
+                        </div>
+
+                        <div>
+                          <h3 className="text-sm font-bold text-foreground tracking-tight leading-snug">
+                            {opp.title}
+                          </h3>
+                          <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                            <Building2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                            <span>{opp.organization}</span>
+                            {opp.location && (
+                              <>
+                                <span>•</span>
+                                <span className="font-mono flex items-center gap-1">
+                                  <MapPin className="w-3 h-3 text-muted-foreground" />
+                                  {opp.location}
+                                </span>
+                              </>
+                            )}
+                            {opp.mode && (
+                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-secondary text-muted-foreground border border-border">
+                                {opp.mode}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+
+                        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                          {opp.description}
+                        </p>
+
+                        {/* Required Skills Chips */}
+                        {opp.requiredSkills && opp.requiredSkills.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1 pt-1">
+                            {opp.requiredSkills.slice(0, 4).map((sk, sIdx) => (
+                              <span
+                                key={sIdx}
+                                className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-secondary text-foreground border border-border"
+                              >
+                                {sk}
+                              </span>
+                            ))}
+                            {opp.requiredSkills.length > 4 && (
+                              <span className="text-[10px] font-mono text-muted-foreground">
+                                +{opp.requiredSkills.length - 4} more
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Endorsement Buttons */}
+                      <div className="pt-3 border-t border-border flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setConfirmRecommendModal({
+                              oppId: opp._id,
+                              oppTitle: opp.title,
+                              organization: opp.organization,
+                              target: "students",
+                            })
+                          }
+                          disabled={recommendingId === opp._id}
+                          className={cn(
+                            "flex-1 text-xs font-semibold py-2 px-3 rounded-xl transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5",
+                            isEndorsedStudents
+                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                              : "bg-primary text-primary-foreground hover:bg-primary/90"
+                          )}
+                        >
+                          {isEndorsedStudents && <Check className="w-3.5 h-3.5" />}
+                          <span>{isEndorsedStudents ? "Endorsed to Students" : "Endorse to Students"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setConfirmRecommendModal({
+                              oppId: opp._id,
+                              oppTitle: opp.title,
+                              organization: opp.organization,
+                              target: "faculty",
+                            })
+                          }
+                          disabled={recommendingId === opp._id}
+                          className={cn(
+                            "flex-1 text-xs font-semibold py-2 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5",
+                            isEndorsedFaculty
+                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                              : "bg-secondary text-foreground hover:bg-secondary/80 border border-border"
+                          )}
+                        >
+                          {isEndorsedFaculty && <Check className="w-3.5 h-3.5" />}
+                          <span>{isEndorsedFaculty ? "Endorsed to Faculty" : "Endorse to Faculty"}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
         )}
 
@@ -774,6 +1391,83 @@ export default function InstitutionDashboard() {
               </div>
             </div>
           </section>
+        )}
+
+        {/* Confirmation Modal for Recommending Opportunities */}
+        {confirmRecommendModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs animate-in fade-in duration-200">
+            <div className="bg-card border border-border rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20">
+                    <Award className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-foreground">
+                      Confirm Institutional Endorsement
+                    </h3>
+                    <span className="text-[11px] font-mono text-muted-foreground">
+                      Audience: {confirmRecommendModal.target === "students" ? "All Enrolled Students" : "All Affiliated Faculty"}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setConfirmRecommendModal(null)}
+                  className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-4 rounded-xl bg-secondary/30 border border-border space-y-2">
+                <span className="text-xs font-bold text-foreground block">
+                  {confirmRecommendModal.oppTitle}
+                </span>
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-primary" />
+                  <span>{confirmRecommendModal.organization}</span>
+                </p>
+              </div>
+
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Are you sure you want to endorse this opportunity to all{" "}
+                <strong className="text-foreground">
+                  {confirmRecommendModal.target === "students" ? "enrolled students" : "faculty members"}
+                </strong>{" "}
+                affiliated with <strong>{profile?.institutionName || profile?.name || "your institution"}</strong>?
+                Once confirmed, this opportunity will immediately appear with an official verified badge in their{" "}
+                <strong className="text-primary">"Recommended by College"</strong> feed.
+              </p>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmRecommendModal(null)}
+                  className="text-xs font-semibold px-4 py-2.5 rounded-xl bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const { oppId, target } = confirmRecommendModal;
+                    setConfirmRecommendModal(null);
+                    await handleRecommend(oppId, target);
+                  }}
+                  disabled={recommendingId === confirmRecommendModal.oppId}
+                  className="inline-flex items-center gap-2 text-xs font-bold px-5 py-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer shadow-xs"
+                >
+                  {recommendingId === confirmRecommendModal.oppId ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  <span>Confirm & Endorse</span>
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </main>
     </div>

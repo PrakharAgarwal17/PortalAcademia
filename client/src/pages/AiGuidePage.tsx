@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Bot, Send, Loader2, ArrowLeft, ShieldAlert } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Bot, Send, Loader2, ArrowLeft, ShieldAlert, Sparkles, TrendingUp } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { cn } from "@/lib/utils";
 
@@ -19,9 +19,10 @@ interface ChatMessage {
 }
 
 const CONCERN_CHIPS = [
+  "Analyze my skill gap from my Personalized Diagnosis",
   "Why is my match score low & how do I improve it?",
-  "I failed an assessment test — what are my retake options?",
   "What high-demand skills am I missing for cloud & AI roles?",
+  "I failed an assessment test — what are my retake options?",
 ];
 
 function formatAiMessage(content: string) {
@@ -131,6 +132,9 @@ export default function AiGuidePage() {
     return () => cancelAnimationFrame(frameId);
   }, [chatHistory, isLoading]);
 
+  const [searchParams] = useSearchParams();
+  const initialQueryTriggered = useRef(false);
+
   /**
    * @description Fetch student profile for AI Guide context
    * @returns {Promise<{ success: boolean; profile?: UserProfile }>} Output profile response
@@ -188,13 +192,21 @@ export default function AiGuidePage() {
     }
   };
 
+  useEffect(() => {
+    const q = searchParams.get("q") || searchParams.get("prompt");
+    if (q && !initialQueryTriggered.current) {
+      initialQueryTriggered.current = true;
+      handleSendMessage(q);
+    }
+  }, [searchParams]);
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Navbar userName={profile?.name} profileId={profile?._id} />
 
       <main className="flex-1 max-w-5xl w-full mx-auto p-4 lg:p-6 flex flex-col space-y-4">
         {/* Header Bar */}
-        <div className="flex items-center justify-between pb-3 border-b border-border">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
           <div className="flex items-center gap-3">
             <Link
               to="/dashboard/student"
@@ -213,8 +225,21 @@ export default function AiGuidePage() {
             </div>
           </div>
 
-          <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-muted-foreground bg-secondary/40 px-3 py-1.5 rounded-md border border-border">
-            <span>Verified Student: <strong>{profile?.name || "Scholar"}</strong></span>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/trends/diagnosis"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors shadow-2xs"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <span>Skill Diagnosis</span>
+            </Link>
+            <Link
+              to="/trends/student"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors shadow-2xs"
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-primary" />
+              <span>Market Trends</span>
+            </Link>
           </div>
         </div>
 

@@ -181,15 +181,8 @@ export default function InstitutionTrendsPage() {
       }));
     }
 
-    // Default institutional benchmarks
-    return [
-      { skill: "PYTORCH / AI", MarketDemand: 92, CohortDeficit: 82 },
-      { skill: "DOCKER / CLOUD", MarketDemand: 84, CohortDeficit: 74 },
-      { skill: "POSTGRES / SQL", MarketDemand: 78, CohortDeficit: 62 },
-      { skill: "RUST / SYSTEMS", MarketDemand: 72, CohortDeficit: 68 },
-      { skill: "TYPESCRIPT", MarketDemand: 80, CohortDeficit: 55 },
-      { skill: "KUBERNETES", MarketDemand: 68, CohortDeficit: 79 },
-    ];
+    // No static dummy benchmark fallback
+    return [];
   }, [telemetry]);
 
   if (isLoading) {
@@ -345,26 +338,33 @@ export default function InstitutionTrendsPage() {
               </div>
             </div>
 
-            <div className="h-68 w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={deficitChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                  <XAxis dataKey="skill" tick={{ fontSize: 10 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "rgba(15, 23, 42, 0.95)",
-                      borderColor: "rgba(255, 255, 255, 0.1)",
-                      borderRadius: "6px",
-                      fontSize: "12px",
-                      color: "#fff",
-                    }}
-                  />
-                  <Bar dataKey="MarketDemand" fill="#3b82f6" name="Market Demand Index" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="CohortDeficit" fill="#f59e0b" name="Cohort Deficit %" radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {deficitChartData.length === 0 ? (
+              <div className="h-68 w-full flex flex-col items-center justify-center border border-dashed border-border rounded-xl text-xs text-muted-foreground gap-2">
+                <AlertTriangle className="w-5 h-5 text-muted-foreground/60" />
+                <span>No curriculum deficit telemetry detected across active cohort profiles.</span>
+              </div>
+            ) : (
+              <div className="h-68 w-full pt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={deficitChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                    <XAxis dataKey="skill" tick={{ fontSize: 10 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "rgba(15, 23, 42, 0.95)",
+                        borderColor: "rgba(255, 255, 255, 0.1)",
+                        borderRadius: "6px",
+                        fontSize: "12px",
+                        color: "#fff",
+                      }}
+                    />
+                    <Bar dataKey="MarketDemand" fill="#3b82f6" name="Market Demand Index" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="CohortDeficit" fill="#f59e0b" name="Cohort Deficit %" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
 
           {/* AICTE & UGC Curriculum Reform Directives Box */}
