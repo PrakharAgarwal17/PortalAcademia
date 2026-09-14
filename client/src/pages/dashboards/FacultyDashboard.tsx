@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
-  CheckCircle2,
   Bot,
   Search,
   Send,
@@ -16,12 +15,14 @@ import {
   Coins,
   ShieldCheck,
   Zap,
+  Check,
   TrendingUp,
+  Plus,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import SkillBadge from "@/components/SkillBadge";
-import { searchSkillSuggestions } from "@/lib/skillIcons";
+import { searchSkillSuggestions, getSkillIcon } from "@/lib/skillIcons";
 import TestConfirmationModal from "@/components/TestConfirmationModal";
 import SkillTestRunnerModal from "@/components/SkillTestRunnerModal";
 import Navbar from "@/components/Navbar";
@@ -121,6 +122,21 @@ const FACULTY_CONCERN_CHIPS = [
   "How do I align my course syllabus with industry deficits?",
   "How can I initiate a corporate research collaboration?",
   "What skills are high in demand for sponsored research grants?",
+];
+
+const RECOMMENDED_SKILLS: Array<{ name: string; slug: string }> = [
+  { name: "Python", slug: "python" },
+  { name: "Java", slug: "openjdk" },
+  { name: "C++", slug: "cplusplus" },
+  { name: "C", slug: "c" },
+  { name: "JavaScript", slug: "javascript" },
+  { name: "TypeScript", slug: "typescript" },
+  { name: "React", slug: "react" },
+  { name: "Node.js", slug: "nodedotjs" },
+  { name: "Docker", slug: "docker" },
+  { name: "SQL", slug: "mysql" },
+  { name: "Go", slug: "go" },
+  { name: "Rust", slug: "rust" },
 ];
 
 
@@ -236,11 +252,125 @@ export default function FacultyDashboard() {
   const [testedSkills, setTestedSkills] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Track applied opportunity IDs to mark buttons as "Applied"
+  const appliedOpportunityIds = useMemo(() => {
+    const ids = new Set<string>();
+    applications.forEach((app) => {
+      if (!app.opportunityId) return;
+      if (typeof app.opportunityId === "object" && app.opportunityId._id) {
+        ids.add(String(app.opportunityId._id));
+      } else if (typeof app.opportunityId === "string") {
+        ids.add(app.opportunityId);
+      }
+    });
+    return ids;
+  }, [applications]);
+
+  // Normalized faculty institution name
+  const myInstitution = useMemo(() => {
+    return (profile?.institution || profile?.institutionName || "").trim();
+  }, [profile?.institution, profile?.institutionName]);
+
+  // Check if an opportunity was endorsed by the faculty's own institution
+  const isOpportunityEndorsedByMyInstitution = useCallback(
+    (opp: Opportunity) => {
+      if (!myInstitution) return false;
+      const myNorm = myInstitution.toLowerCase();
+      const colleges = opp.recommendedByColleges || [];
+      return colleges.some((col) => {
+        const cNorm = col.trim().toLowerCase();
+        return cNorm === myNorm || cNorm.includes(myNorm) || myNorm.includes(cNorm);
+      });
+    },
+    [myInstitution]
+  );
+
+  // Get matching institution endorsement name for display
+  const getMyInstitutionEndorsementName = useCallback(
+    (opp: Opportunity) => {
+      if (!myInstitution) return null;
+      const myNorm = myInstitution.toLowerCase();
+      const colleges = opp.recommendedByColleges || [];
+      const found = colleges.find((col) => {
+        const cNorm = col.trim().toLowerCase();
+        return cNorm === myNorm || cNorm.includes(myNorm) || myNorm.includes(cNorm);
+      });
+      return found || myInstitution;
+    },
+    [myInstitution]
+  );
+
   // Filters
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [newSkillInput, setNewSkillInput] = useState("");
   const [isUpdatingSkill, setIsUpdatingSkill] = useState(false);
+  const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
+
+  const skillContainerRef = useRef<HTMLDivElement>(null);
+  const skillInputRef = useRef<HTMLInputElement>(null);
+
+  // Suggestions filtered by query
+  const skillSuggestions = useMemo(() => {
+    return searchSkillSuggestions(newSkillInput.trim(), 8);
+  }, [newSkillInput]);
+
+  // Click outside to close skill suggestions dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (skillContainerRef.current && !skillContainerRef.current.contains(event.target as Node)) {
+        setIsSkillDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Keyboard navigation for skill input
+  const handleSkillKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!isSkillDropdownOpen) {
+        setIsSkillDropdownOpen(true);
+        return;
+      }
+      const max = skillSuggestions.length;
+      if (max > 0) {
+        setSelectedSuggestionIndex((prev) => (prev < max - 1 ? prev + 1 : 0));
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const max = skillSuggestions.length;
+      if (max > 0) {
+        setSelectedSuggestionIndex((prev) => (prev > 0 ? prev - 1 : max - 1));
+      }
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (
+        isSkillDropdownOpen &&
+        newSkillInput.trim() &&
+        skillSuggestions.length > 0 &&
+        selectedSuggestionIndex >= 0 &&
+        selectedSuggestionIndex < skillSuggestions.length
+      ) {
+        handleSelectSkill(skillSuggestions[selectedSuggestionIndex].title);
+      } else if (newSkillInput.trim()) {
+        handleSelectSkill(newSkillInput.trim());
+      }
+    } else if (e.key === "Escape") {
+      setIsSkillDropdownOpen(false);
+    }
+  };
+
+  const handleSelectSkill = (skillTitle: string) => {
+    const trimmed = skillTitle.trim();
+    if (!trimmed) return;
+    handleAddSkill(undefined, trimmed);
+    setNewSkillInput("");
+    setIsSkillDropdownOpen(false);
+    setSelectedSuggestionIndex(0);
+  };
 
   // Quiz Modal State
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
@@ -423,6 +553,8 @@ export default function FacultyDashboard() {
       if (data.success) {
         setProfile((prev) => (prev ? { ...prev, skills: updatedSkills } : null));
         setNewSkillInput("");
+        setIsSkillDropdownOpen(false);
+        setSelectedSuggestionIndex(0);
       }
     } catch (err) {
       console.error("Failed to update skills:", err);
@@ -671,8 +803,7 @@ export default function FacultyDashboard() {
         selectedCategory === "all" ||
         selectedCategory === "skill_matched" ||
         opp.category === selectedCategory ||
-        (selectedCategory === "recommended" &&
-          ((opp.recommendedToFacultyBy?.length || 0) > 0 || (opp.recommendedByColleges?.length || 0) > 0));
+        (selectedCategory === "recommended" && isOpportunityEndorsedByMyInstitution(opp));
 
       const matchesSearch =
         !searchQuery ||
@@ -693,7 +824,7 @@ export default function FacultyDashboard() {
     }
 
     return list;
-  }, [opportunities, selectedCategory, searchQuery, computeSkillMatch]);
+  }, [opportunities, selectedCategory, searchQuery, computeSkillMatch, isOpportunityEndorsedByMyInstitution]);
 
   const initials = profile?.name
     ? profile.name
@@ -802,7 +933,7 @@ export default function FacultyDashboard() {
           {/* Skill / Expertise Badges & Live Insertion Form with Simple Icons */}
           <div className="mt-4 pt-4 border-t border-border flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-1.5 flex-1">
-              <span className="text-xs text-muted-foreground mr-1">Expertise & Skills:</span>
+              <span className="text-xs font-semibold text-foreground mr-1">Expertise & Skills:</span>
               {facultyCompetencies.length > 0 ? (
                 facultyCompetencies.map((skill, idx) => {
                   const isTested = testedSkills.some((ts) => ts.toLowerCase() === skill.toLowerCase());
@@ -821,6 +952,20 @@ export default function FacultyDashboard() {
                 <span className="text-xs text-muted-foreground italic">No domains listed yet</span>
               )}
 
+              {/* Prominent Add Skill button in skills row */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSkillDropdownOpen(true);
+                  setTimeout(() => skillInputRef.current?.focus(), 50);
+                }}
+                className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs ml-1"
+                title="Add a new skill or programming language"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Skill</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => openTestConfirmation()}
@@ -832,55 +977,181 @@ export default function FacultyDashboard() {
               </button>
             </div>
 
-            <div className="relative">
+            {/* Live Autocomplete / Recommended Skill Input Form */}
+            <div ref={skillContainerRef} className="relative">
               <form onSubmit={handleAddSkill} className="flex items-center gap-1.5">
-                <input
-                  type="text"
-                  value={newSkillInput}
-                  onChange={(e) => setNewSkillInput(e.target.value)}
-                  placeholder="Add expertise (e.g. VLSI, PyTorch)"
-                  disabled={isUpdatingSkill}
-                  className="text-xs px-2.5 py-1.5 rounded-md bg-background border border-border text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary w-52"
-                />
+                <div className="relative flex items-center">
+                  <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 pointer-events-none" />
+                  <input
+                    ref={skillInputRef}
+                    type="text"
+                    value={newSkillInput}
+                    onChange={(e) => {
+                      setNewSkillInput(e.target.value);
+                      setIsSkillDropdownOpen(true);
+                      setSelectedSuggestionIndex(0);
+                    }}
+                    onFocus={() => {
+                      setIsSkillDropdownOpen(true);
+                    }}
+                    onKeyDown={handleSkillKeyDown}
+                    placeholder="Type language or skill (e.g. Python, VLSI, C++)…"
+                    disabled={isUpdatingSkill}
+                    className="text-xs pl-8 pr-7 py-1.5 rounded-md bg-background border border-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary w-64 transition-colors"
+                  />
+                  {newSkillInput && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewSkillInput("");
+                        setSelectedSuggestionIndex(0);
+                        skillInputRef.current?.focus();
+                      }}
+                      className="absolute right-2 text-muted-foreground hover:text-foreground cursor-pointer text-xs"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
                 <button
                   type="submit"
                   disabled={isUpdatingSkill || !newSkillInput.trim()}
-                  className="text-xs font-semibold px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors cursor-pointer"
+                  className="text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
                 >
-                  {isUpdatingSkill ? "Adding…" : "Add"}
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{isUpdatingSkill ? "Adding…" : "Add"}</span>
                 </button>
               </form>
 
-              {/* Autocomplete Dropdown from Simple Icons */}
-              {newSkillInput.trim().length > 0 && (
-                <div className="absolute z-40 right-0 mt-1 w-60 max-h-48 overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-lg text-popover-foreground">
-                  <div className="px-2 py-1 text-[9px] font-mono uppercase tracking-wider text-muted-foreground">
-                    Simple Icons Matches
-                  </div>
-                  {searchSkillSuggestions(newSkillInput.trim(), 5).map((item) => (
-                    <button
-                      key={item.slug}
-                      type="button"
-                      onClick={() => handleAddSkill(undefined, item.title)}
-                      className="w-full flex items-center justify-between px-2 py-1.5 rounded-xs text-xs hover:bg-muted/80 transition-colors text-left cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        <svg
-                          role="img"
-                          viewBox="0 0 24 24"
-                          className="w-3.5 h-3.5 shrink-0"
-                          style={{ fill: `#${item.hex}` }}
-                          aria-hidden="true"
-                        >
-                          <path d={item.path} />
-                        </svg>
-                        <span className="font-medium text-foreground">{item.title}</span>
+              {/* Autocomplete / Recommended Options Dropdown */}
+              {isSkillDropdownOpen && (
+                <div className="absolute z-50 right-0 mt-1 w-72 max-h-72 overflow-y-auto rounded-md border border-border bg-popover p-1.5 shadow-xl text-popover-foreground">
+                  {/* If input is empty, show Recommended Options / Popular Languages */}
+                  {!newSkillInput.trim() ? (
+                    <div className="space-y-2 p-1">
+                      <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-1">
+                        <span className="flex items-center gap-1 font-semibold text-foreground">
+                          <Sparkles className="w-3 h-3 text-primary" /> Recommended Options
+                        </span>
+                        <span>Quick Add</span>
                       </div>
-                      <span className="text-[10px] font-mono text-muted-foreground">
-                        + Add
-                      </span>
-                    </button>
-                  ))}
+                      <p className="text-[11px] text-muted-foreground px-1 leading-snug">
+                        Click any recommended language or tool to add it to your profile:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {RECOMMENDED_SKILLS.map((item) => {
+                          const alreadyAdded = facultyCompetencies.some(
+                            (s) => s.toLowerCase() === item.name.toLowerCase()
+                          );
+                          const icon = getSkillIcon(item.slug || item.name);
+                          return (
+                            <button
+                              key={item.name}
+                              type="button"
+                              disabled={alreadyAdded || isUpdatingSkill}
+                              onClick={() => handleSelectSkill(item.name)}
+                              className={cn(
+                                "inline-flex items-center gap-1.5 px-2 py-1 rounded-sm text-xs border transition-all text-left cursor-pointer",
+                                alreadyAdded
+                                  ? "border-border/60 bg-muted/40 text-muted-foreground/60 cursor-not-allowed"
+                                  : "border-border bg-background hover:bg-accent hover:text-accent-foreground text-foreground shadow-2xs hover:border-primary/50"
+                              )}
+                            >
+                              {icon ? (
+                                <svg
+                                  role="img"
+                                  viewBox="0 0 24 24"
+                                  className="w-3 h-3 shrink-0"
+                                  style={{ fill: `#${icon.hex}` }}
+                                  aria-hidden="true"
+                                >
+                                  <path d={icon.path} />
+                                </svg>
+                              ) : (
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                              )}
+                              <span className="font-medium text-[11px]">{item.name}</span>
+                              {alreadyAdded ? (
+                                <Check className="w-2.5 h-2.5 text-emerald-500 ml-0.5" />
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground">+</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    /* When typing, show matched languages & tools */
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                        <span>Matching Languages & Skills</span>
+                        <span>{skillSuggestions.length} found</span>
+                      </div>
+
+                      {skillSuggestions.length > 0 ? (
+                        skillSuggestions.map((item, idx) => {
+                          const isSelected = idx === selectedSuggestionIndex;
+                          const alreadyAdded = facultyCompetencies.some(
+                            (s) => s.toLowerCase() === item.title.toLowerCase()
+                          );
+
+                          return (
+                            <button
+                              key={item.slug}
+                              type="button"
+                              disabled={alreadyAdded || isUpdatingSkill}
+                              onClick={() => handleSelectSkill(item.title)}
+                              className={cn(
+                                "w-full flex items-center justify-between px-2.5 py-1.5 rounded-sm text-xs transition-colors text-left cursor-pointer",
+                                isSelected ? "bg-accent text-accent-foreground font-medium" : "hover:bg-muted/70",
+                                alreadyAdded && "opacity-50 cursor-not-allowed"
+                              )}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <svg
+                                  role="img"
+                                  viewBox="0 0 24 24"
+                                  className="w-3.5 h-3.5 shrink-0"
+                                  style={{ fill: `#${item.hex}` }}
+                                  aria-hidden="true"
+                                >
+                                  <path d={item.path} />
+                                </svg>
+                                <span className="font-medium text-foreground truncate">{item.title}</span>
+                              </div>
+                              {alreadyAdded ? (
+                                <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1 shrink-0">
+                                  <Check className="w-3 h-3 text-emerald-500" /> Added
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-mono text-primary font-semibold shrink-0">
+                                  + Add
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="p-2 text-center text-xs text-muted-foreground">
+                          No direct brand icon match for &quot;{newSkillInput}&quot;
+                        </div>
+                      )}
+
+                      {/* Fallback to add custom query if exact match not already added */}
+                      {newSkillInput.trim() && (
+                        <button
+                          type="button"
+                          disabled={isUpdatingSkill}
+                          onClick={() => handleSelectSkill(newSkillInput.trim())}
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-sm text-xs text-primary hover:bg-primary/10 transition-colors border-t border-border/50 mt-1 cursor-pointer font-medium"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add custom skill &quot;{newSkillInput.trim()}&quot;</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -973,10 +1244,19 @@ export default function FacultyDashboard() {
                     opp.requiredSkills
                   );
 
+                  const isMyEndorsed = isOpportunityEndorsedByMyInstitution(opp);
+                  const matchingEndorsementName = getMyInstitutionEndorsementName(opp);
+                  const isApplied = appliedOpportunityIds.has(String(opp._id));
+
                   return (
                     <div
                       key={opp._id}
-                      className="group relative bg-card border border-border/80 hover:border-primary/50 rounded-2xl p-5 flex flex-col justify-between transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden space-y-4"
+                      className={cn(
+                        "group relative bg-card border rounded-2xl p-5 flex flex-col justify-between transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden space-y-4",
+                        isMyEndorsed
+                          ? "border-amber-500/40 shadow-xs ring-1 ring-amber-500/20"
+                          : "border-border/80 hover:border-primary/50"
+                      )}
                     >
                       {/* Glowing background accent on hover */}
                       <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/10 transition-colors pointer-events-none" />
@@ -1005,15 +1285,10 @@ export default function FacultyDashboard() {
                               : opp.category.toUpperCase()}
                           </span>
 
-                          {opp.recommendedByColleges && opp.recommendedByColleges.length > 0 ? (
+                          {isMyEndorsed && matchingEndorsementName ? (
                             <span className="text-[10.5px] font-mono px-3 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-extrabold flex items-center gap-1 shadow-xs animate-pulse">
                               <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                              <span>Recommended by {opp.recommendedByColleges[0]}</span>
-                            </span>
-                          ) : (opp.recommendedToFacultyBy?.length || 0) > 0 ? (
-                            <span className="text-[10.5px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                              <span>College Endorsed</span>
+                              <span>Recommended by {matchingEndorsementName}</span>
                             </span>
                           ) : (
                             <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
@@ -1116,24 +1391,35 @@ export default function FacultyDashboard() {
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => setApplyingOpportunity(opp)}
-                          className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-700 text-primary-foreground shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all cursor-pointer group/btn"
-                        >
-                          <span>
-                            {opp.category === "research"
-                              ? "Submit Proposal"
-                              : opp.category === "conference"
-                              ? "Submit Paper"
-                              : opp.category === "fdp"
-                              ? "Apply for FDP"
-                              : opp.category === "workshop"
-                              ? "Register Workshop"
-                              : "Apply Now"}
-                          </span>
-                          <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
-                        </button>
+                        {isApplied ? (
+                          <button
+                            type="button"
+                            disabled
+                            className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 cursor-not-allowed opacity-95 shadow-2xs"
+                          >
+                            <Check className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>Applied</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setApplyingOpportunity(opp)}
+                            className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-700 text-primary-foreground shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all cursor-pointer group/btn"
+                          >
+                            <span>
+                              {opp.category === "research"
+                                ? "Submit Proposal"
+                                : opp.category === "conference"
+                                ? "Submit Paper"
+                                : opp.category === "fdp"
+                                ? "Apply for FDP"
+                                : opp.category === "workshop"
+                                ? "Register Workshop"
+                                : "Apply Now"}
+                            </span>
+                            <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

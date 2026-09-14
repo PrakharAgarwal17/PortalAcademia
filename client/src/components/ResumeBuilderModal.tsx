@@ -53,6 +53,226 @@ export interface ResumeData {
   }>;
 }
 
+function escapeHtml(str: string): string {
+  return (str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function generateResumePrintHtml(resume: ResumeData): string {
+  const contactParts = [
+    resume.email,
+    resume.phone,
+    resume.location,
+    resume.linkedin ? `LinkedIn: ${resume.linkedin}` : "",
+    resume.github ? `GitHub: ${resume.github}` : "",
+    resume.website ? `Portfolio: ${resume.website}` : "",
+  ].filter(Boolean);
+
+  const skillsHtml = (resume.skills || [])
+    .map(
+      (s) =>
+        `<span style="display:inline-block;padding:2px 8px;margin:2px 4px 2px 0;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;font-size:10.5px;font-family:monospace;font-weight:600;color:#1f2937;">${escapeHtml(s)}</span>`
+    )
+    .join(" ");
+
+  const experienceHtml = (resume.experience || [])
+    .map(
+      (exp) => `
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <strong style="font-size:12px;color:#111827;">${escapeHtml(exp.title)}</strong>
+          <span style="font-size:10.5px;color:#6b7280;font-family:monospace;">${escapeHtml(exp.timeline || "")}</span>
+        </div>
+        ${exp.organization ? `<div style="font-size:11px;color:#4b5563;font-style:italic;margin-top:1px;">${escapeHtml(exp.organization)}</div>` : ""}
+        ${exp.description ? `<div style="font-size:11px;color:#374151;margin-top:3px;line-height:1.45;">${escapeHtml(exp.description)}</div>` : ""}
+      </div>
+    `
+    )
+    .join("");
+
+  const educationHtml = (resume.education || [])
+    .map((edu) => {
+      const degree = edu.course ? `${edu.education} — ${edu.course}` : edu.education;
+      return `
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <strong style="font-size:12px;color:#111827;">${escapeHtml(degree)}</strong>
+          <span style="font-size:10.5px;color:#6b7280;font-family:monospace;">${escapeHtml(edu.timeline || "")}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:#4b5563;margin-top:1px;">
+          <span>${escapeHtml(edu.institution || "")}</span>
+          ${edu.grade ? `<span style="font-family:monospace;font-weight:700;color:#111827;">${escapeHtml(edu.grade)}</span>` : ""}
+        </div>
+        ${edu.description ? `<div style="font-size:10.5px;color:#6b7280;margin-top:2px;">${escapeHtml(edu.description)}</div>` : ""}
+      </div>
+    `;
+    })
+    .join("");
+
+  const certsHtml = (resume.certifications || [])
+    .map(
+      (cert) => `
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <strong style="font-size:12px;color:#111827;">${escapeHtml(cert.title)}</strong>
+          <span style="font-size:10.5px;color:#6b7280;font-family:monospace;">${escapeHtml(cert.timeline || "")}</span>
+        </div>
+        ${cert.issuer ? `<div style="font-size:11px;color:#4b5563;font-weight:500;margin-top:1px;">${escapeHtml(cert.issuer)}</div>` : ""}
+        ${cert.summary ? `<div style="font-size:10.5px;color:#6b7280;margin-top:2px;line-height:1.4;">${escapeHtml(cert.summary)}</div>` : ""}
+      </div>
+    `
+    )
+    .join("");
+
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(resume.fullName || "Candidate")}_Resume</title>
+        <style>
+          @page {
+            size: A4 portrait;
+            margin: 12mm 15mm;
+          }
+          @media print {
+            body {
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+          }
+          * {
+            box-sizing: border-box;
+          }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #111827;
+            margin: 0;
+            padding: 20px 25px;
+            line-height: 1.45;
+            background: #ffffff;
+            font-size: 11px;
+          }
+          h1 {
+            font-size: 24px;
+            margin: 0 0 3px 0;
+            color: #111827;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 800;
+          }
+          .headline {
+            font-size: 11.5px;
+            color: #374151;
+            margin: 0 0 8px 0;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .contact {
+            font-size: 10px;
+            color: #4b5563;
+            margin-bottom: 12px;
+            font-family: monospace;
+            line-height: 1.5;
+          }
+          .header-line {
+            border-bottom: 2px solid #111827;
+            margin-bottom: 12px;
+          }
+          .section-title {
+            font-size: 11.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            border-bottom: 1.5px solid #111827;
+            padding-bottom: 3px;
+            margin-top: 14px;
+            margin-bottom: 8px;
+            color: #111827;
+            letter-spacing: 0.75px;
+            font-family: monospace;
+          }
+          .summary-text {
+            font-size: 11px;
+            color: #374151;
+            line-height: 1.45;
+            margin: 0 0 6px 0;
+          }
+        </style>
+      </head>
+      <body>
+        <div>
+          <h1>${escapeHtml(resume.fullName || "Candidate Name")}</h1>
+          ${resume.headline ? `<div class="headline">${escapeHtml(resume.headline)}</div>` : ""}
+          <div class="contact">
+            ${contactParts.map((c) => escapeHtml(c)).join(" &nbsp;|&nbsp; ")}
+          </div>
+          <div class="header-line"></div>
+        </div>
+
+        ${
+          resume.summary
+            ? `
+          <div>
+            <div class="section-title">Professional Summary</div>
+            <p class="summary-text">${escapeHtml(resume.summary)}</p>
+          </div>
+        `
+            : ""
+        }
+
+        ${
+          resume.skills && resume.skills.length > 0
+            ? `
+          <div>
+            <div class="section-title">Technical &amp; Core Skills</div>
+            <div style="margin-top:4px;">${skillsHtml}</div>
+          </div>
+        `
+            : ""
+        }
+
+        ${
+          resume.experience && resume.experience.length > 0
+            ? `
+          <div>
+            <div class="section-title">Work Experience &amp; Internships</div>
+            ${experienceHtml}
+          </div>
+        `
+            : ""
+        }
+
+        ${
+          resume.education && resume.education.length > 0
+            ? `
+          <div>
+            <div class="section-title">Education &amp; Qualifications</div>
+            ${educationHtml}
+          </div>
+        `
+            : ""
+        }
+
+        ${
+          resume.certifications && resume.certifications.length > 0
+            ? `
+          <div>
+            <div class="section-title">Certifications &amp; Licenses</div>
+            ${certsHtml}
+          </div>
+        `
+            : ""
+        }
+      </body>
+    </html>
+  `;
+}
+
 interface ResumeBuilderModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -514,41 +734,58 @@ export default function ResumeBuilderModal({
     doc.save(filename);
   };
 
-  // Client-Side Print/Download PDF
+  // Client-Side Print Resume using hidden iframe with dynamic HTML generation
   const handlePrintPDF = () => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
+    const printHtml = generateResumePrintHtml(resume);
 
-    const content = resumePrintRef.current?.innerHTML || "";
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${resume.fullName.replace(/\s+/g, "_")}_Resume</title>
-          <style>
-            @page { margin: 15mm; }
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 25px; color: #111827; line-height: 1.45; }
-            h1 { font-size: 26px; margin: 0 0 4px 0; color: #111827; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 800; }
-            .headline { font-size: 13px; color: #374151; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-            .contact { font-size: 11px; color: #4b5563; margin-bottom: 18px; border-bottom: 2px solid #111827; padding-bottom: 8px; font-family: monospace; }
-            .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; border-bottom: 1.5px solid #111827; padding-bottom: 3px; margin-top: 16px; margin-bottom: 10px; color: #111827; letter-spacing: 0.75px; font-family: monospace; }
-            .item { margin-bottom: 10px; }
-            .item-header { display: flex; justify-content: space-between; font-weight: 700; font-size: 12px; color: #111827; }
-            .item-sub { font-size: 11px; color: #374151; font-weight: 500; }
-            .item-desc { font-size: 11px; color: #4b5563; margin-top: 3px; line-height: 1.4; }
-            .skills-list { display: flex; flex-wrap: wrap; gap: 5px; }
-            .skill-tag { font-size: 10px; padding: 2px 7px; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 4px; font-weight: 600; font-family: monospace; color: #1f2937; }
-          </style>
-        </head>
-        <body>
-          ${content}
-          <script>
-            window.onload = function() { window.print(); };
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+    try {
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      iframe.style.visibility = "hidden";
+      iframe.setAttribute("aria-hidden", "true");
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentWindow?.document || iframe.contentDocument;
+      if (!iframeDoc || !iframe.contentWindow) {
+        throw new Error("Unable to access iframe document");
+      }
+
+      iframeDoc.open();
+      iframeDoc.write(printHtml);
+      iframeDoc.close();
+
+      const iframeWin = iframe.contentWindow;
+      setTimeout(() => {
+        iframeWin.focus();
+        iframeWin.print();
+        setTimeout(() => {
+          try {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+          } catch (_) {}
+        }, 1500);
+      }, 250);
+    } catch (err) {
+      console.warn("Iframe printing failed, attempting popup window print:", err);
+      const printWindow = window.open("", "_blank");
+      if (printWindow) {
+        printWindow.document.open();
+        printWindow.document.write(printHtml);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+          printWindow.print();
+        }, 250);
+      } else {
+        window.print();
+      }
+    }
   };
 
   const handleAttachAndSave = () => {
@@ -1149,7 +1386,7 @@ export default function ResumeBuilderModal({
                     title="Open browser print dialog"
                   >
                     <Printer className="w-3.5 h-3.5" />
-                    <span>Print View</span>
+                    <span>Print Resume</span>
                   </button>
                 </div>
               </div>
@@ -1294,10 +1531,10 @@ export default function ResumeBuilderModal({
               type="button"
               onClick={handlePrintPDF}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 text-xs font-semibold border border-border transition-colors cursor-pointer"
-              title="Open print view"
+              title="Open browser print dialog"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Print View</span>
+              <span>Print Resume</span>
             </button>
 
             <button
