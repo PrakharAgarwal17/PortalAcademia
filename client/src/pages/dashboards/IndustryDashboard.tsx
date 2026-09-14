@@ -21,6 +21,10 @@ import {
   FileText,
   Printer,
   Download,
+  CheckCircle2,
+  AlertTriangle,
+  HelpCircle,
+  ChevronUp,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppDispatch } from "@/context/store";
@@ -75,12 +79,21 @@ interface CandidateApplication {
   applicantSkills: string[];
   matchScore: number;
   atsScore?: number;
+  semanticScore?: number;
+  searchScore?: number;
   resumeUrl?: string;
   resumeData?: any;
   status: string;
   appliedAt: string;
   notes?: string;
   reviewerNotes?: string;
+}
+
+interface AICandidateBrief {
+  verdict: string;
+  matchedCompetencies: string[];
+  identifiedGaps: string[];
+  interviewQuestions: string[];
 }
 
 interface AiChatMessage {
@@ -108,8 +121,30 @@ export default function IndustryDashboard() {
   const [minSkillMatchFilter, setMinSkillMatchFilter] = useState<number>(0);
   const [minAtsScoreFilter, setMinAtsScoreFilter] = useState<number>(0);
   const [applicantStatusFilter, setApplicantStatusFilter] = useState<string>("all");
-  const [applicantSortBy, setApplicantSortBy] = useState<"atsScore" | "matchScore" | "appliedAt">("atsScore");
+  const [applicantSortBy, setApplicantSortBy] = useState<"atsScore" | "matchScore" | "semanticScore" | "appliedAt">("atsScore");
   const [selectedResumeViewer, setSelectedResumeViewer] = useState<CandidateApplication | null>(null);
+
+  // Semantic Vector Search & Triage State
+  const [semanticSearchQuery, setSemanticSearchQuery] = useState("");
+  const [isSemanticSearching, setIsSemanticSearching] = useState(false);
+  const [semanticSearchActive, setSemanticSearchActive] = useState(false);
+
+  // Batch Triage State
+  const [isBatchTriaging, setIsBatchTriaging] = useState(false);
+  const [triageConfirmModal, setTriageConfirmModal] = useState<{
+    action: "Shortlisted" | "Under Review" | "Rejected";
+    minSemanticScore: number;
+    maxSemanticScore: number;
+    title: string;
+    description: string;
+    count: number;
+  } | null>(null);
+  const [triageToast, setTriageToast] = useState<string | null>(null);
+
+  // AI Candidate Brief State
+  const [expandedBriefId, setExpandedBriefId] = useState<string | null>(null);
+  const [loadingBriefId, setLoadingBriefId] = useState<string | null>(null);
+  const [briefsCache, setBriefsCache] = useState<Record<string, AICandidateBrief>>({});
 
   // Compute Filtered & Sorted Applicants
   const filteredApplicants = useMemo(() => {
@@ -138,6 +173,8 @@ export default function IndustryDashboard() {
       .sort((a, b) => {
         if (applicantSortBy === "atsScore") {
           return (b.atsScore || 0) - (a.atsScore || 0);
+        } else if (applicantSortBy === "semanticScore") {
+          return (b.semanticScore || 0) - (a.semanticScore || 0);
         } else if (applicantSortBy === "matchScore") {
           return (b.matchScore || 0) - (a.matchScore || 0);
         } else {
@@ -456,6 +493,121 @@ export default function IndustryDashboard() {
       }
     } catch (err) {
       console.error("Failed to update status:", err);
+    }
+  };
+
+  /**
+   * @description Search candidate pool using natural language vector query
+   * @param {React.FormEvent} e - Optional form submission event
+   * @returns {Promise<void>} Updates applicants state with search-ranked candidates
+   * @throws {Error} HTTP status handling
+   */
+  const handleSemanticSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!selectedOpportunity || !semanticSearchQuery.trim() || isSemanticSearching) return;
+    setIsSemanticSearching(true);
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/applications/opportunity/${selectedOpportunity._id}/semantic-search`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ query: semanticSearchQuery.trim() }),
+        }
+      );
+      const data = await res.json();
+      if (data.success && data.data) {
+        setApplicants(data.data);
+        setSemanticSearchActive(true);
+      }
+    } catch (err) {
+      console.error("Semantic search failed:", err);
+    } finally {
+      setIsSemanticSearching(false);
+    }
+  };
+
+  /**
+   * @description Clear semantic search filters and reload standard applicant pipeline
+   * @param {void} _ - No parameters
+   * @returns {Promise<void>} Refetches candidate application list
+   * @throws {Error} HTTP status handling
+   */
+  const handleResetSemanticSearch = async () => {
+    setSemanticSearchQuery("");
+    setSemanticSearchActive(false);
+    if (selectedOpportunity) {
+      await fetchApplicants(selectedOpportunity._id);
+    }
+  };
+
+  /**
+   * @description Batch-update candidate statuses based on semantic score thresholds
+   * @param {void} _ - Uses active triageConfirmModal state
+   * @returns {Promise<void>} Dispatches batch update and reloads applicant list
+   * @throws {Error} HTTP status handling
+   */
+  const handleExecuteBatchTriage = async () => {
+    if (!selectedOpportunity || !triageConfirmModal) return;
+    setIsBatchTriaging(true);
+    try {
+      const { action, minSemanticScore, maxSemanticScore } = triageConfirmModal;
+      const res = await fetch(
+        `${API_BASE}/api/applications/opportunity/${selectedOpportunity._id}/batch-triage`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ action, minSemanticScore, maxSemanticScore }),
+        }
+      );
+      const data = await res.json();
+      if (data.success) {
+        setTriageToast(data.message || `Candidates successfully updated.`);
+        setTimeout(() => setTriageToast(null), 4500);
+        await fetchApplicants(selectedOpportunity._id);
+      }
+    } catch (err) {
+      console.error("Batch triage failed:", err);
+    } finally {
+      setIsBatchTriaging(false);
+      setTriageConfirmModal(null);
+    }
+  };
+
+  /**
+   * @description Fetch or toggle Groq LLM candidate brief including competencies, gaps, and interview questions
+   * @param {string} applicationId - Target application identifier
+   * @returns {Promise<void>} Updates AI brief cache and expands accordion
+   * @throws {Error} HTTP status handling
+   */
+  const handleToggleAiBrief = async (applicationId: string) => {
+    if (expandedBriefId === applicationId) {
+      setExpandedBriefId(null);
+      return;
+    }
+
+    setExpandedBriefId(applicationId);
+
+    if (briefsCache[applicationId]) {
+      return;
+    }
+
+    setLoadingBriefId(applicationId);
+    try {
+      const res = await fetch(`${API_BASE}/api/applications/${applicationId}/ai-brief`, {
+        method: "GET",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setBriefsCache((prev) => ({ ...prev, [applicationId]: data.data }));
+      }
+    } catch (err) {
+      console.error("Failed to fetch AI brief:", err);
+    } finally {
+      setLoadingBriefId(null);
     }
   };
 
@@ -953,6 +1105,146 @@ export default function IndustryDashboard() {
               </div>
             </div>
 
+            {/* Triage Feedback Toast */}
+            {triageToast && (
+              <div className="p-3 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center justify-between gap-2 animate-in fade-in duration-200">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span>{triageToast}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTriageToast(null)}
+                  className="text-emerald-700 dark:text-emerald-300 hover:opacity-75 p-0.5 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* AI Semantic Search & Batch Triage Panel */}
+            <div className="p-4 rounded-xl bg-card border border-border space-y-3.5 shadow-xs">
+              {/* Top Row: Natural Language Query */}
+              <form onSubmit={handleSemanticSearch} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="relative flex-1">
+                  <Bot className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-primary" />
+                  <input
+                    type="text"
+                    value={semanticSearchQuery}
+                    onChange={(e) => setSemanticSearchQuery(e.target.value)}
+                    placeholder="Semantic candidate search e.g. 'Strong Node.js backend, microservices, high ATS'…"
+                    className="w-full text-xs pl-8 pr-3 h-9 rounded-md bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
+                  />
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="submit"
+                    disabled={isSemanticSearching || !semanticSearchQuery.trim()}
+                    className="h-9 px-3.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    {isSemanticSearching ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5" />
+                    )}
+                    <span>Vector Search</span>
+                  </button>
+                  {semanticSearchActive && (
+                    <button
+                      type="button"
+                      onClick={handleResetSemanticSearch}
+                      className="h-9 px-3 rounded-md border border-border bg-background text-foreground text-xs font-medium hover:bg-muted inline-flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Reset Search</span>
+                    </button>
+                  )}
+                </div>
+              </form>
+
+              {/* Bottom Row: Semantic Batch Triage Presets */}
+              <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-border/60">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span className="font-semibold text-foreground">Vector Batch Triage:</span>
+                  <span className="hidden sm:inline">Automated candidate routing by semantic match</span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Shortlist ≥80% Button */}
+                  <button
+                    type="button"
+                    disabled={applicants.filter((a) => (a.semanticScore || 0) >= 80).length === 0}
+                    onClick={() => {
+                      const count = applicants.filter((a) => (a.semanticScore || 0) >= 80).length;
+                      setTriageConfirmModal({
+                        action: "Shortlisted",
+                        minSemanticScore: 80,
+                        maxSemanticScore: 100,
+                        title: "Auto-Shortlist High Match Candidates",
+                        description: "Advance all applicants who demonstrated ≥80% semantic competency alignment with the job description.",
+                        count,
+                      });
+                    }}
+                    className="h-8 px-2.5 rounded-md text-xs font-semibold border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span>Auto-Shortlist ≥80%</span>
+                    <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20">
+                      {applicants.filter((a) => (a.semanticScore || 0) >= 80).length}
+                    </span>
+                  </button>
+
+                  {/* Move 60-79% to Review Button */}
+                  <button
+                    type="button"
+                    disabled={applicants.filter((a) => (a.semanticScore || 0) >= 60 && (a.semanticScore || 0) < 80).length === 0}
+                    onClick={() => {
+                      const count = applicants.filter((a) => (a.semanticScore || 0) >= 60 && (a.semanticScore || 0) < 80).length;
+                      setTriageConfirmModal({
+                        action: "Under Review",
+                        minSemanticScore: 60,
+                        maxSemanticScore: 79,
+                        title: "Move Moderate Match to Review",
+                        description: "Route candidates in the 60%–79% semantic match band to 'Under Review' for closer evaluation.",
+                        count,
+                      });
+                    }}
+                    className="h-8 px-2.5 rounded-md text-xs font-semibold border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <AlertTriangle className="w-3 h-3" />
+                    <span>Review 60–79%</span>
+                    <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20">
+                      {applicants.filter((a) => (a.semanticScore || 0) >= 60 && (a.semanticScore || 0) < 80).length}
+                    </span>
+                  </button>
+
+                  {/* Archive <50% Button */}
+                  <button
+                    type="button"
+                    disabled={applicants.filter((a) => (a.semanticScore || 0) > 0 && (a.semanticScore || 0) < 50).length === 0}
+                    onClick={() => {
+                      const count = applicants.filter((a) => (a.semanticScore || 0) > 0 && (a.semanticScore || 0) < 50).length;
+                      setTriageConfirmModal({
+                        action: "Rejected",
+                        minSemanticScore: 0,
+                        maxSemanticScore: 49,
+                        title: "Archive Low Match Candidates",
+                        description: "Move applicants scoring below 50% semantic vector match to 'Rejected' status.",
+                        count,
+                      });
+                    }}
+                    className="h-8 px-2.5 rounded-md text-xs font-semibold border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <span>Archive &lt;50%</span>
+                    <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-muted">
+                      {applicants.filter((a) => (a.semanticScore || 0) > 0 && (a.semanticScore || 0) < 50).length}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* Candidate Sourcing & ATS Filtering Controls Bar */}
             <div className="p-4 rounded-xl bg-secondary/30 border border-border space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1026,6 +1318,7 @@ export default function IndustryDashboard() {
                       className="text-xs px-2.5 py-1.5 rounded-lg bg-background border border-border text-foreground font-semibold shadow-xs focus:ring-1 focus:ring-primary focus:outline-none"
                     >
                       <option value="atsScore">Highest ATS Score</option>
+                      <option value="semanticScore">Highest Vector Match (AI)</option>
                       <option value="matchScore">Highest Skill Match</option>
                       <option value="appliedAt">Application Date</option>
                     </select>
@@ -1110,6 +1403,30 @@ export default function IndustryDashboard() {
                             <Sparkles className="w-3 h-3" />
                             ATS Score: {cand.atsScore || Math.round(cand.matchScore * 0.85)}%
                           </span>
+
+                          {/* Semantic Vector Match Badge */}
+                          {cand.semanticScore !== undefined && cand.semanticScore > 0 && (
+                            <span
+                              className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full border font-bold flex items-center gap-1 ${
+                                cand.semanticScore >= 80
+                                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                                  : cand.semanticScore >= 60
+                                  ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                                  : "bg-muted text-muted-foreground border-border"
+                              }`}
+                            >
+                              <Bot className="w-3 h-3" />
+                              Vector: {cand.semanticScore}%
+                            </span>
+                          )}
+
+                          {/* Semantic Search Query Match Badge */}
+                          {cand.searchScore !== undefined && (
+                            <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-bold flex items-center gap-1">
+                              <Sparkles className="w-3 h-3" />
+                              Search Match: {cand.searchScore}%
+                            </span>
+                          )}
                         </div>
 
                         <p className="text-xs text-muted-foreground mt-1">
@@ -1119,6 +1436,29 @@ export default function IndustryDashboard() {
 
                       {/* Candidate Action Strip */}
                       <div className="flex flex-wrap items-center gap-2.5">
+                        {/* AI Candidate Brief Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleAiBrief(cand._id)}
+                          className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+                            expandedBriefId === cand._id
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-secondary/60 text-foreground hover:bg-secondary border-border"
+                          }`}
+                        >
+                          {loadingBriefId === cand._id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Bot className="w-3.5 h-3.5" />
+                          )}
+                          <span>{expandedBriefId === cand._id ? "Close Brief" : "AI Brief"}</span>
+                          {expandedBriefId === cand._id ? (
+                            <ChevronUp className="w-3 h-3" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3" />
+                          )}
+                        </button>
+
                         {/* View ATS Resume Button */}
                         {(cand.resumeData || cand.resumeUrl) ? (
                           <button
@@ -1161,6 +1501,92 @@ export default function IndustryDashboard() {
                         {cand.applicantSkills.map((sk, idx) => (
                           <SkillBadge key={idx} skill={sk} size="xs" />
                         ))}
+                      </div>
+                    )}
+
+                    {/* Expandable AI Candidate Brief Drawer */}
+                    {expandedBriefId === cand._id && (
+                      <div className="mt-3 pt-3 border-t border-border space-y-3 animate-in fade-in duration-150">
+                        {loadingBriefId === cand._id ? (
+                          <div className="p-4 rounded-md border border-border bg-secondary/30 flex items-center gap-3">
+                            <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                            <p className="text-xs font-mono text-muted-foreground">
+                              Synthesizing candidate qualifications and generating interview questions via Groq LLM…
+                            </p>
+                          </div>
+                        ) : briefsCache[cand._id] ? (
+                          (() => {
+                            const brief = briefsCache[cand._id];
+                            return (
+                              <div className="p-4 rounded-md border border-border bg-secondary/20 space-y-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-border/80">
+                                  <div className="flex items-center gap-2">
+                                    <Bot className="w-4 h-4 text-primary" />
+                                    <span className="text-xs font-bold text-foreground">AI Candidate Assessment Brief</span>
+                                  </div>
+                                  <span className="text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded border bg-primary/10 text-primary border-primary/20 self-start sm:self-auto">
+                                    {brief.verdict}
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  {/* Matched Competencies */}
+                                  <div className="p-3 rounded-md bg-background border border-border space-y-1.5">
+                                    <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                                      <CheckCircle2 className="w-3 h-3 shrink-0" />
+                                      Matched Competencies
+                                    </span>
+                                    {brief.matchedCompetencies && brief.matchedCompetencies.length > 0 ? (
+                                      <ul className="space-y-1 text-muted-foreground text-xs list-disc list-inside">
+                                        {brief.matchedCompetencies.map((comp, i) => (
+                                          <li key={i} className="leading-tight">{comp}</li>
+                                        ))}
+                                      </ul>
+                                    ) : (
+                                      <p className="text-muted-foreground text-xs italic">No direct competency matches recorded</p>
+                                    )}
+                                  </div>
+
+                                  {/* Identified Gaps */}
+                                  <div className="p-3 rounded-md bg-background border border-border space-y-1.5">
+                                    <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                                      <AlertTriangle className="w-3 h-3 shrink-0" />
+                                      Identified Gaps
+                                    </span>
+                                    {brief.identifiedGaps && brief.identifiedGaps.length > 0 ? (
+                                      <ul className="space-y-1 text-muted-foreground text-xs list-disc list-inside">
+                                        {brief.identifiedGaps.map((gap, i) => (
+                                          <li key={i} className="leading-tight">{gap}</li>
+                                        ))}
+                                      </ul>
+                                    ) : (
+                                      <p className="text-muted-foreground text-xs italic">No critical skill gaps identified</p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Interview Questions */}
+                                {brief.interviewQuestions && brief.interviewQuestions.length > 0 && (
+                                  <div className="p-3 rounded-md bg-background border border-border space-y-1.5">
+                                    <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider flex items-center gap-1">
+                                      <HelpCircle className="w-3 h-3 text-primary shrink-0" />
+                                      Recommended Technical Interview Questions
+                                    </span>
+                                    <ol className="space-y-1 text-xs text-muted-foreground list-decimal list-inside font-mono">
+                                      {brief.interviewQuestions.map((q, i) => (
+                                        <li key={i} className="leading-relaxed">{q}</li>
+                                      ))}
+                                    </ol>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <div className="p-3 rounded-md border border-border bg-secondary/20 text-xs text-muted-foreground">
+                            No brief available for this candidate.
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1801,6 +2227,66 @@ export default function IndustryDashboard() {
                   Close Viewer
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Batch Triage Confirmation Modal */}
+      {triageConfirmModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-card border border-border rounded-md shadow-xl p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-bold text-foreground">{triageConfirmModal.title}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTriageConfirmModal(null)}
+                className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {triageConfirmModal.description}
+            </p>
+
+            <div className="p-3 rounded-md bg-secondary/50 border border-border text-xs space-y-1.5 font-mono">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Target Status:</span>
+                <span className="font-bold text-foreground">{triageConfirmModal.action}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Semantic Score Range:</span>
+                <span className="font-bold text-foreground">{triageConfirmModal.minSemanticScore}% – {triageConfirmModal.maxSemanticScore}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Affected Candidates:</span>
+                <span className="font-bold text-primary">{triageConfirmModal.count} applicants</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isBatchTriaging}
+                onClick={() => setTriageConfirmModal(null)}
+                className="h-9 px-4 rounded-md border border-border bg-background text-foreground text-xs font-semibold hover:bg-muted disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isBatchTriaging || triageConfirmModal.count === 0}
+                onClick={handleExecuteBatchTriage}
+                className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                {isBatchTriaging && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Confirm &amp; Apply ({triageConfirmModal.count})</span>
+              </button>
             </div>
           </div>
         </div>

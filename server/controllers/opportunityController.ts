@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import opportunityModel, { type OpportunityCategory, type OpportunityMode } from "../models/opportunityModel.js";
 import profileModel from "../models/profileModel.js";
 import { getCache, setCache, deleteCache } from "../config/redisClient.js";
+import { generateEmbedding, buildJobText } from "../services/vectorService.js";
 
 /**
  * @description Fetch active opportunities with filtering by category, mode, domain, and recommendation
@@ -236,6 +237,22 @@ export async function createOpportunity(req: Request, res: Response) {
             deleteCache("cache:analytics:market-trends"),
         ]);
 
+        // Fire-and-forget: generate job embedding for semantic matching
+        (async () => {
+            try {
+                const jobText = buildJobText(newOpportunity);
+                const jobVec = await generateEmbedding(jobText);
+                if (jobVec) {
+                    await opportunityModel.findByIdAndUpdate(newOpportunity._id, {
+                        jobEmbedding: jobVec,
+                    });
+                    console.log(`[vectorService] Job embedding generated for opportunity ${newOpportunity._id}`);
+                }
+            } catch (embErr) {
+                console.error("[vectorService] Async job embedding failed:", embErr);
+            }
+        })();
+
         return res.status(201).json({
             success: true,
             message: "Opportunity published successfully",
@@ -281,6 +298,22 @@ export async function updateOpportunity(req: Request, res: Response) {
             deleteCache("cache:opportunities:*"),
             deleteCache("cache:analytics:market-trends"),
         ]);
+
+        // Fire-and-forget: regenerate job embedding if content changed
+        if (updated && (req.body.title || req.body.description || req.body.requiredSkills)) {
+            (async () => {
+                try {
+                    const jobText = buildJobText(updated);
+                    const jobVec = await generateEmbedding(jobText);
+                    if (jobVec) {
+                        await opportunityModel.findByIdAndUpdate(id, { jobEmbedding: jobVec });
+                        console.log(`[vectorService] Job embedding regenerated for opportunity ${id}`);
+                    }
+                } catch (embErr) {
+                    console.error("[vectorService] Async job re-embedding failed:", embErr);
+                }
+            })();
+        }
 
         return res.status(200).json({
             success: true,

@@ -3,6 +3,12 @@ import applicationModel, { type ApplicationStatus } from "../models/applicationM
 import opportunityModel from "../models/opportunityModel.js";
 import profileModel from "../models/profileModel.js";
 import assessmentResultModel from "../models/assessmentResultModel.js";
+import {
+    generateEmbedding,
+    cosineSimilarity,
+    buildCandidateText,
+    buildJobText,
+} from "../services/vectorService.js";
 
 /**
  * @description Apply to an active opportunity with automated objective match scoring
@@ -129,6 +135,42 @@ export async function applyToOpportunity(req: Request, res: Response) {
         // Increment applicant count on opportunity
         opportunity.applicantCount = (opportunity.applicantCount || 0) + 1;
         await opportunity.save();
+
+        // ── Fire-and-forget: generate semantic embedding & score ──
+        (async () => {
+            try {
+                const assessments = await assessmentResultModel
+                    .find({ studentId: req.userId as any, passed: true } as any)
+                    .select("assessmentTitle percentage passed");
+
+                const candidateText = buildCandidateText(profile, assessments);
+                const candidateVec = await generateEmbedding(candidateText);
+                if (!candidateVec) return;
+
+                // Fetch job embedding (explicitly select the hidden field)
+                const opp = await opportunityModel
+                    .findById(opportunityId)
+                    .select("+jobEmbedding");
+
+                let semanticScore = 0;
+                if (opp && opp.jobEmbedding && opp.jobEmbedding.length > 0) {
+                    semanticScore = Math.round(
+                        cosineSimilarity(candidateVec, opp.jobEmbedding) * 100
+                    );
+                }
+
+                await applicationModel.findByIdAndUpdate(application._id, {
+                    candidateEmbedding: candidateVec,
+                    semanticScore,
+                });
+
+                console.log(
+                    `[vectorService] Embedding generated for application ${application._id}, semanticScore=${semanticScore}`
+                );
+            } catch (embErr) {
+                console.error("[vectorService] Async embedding generation failed:", embErr);
+            }
+        })();
 
         return res.status(201).json({
             success: true,
@@ -277,6 +319,321 @@ export async function updateApplicationStatus(req: Request, res: Response) {
         return res.status(500).json({
             success: false,
             message: "Failed to update application status",
+        });
+    }
+}
+
+/**
+ * @description Get applicants for an opportunity ranked by semantic similarity score
+ * @route GET /api/applications/opportunity/:opportunityId/semantic-ranking
+ * @access Authenticated (Recruiter / Publisher)
+ */
+export async function getSemanticRanking(req: Request, res: Response) {
+    try {
+        const { opportunityId } = req.params;
+
+        const opportunity = await opportunityModel.findById(opportunityId);
+        if (!opportunity) {
+            return res.status(404).json({ success: false, message: "Opportunity not found" });
+        }
+
+        if (!opportunity.createdBy || opportunity.createdBy.toString() !== req.userId) {
+            return res.status(403).json({
+                success: false,
+                message: "Forbidden: You are not the recruiter for this opportunity",
+            });
+        }
+
+        const applicants = await applicationModel
+            .find({ opportunityId: opportunityId as any })
+            .sort({ semanticScore: -1, matchScore: -1, appliedAt: 1 });
+
+        return res.status(200).json({
+            success: true,
+            count: applicants.length,
+            data: applicants,
+        });
+    } catch (error) {
+        console.error("getSemanticRanking error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch semantic ranking",
+        });
+    }
+}
+
+/**
+ * @description Batch-update application statuses within a semantic score range
+ * @route POST /api/applications/opportunity/:opportunityId/batch-triage
+ * @access Authenticated (Recruiter / Publisher)
+ */
+export async function batchTriage(req: Request, res: Response) {
+    try {
+        const { opportunityId } = req.params;
+        const { action, minSemanticScore, maxSemanticScore = 100 } = req.body as {
+            action: ApplicationStatus;
+            minSemanticScore: number;
+            maxSemanticScore?: number;
+        };
+
+        const validStatuses: ApplicationStatus[] = [
+            "Applied", "Under Review", "Shortlisted", "Technical Interview", "Offered", "Rejected",
+        ];
+
+        if (!validStatuses.includes(action)) {
+            return res.status(400).json({
+                success: false,
+                message: `Invalid action: Must be one of [${validStatuses.join(", ")}]`,
+            });
+        }
+
+        if (typeof minSemanticScore !== "number") {
+            return res.status(400).json({
+                success: false,
+                message: "minSemanticScore is required and must be a number",
+            });
+        }
+
+        const opportunity = await opportunityModel.findById(opportunityId);
+        if (!opportunity) {
+            return res.status(404).json({ success: false, message: "Opportunity not found" });
+        }
+
+        if (!opportunity.createdBy || opportunity.createdBy.toString() !== req.userId) {
+            return res.status(403).json({
+                success: false,
+                message: "Forbidden: You are not the recruiter for this opportunity",
+            });
+        }
+
+        const result = await applicationModel.updateMany(
+            {
+                opportunityId: opportunityId as any,
+                semanticScore: { $gte: minSemanticScore, $lte: maxSemanticScore },
+            },
+            { $set: { status: action } }
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: `Batch triage complete: ${result.modifiedCount} applications moved to ${action}`,
+            data: { modifiedCount: result.modifiedCount },
+        });
+    } catch (error) {
+        console.error("batchTriage error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to perform batch triage",
+        });
+    }
+}
+
+/**
+ * @description Search applicants for an opportunity using natural language semantic query
+ * @route POST /api/applications/opportunity/:opportunityId/semantic-search
+ * @access Authenticated (Recruiter / Publisher)
+ */
+export async function semanticSearchCandidates(req: Request, res: Response) {
+    try {
+        const { opportunityId } = req.params;
+        const { query } = req.body as { query: string };
+
+        if (!query || typeof query !== "string" || !query.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: "query parameter is required",
+            });
+        }
+
+        const opportunity = await opportunityModel.findById(opportunityId);
+        if (!opportunity) {
+            return res.status(404).json({ success: false, message: "Opportunity not found" });
+        }
+
+        if (!opportunity.createdBy || opportunity.createdBy.toString() !== req.userId) {
+            return res.status(403).json({
+                success: false,
+                message: "Forbidden: You are not the recruiter for this opportunity",
+            });
+        }
+
+        // Embed the search query
+        const queryVector = await generateEmbedding(query.trim());
+        if (!queryVector) {
+            return res.status(503).json({
+                success: false,
+                message: "Semantic search temporarily unavailable (embedding service unreachable)",
+            });
+        }
+
+        // Fetch all candidates with their embeddings for this opportunity
+        const applicants = await applicationModel
+            .find({ opportunityId: opportunityId as any })
+            .select("+candidateEmbedding");
+
+        // Compute cosine similarity and rank
+        const ranked = applicants
+            .filter((app) => app.candidateEmbedding && app.candidateEmbedding.length > 0)
+            .map((app) => {
+                const score = Math.round(
+                    cosineSimilarity(queryVector, app.candidateEmbedding) * 100
+                );
+                const appObj = app.toObject();
+                delete (appObj as any).candidateEmbedding; // Don't send 384 floats to client
+                return { ...appObj, searchScore: score };
+            })
+            .sort((a, b) => b.searchScore - a.searchScore);
+
+        // Also include candidates without embeddings at the bottom
+        const noEmbedding = applicants
+            .filter((app) => !app.candidateEmbedding || app.candidateEmbedding.length === 0)
+            .map((app) => {
+                const appObj = app.toObject();
+                delete (appObj as any).candidateEmbedding;
+                return { ...appObj, searchScore: 0 };
+            });
+
+        return res.status(200).json({
+            success: true,
+            count: ranked.length + noEmbedding.length,
+            data: [...ranked, ...noEmbedding],
+        });
+    } catch (error) {
+        console.error("semanticSearchCandidates error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to perform semantic search",
+        });
+    }
+}
+
+/**
+ * @description Generate an AI candidate brief (strengths, gaps, interview questions) via Groq LLM
+ * @route GET /api/applications/:id/ai-brief
+ * @access Authenticated (Recruiter / Publisher)
+ */
+export async function getAICandidateBrief(req: Request, res: Response) {
+    try {
+        const { id } = req.params;
+
+        const application = await applicationModel.findById(id);
+        if (!application) {
+            return res.status(404).json({ success: false, message: "Application not found" });
+        }
+
+        const opportunity = await opportunityModel.findById(application.opportunityId);
+        if (!opportunity) {
+            return res.status(404).json({ success: false, message: "Opportunity not found" });
+        }
+
+        if (!opportunity.createdBy || opportunity.createdBy.toString() !== req.userId) {
+            return res.status(403).json({
+                success: false,
+                message: "Forbidden: You are not the recruiter for this opportunity",
+            });
+        }
+
+        // Build context for the LLM
+        const jobContext = `Job: ${opportunity.title} at ${opportunity.organization}. ` +
+            `Description: ${opportunity.description}. ` +
+            `Required Skills: ${(opportunity.requiredSkills || []).join(", ")}. ` +
+            `Domain: ${opportunity.domain}.`;
+
+        const candidateContext = `Candidate: ${application.applicantName}. ` +
+            `Institution: ${application.applicantInstitution}. ` +
+            `Skills: ${(application.applicantSkills || []).join(", ")}. ` +
+            `Match Score: ${application.matchScore}%. ` +
+            `Semantic Score: ${application.semanticScore}%. ` +
+            `ATS Score: ${application.atsScore || 0}%.`;
+
+        const briefPrompt = `You are a senior technical recruiter AI. Given the following job posting and candidate profile, generate a concise candidate assessment brief.
+
+${jobContext}
+
+${candidateContext}
+
+Respond in EXACTLY this JSON format (no markdown, no code fences, just raw JSON):
+{
+  "verdict": "One-line executive verdict (e.g., Strong Match - Top 10%)",
+  "matchedCompetencies": ["competency 1", "competency 2", "competency 3"],
+  "identifiedGaps": ["gap 1", "gap 2"],
+  "interviewQuestions": ["question 1", "question 2", "question 3"]
+}`;
+
+        // Use existing Groq API setup from aiController pattern
+        const apiKey = process.env.GROQ_API_KEY || process.env.GROK_API_KEY;
+        const groqModels = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "groq/compound-mini"];
+
+        let briefData: {
+            verdict: string;
+            matchedCompetencies: string[];
+            identifiedGaps: string[];
+            interviewQuestions: string[];
+        } | null = null;
+
+        if (apiKey) {
+            for (const model of groqModels) {
+                try {
+                    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${apiKey}`,
+                        },
+                        body: JSON.stringify({
+                            model,
+                            messages: [
+                                { role: "system", content: "You are a technical recruiter AI. Respond only in valid JSON." },
+                                { role: "user", content: briefPrompt },
+                            ],
+                            temperature: 0.3,
+                            max_tokens: 600,
+                        }),
+                    });
+
+                    if (response.ok) {
+                        const data = (await response.json()) as any;
+                        const content = data.choices?.[0]?.message?.content;
+                        if (content) {
+                            // Strip markdown code fences if present
+                            const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+                            briefData = JSON.parse(cleaned);
+                            break;
+                        }
+                    }
+                } catch (err) {
+                    console.warn(`[ai-brief] Groq model ${model} failed:`, err);
+                }
+            }
+        }
+
+        // Fallback if Groq is unavailable
+        if (!briefData) {
+            briefData = {
+                verdict: `Match Score: ${application.matchScore}% | Semantic Score: ${application.semanticScore}%`,
+                matchedCompetencies: (application.applicantSkills || []).filter((s: string) =>
+                    (opportunity.requiredSkills || []).some((rs: string) =>
+                        rs.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(rs.toLowerCase())
+                    )
+                ),
+                identifiedGaps: (opportunity.requiredSkills || []).filter((rs: string) =>
+                    !(application.applicantSkills || []).some((s: string) =>
+                        rs.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(rs.toLowerCase())
+                    )
+                ),
+                interviewQuestions: ["AI brief generation temporarily unavailable. Review candidate manually."],
+            };
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: briefData,
+        });
+    } catch (error) {
+        console.error("getAICandidateBrief error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to generate AI candidate brief",
         });
     }
 }

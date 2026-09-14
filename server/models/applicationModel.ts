@@ -17,6 +17,8 @@ export interface IApplication extends Document {
     applicantSkills: string[];
     matchScore: number; // 0-100 derived from skill overlap and verified assessment scores
     atsScore: number;   // 0-100 ATS compliance score
+    candidateEmbedding: number[]; // 384d semantic vector (bge-small-en-v1.5)
+    semanticScore: number; // 0-100 semantic match against job embedding
     resumeUrl?: string; // Cloudinary or generated PDF link
     resumeData?: Record<string, any>; // Custom resume fields
     status: ApplicationStatus;
@@ -47,6 +49,8 @@ const applicationSchema = new Schema<IApplication>(
         applicantSkills: [{ type: String }],
         matchScore: { type: Number, default: 0 },
         atsScore: { type: Number, default: 0 },
+        candidateEmbedding: { type: [Number], select: false, default: [] },
+        semanticScore: { type: Number, default: 0 },
         resumeUrl: { type: String, default: "" },
         resumeData: { type: Schema.Types.Mixed, default: null },
         status: {
