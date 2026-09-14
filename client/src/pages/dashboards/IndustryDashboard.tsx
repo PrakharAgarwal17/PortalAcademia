@@ -171,6 +171,9 @@ export default function IndustryDashboard() {
         return matchSearch && matchSkill && matchATS && matchStatus;
       })
       .sort((a, b) => {
+        if (semanticSearchActive) {
+          return (b.searchScore ?? 0) - (a.searchScore ?? 0);
+        }
         if (applicantSortBy === "atsScore") {
           return (b.atsScore || 0) - (a.atsScore || 0);
         } else if (applicantSortBy === "semanticScore") {
@@ -181,7 +184,7 @@ export default function IndustryDashboard() {
           return new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime();
         }
       });
-  }, [applicants, applicantSearch, minSkillMatchFilter, minAtsScoreFilter, applicantStatusFilter, applicantSortBy]);
+  }, [applicants, applicantSearch, minSkillMatchFilter, minAtsScoreFilter, applicantStatusFilter, applicantSortBy, semanticSearchActive]);
 
   // Search & Filtering State
   const [searchQuery, setSearchQuery] = useState("");
@@ -504,7 +507,18 @@ export default function IndustryDashboard() {
    */
   const handleSemanticSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!selectedOpportunity || !semanticSearchQuery.trim() || isSemanticSearching) return;
+    if (!selectedOpportunity) {
+      setTriageToast("Please select a job opportunity from the dropdown first.");
+      setTimeout(() => setTriageToast(null), 3500);
+      return;
+    }
+    const query = semanticSearchQuery.trim();
+    if (!query) {
+      setTriageToast("Please enter candidate skills or qualifications to search (e.g. 'Node.js backend, microservices').");
+      setTimeout(() => setTriageToast(null), 3500);
+      return;
+    }
+    if (isSemanticSearching) return;
     setIsSemanticSearching(true);
     try {
       const res = await fetch(
@@ -513,16 +527,23 @@ export default function IndustryDashboard() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ query: semanticSearchQuery.trim() }),
+          body: JSON.stringify({ query }),
         }
       );
       const data = await res.json();
       if (data.success && data.data) {
         setApplicants(data.data);
         setSemanticSearchActive(true);
+        setTriageToast(`Ranked ${data.count} candidates by semantic relevance to "${query}".`);
+        setTimeout(() => setTriageToast(null), 4000);
+      } else {
+        setTriageToast(data.message || "Semantic search returned no results.");
+        setTimeout(() => setTriageToast(null), 4000);
       }
     } catch (err) {
       console.error("Semantic search failed:", err);
+      setTriageToast("Search request failed. Please verify server connection.");
+      setTimeout(() => setTriageToast(null), 4000);
     } finally {
       setIsSemanticSearching(false);
     }
@@ -1139,7 +1160,7 @@ export default function IndustryDashboard() {
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="submit"
-                    disabled={isSemanticSearching || !semanticSearchQuery.trim()}
+                    disabled={isSemanticSearching}
                     className="h-9 px-3.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     {isSemanticSearching ? (

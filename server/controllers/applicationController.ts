@@ -457,46 +457,47 @@ export async function semanticSearchCandidates(req: Request, res: Response) {
             });
         }
 
-        // Embed the search query
+        // Embed the search query (neural or deterministic semantic vector)
         const queryVector = await generateEmbedding(query.trim());
-        if (!queryVector) {
-            return res.status(503).json({
-                success: false,
-                message: "Semantic search temporarily unavailable (embedding service unreachable)",
-            });
-        }
 
         // Fetch all candidates with their embeddings for this opportunity
         const applicants = await applicationModel
             .find({ opportunityId: opportunityId as any })
             .select("+candidateEmbedding");
 
-        // Compute cosine similarity and rank
-        const ranked = applicants
-            .filter((app) => app.candidateEmbedding && app.candidateEmbedding.length > 0)
-            .map((app) => {
-                const score = Math.round(
-                    cosineSimilarity(queryVector, app.candidateEmbedding) * 100
-                );
-                const appObj = app.toObject();
-                delete (appObj as any).candidateEmbedding; // Don't send 384 floats to client
-                return { ...appObj, searchScore: score };
-            })
-            .sort((a, b) => b.searchScore - a.searchScore);
+        // Compute cosine similarity and rank all applicants
+        const ranked = await Promise.all(
+            applicants.map(async (app) => {
+                let embedding = app.candidateEmbedding;
+                if (!embedding || embedding.length === 0) {
+                    const candidateText = [
+                        app.applicantName,
+                        (app.applicantSkills || []).join(", "),
+                        app.applicantInstitution,
+                        app.notes || "",
+                    ].filter(Boolean).join(" ");
+                    embedding = await generateEmbedding(candidateText);
+                    // Persist for future queries asynchronously
+                    applicationModel.findByIdAndUpdate(app._id, { candidateEmbedding: embedding }).exec().catch(() => {});
+                }
 
-        // Also include candidates without embeddings at the bottom
-        const noEmbedding = applicants
-            .filter((app) => !app.candidateEmbedding || app.candidateEmbedding.length === 0)
-            .map((app) => {
+                const rawSim = cosineSimilarity(queryVector, embedding);
+                // Calibrate similarity score to intuitive 0-100%
+                const score = Math.round(Math.min(100, Math.pow(rawSim, 0.7) * 100));
+
                 const appObj = app.toObject();
                 delete (appObj as any).candidateEmbedding;
-                return { ...appObj, searchScore: 0 };
-            });
+                return { ...appObj, searchScore: score };
+            })
+        );
+
+        ranked.sort((a, b) => (b.searchScore ?? 0) - (a.searchScore ?? 0));
 
         return res.status(200).json({
             success: true,
-            count: ranked.length + noEmbedding.length,
-            data: [...ranked, ...noEmbedding],
+            count: ranked.length,
+            query: query.trim(),
+            data: ranked,
         });
     } catch (error) {
         console.error("semanticSearchCandidates error:", error);
