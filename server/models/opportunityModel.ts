@@ -29,7 +29,6 @@ export interface IOpportunity extends Document {
     recommendedByColleges: string[];
     recommendedToStudentsBy: mongoose.Types.ObjectId[];
     recommendedToFacultyBy: mongoose.Types.ObjectId[];
-    jobEmbedding: number[]; // 384d semantic vector (bge-small-en-v1.5)
     applicantCount: number;
     createdAt: Date;
     updatedAt: Date;
@@ -79,7 +78,6 @@ const opportunitySchema = new Schema<IOpportunity>(
         recommendedByColleges: [{ type: String, trim: true }],
         recommendedToStudentsBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
         recommendedToFacultyBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
-        jobEmbedding: { type: [Number], select: false, default: [] },
         applicantCount: { type: Number, default: 0 },
     },
     {

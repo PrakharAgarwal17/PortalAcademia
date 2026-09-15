@@ -107,7 +107,6 @@ interface Application {
     mode: string;
   };
   matchScore: number;
-  semanticScore?: number;
   status: string;
   appliedAt: string;
   reviewerNotes?: string;
