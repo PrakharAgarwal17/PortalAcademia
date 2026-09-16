@@ -492,6 +492,14 @@ export default function SkillTestRunnerModal({
                   You scored {testResult.score} out of {testResult.totalQuestions} questions correctly.
                 </p>
 
+                {(testResult.totalAttempts > 1 || testResult.averagePercentage !== undefined) && (
+                  <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-sm bg-secondary/80 border border-border text-xs font-mono">
+                    <span>Attempt Score: <strong>{testResult.percentage}%</strong></span>
+                    <span className="text-muted-foreground/60">•</span>
+                    <span>Cumulative Skill Average: <strong className="text-primary">{testResult.averagePercentage ?? testResult.percentage}%</strong> ({testResult.totalAttempts || 1} {testResult.totalAttempts === 1 ? "attempt" : "attempts"})</span>
+                  </div>
+                )}
+
                 {testResult.badgeAwarded && (
                   <div className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold">
                     <Award className="w-4 h-4" />

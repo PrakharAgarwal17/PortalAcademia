@@ -18,15 +18,30 @@ export async function getCohortAnalytics(req: Request, res: Response) {
         const institutionProfile = await profileModel.findOne({ userId: req.userId });
         const instName = institutionProfile?.institutionName || institutionProfile?.name;
 
-        // Match criteria for students in this institution
-        const studentMatch: any = { accountType: "student" };
-        if (instName) {
-            const escapedName = instName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
-            studentMatch.$or = [
+        // Strict Scoping: If institution has no profile or name, return empty telemetry rather than aggregating platform-wide
+        if (!instName) {
+            return res.status(200).json({
+                success: true,
+                data: {
+                    totalStudents: 0,
+                    averageReadinessScore: 0,
+                    verificationRate: 0,
+                    totalCertificationsSubmitted: 0,
+                    totalVerifiedCredentials: 0,
+                    topSkillsDistribution: [],
+                    curriculumDeficits: [],
+                },
+            });
+        }
+
+        const escapedName = instName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+        const studentMatch: any = {
+            accountType: "student",
+            $or: [
                 { institution: { $regex: new RegExp(escapedName, "i") } },
                 { institutionName: { $regex: new RegExp(escapedName, "i") } },
-            ];
-        }
+            ],
+        };
 
         // Pipeline 1: Aggregation for top skills in cohort
         const skillAggregation = await profileModel.aggregate([
@@ -72,7 +87,7 @@ export async function getCohortAnalytics(req: Request, res: Response) {
         ]);
 
         // Pipeline 3: Top trending skills required by industry to identify curriculum deficits
-        const marketSkills = await opportunityModel.aggregate([
+        let marketSkills = await opportunityModel.aggregate([
             { $match: { status: "active" } },
             { $unwind: "$requiredSkills" },
             {
@@ -85,6 +100,18 @@ export async function getCohortAnalytics(req: Request, res: Response) {
             { $limit: 6 },
         ]);
 
+        // Fallback to statutory tech market demand skills if no active postings exist yet
+        if (!marketSkills || marketSkills.length === 0) {
+            marketSkills = [
+                { _id: "python", demand: 12 },
+                { _id: "typescript", demand: 10 },
+                { _id: "react", demand: 9 },
+                { _id: "docker", demand: 8 },
+                { _id: "postgresql", demand: 7 },
+                { _id: "fastapi", demand: 6 },
+            ];
+        }
+
         const summary = summaryAggregation[0] || {
             totalStudents: 0,
             avgSkills: 0,
@@ -92,7 +119,7 @@ export async function getCohortAnalytics(req: Request, res: Response) {
             verifiedCertifications: 0,
         };
 
-        const totalStudents = summary.totalStudents || 1;
+        const totalStudents = summary.totalStudents || 0;
         const verificationRate = summary.totalCertifications > 0
             ? Math.round((summary.verifiedCertifications / summary.totalCertifications) * 100)
             : 0;
@@ -103,10 +130,10 @@ export async function getCohortAnalytics(req: Request, res: Response) {
 
         const curriculumDeficits = marketSkills.map((ms) => {
             const studentCount = cohortSkillMap.get(ms._id) || 0;
-            const deficiencyPct = Math.max(
-                5,
-                Math.round(((totalStudents - studentCount) / totalStudents) * 100)
-            );
+            const deficiencyPct = totalStudents > 0
+                ? Math.min(100, Math.max(0, Math.round(((totalStudents - studentCount) / totalStudents) * 100)))
+                : 100;
+
             return {
                 skill: ms._id.toUpperCase(),
                 marketDemandIndex: ms.demand,
@@ -115,15 +142,14 @@ export async function getCohortAnalytics(req: Request, res: Response) {
             };
         });
 
-        const avgReadiness = Math.min(
-            96,
-            Math.max(45, Math.round((summary.avgSkills || 3) * 14 + verificationRate * 0.3))
-        );
+        const avgReadiness = totalStudents > 0
+            ? Math.min(100, Math.max(0, Math.round((summary.avgSkills || 0) * 12 + verificationRate * 0.4)))
+            : 0;
 
         return res.status(200).json({
             success: true,
             data: {
-                totalStudents: summary.totalStudents,
+                totalStudents,
                 averageReadinessScore: avgReadiness,
                 verificationRate,
                 totalCertificationsSubmitted: summary.totalCertifications,
@@ -131,7 +157,7 @@ export async function getCohortAnalytics(req: Request, res: Response) {
                 topSkillsDistribution: skillAggregation.map((s) => ({
                     skill: s._id,
                     studentCount: s.count,
-                    percentage: Math.round((s.count / totalStudents) * 100),
+                    percentage: totalStudents > 0 ? Math.round((s.count / totalStudents) * 100) : 0,
                 })),
                 curriculumDeficits,
             },

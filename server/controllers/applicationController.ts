@@ -3,6 +3,8 @@ import applicationModel, { type ApplicationStatus } from "../models/applicationM
 import opportunityModel from "../models/opportunityModel.js";
 import profileModel from "../models/profileModel.js";
 import assessmentResultModel from "../models/assessmentResultModel.js";
+import { resolveAlumniStatus } from "../utils/alumniResolver.js";
+import { calculateAtsScore } from "../services/atsScoringService.js";
 
 /**
  * @description Apply to an active opportunity with automated objective match scoring
@@ -62,6 +64,15 @@ export async function applyToOpportunity(req: Request, res: Response) {
             });
         }
 
+        // Capability Restriction: Alumni cannot apply to campus-internal student-only internships/opportunities
+        const alumniStatus = resolveAlumniStatus(profile);
+        if (alumniStatus.isAlumni && opportunity.targetAudience === "student") {
+            return res.status(403).json({
+                success: false,
+                message: "Forbidden: This campus opportunity is strictly reserved for currently enrolled students. Alumni may apply to open industry roles or professional openings.",
+            });
+        }
+
         const studentSkills = (profile.skills || []).map((s) => s.toLowerCase().trim());
         const requiredSkills = (opportunity.requiredSkills || []).map((s) => s.toLowerCase().trim());
 
@@ -81,7 +92,7 @@ export async function applyToOpportunity(req: Request, res: Response) {
         // 2. Objective Assessment Benchmark (30% Weight)
         const pastResults = await assessmentResultModel
             .find({ studentId: req.userId, passed: true })
-            .select("percentage");
+            .select("skill percentage relatedSkills");
 
         let assessmentScore = 70; // baseline aptitude if no test taken yet
         if (pastResults.length > 0) {
@@ -95,19 +106,39 @@ export async function applyToOpportunity(req: Request, res: Response) {
             Math.max(10, Math.round(skillScore * 0.7 + assessmentScore * 0.3))
         );
 
-        // 3. ATS Score Calculation (Zero LLM Token Usage - Fast & Deterministic)
+        // 3. Authoritative Unified ATS Score Calculation
         let atsScore = customAtsScore;
         if (atsScore === undefined || typeof atsScore !== "number") {
-            const skillWeight = Math.round(skillScore * 0.45);
-            const resumeWeight = (resumeUrl || resumeData) ? 25 : 10;
+            const assessmentScores = pastResults.map((r: any) => ({
+                skill: r.assessmentTitle || (r.relatedSkills && r.relatedSkills[0]) || "",
+                score: r.percentage,
+            }));
 
-            let profileWeight = 0;
-            if (profile.bio) profileWeight += 5;
-            if (profile.education && profile.education.length > 0) profileWeight += 10;
-            if (profile.pastExperience && profile.pastExperience.length > 0) profileWeight += 10;
-            if (profile.certifications && profile.certifications.length > 0) profileWeight += 5;
-
-            atsScore = Math.min(100, Math.max(15, skillWeight + resumeWeight + profileWeight));
+            const atsAnalysis = calculateAtsScore(
+                {
+                    fullName: profile.name,
+                    email: profile.institutionEmail || profile.workEmail || (profile as any).email,
+                    phone: profile.contact,
+                    location: profile.location,
+                    summary: profile.bio,
+                    skills: profile.skills || [],
+                    verifiedSkills: profile.verifiedSkills || [],
+                    assessmentScores,
+                    institutionCredentials: (profile.certifications || []).map((c: any) => ({
+                        title: c.title,
+                        isVerified: Boolean(c.isVerified),
+                    })),
+                    education: profile.education || [],
+                    experience: profile.pastExperience || [],
+                    certifications: profile.certifications || [],
+                },
+                {
+                    requiredSkills: opportunity.requiredSkills || [],
+                    title: opportunity.title,
+                    category: opportunity.category,
+                }
+            );
+            atsScore = atsAnalysis.totalScore;
         }
 
         const application = await applicationModel.create({

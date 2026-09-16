@@ -145,6 +145,11 @@ interface IProfile extends Document {
     institutionEmail?: string;                 // Official college email
     isEmailVerified?: boolean;                 // Academic email verified status
     skills?: string[];                         // Array of skill tags
+    verifiedSkills?: string[];                 // Array of assessment/institution-verified skills
+    isAlumni?: boolean;                        // Alumni status flag
+    graduationYear?: number;                   // Graduation year
+    currentCompany?: string;                   // Current workplace for alumni
+    currentRole?: string;                      // Current job title for alumni
     education?: IEducation[];                  // Nested sub-documents
     certifications?: ICertification[];          // Nested sub-documents with verification metadata
     pastExperience?: IPastExperience[];        // Nested sub-documents
@@ -308,7 +313,8 @@ interface IAssessmentResult extends Document {
     percentage: number;                        // score / totalQuestions * 100
     passed: boolean;                           // percentage >= passPercentage
     badgeAwarded?: string;
-    verifiedSkillsAdded: string[];             // Automatically injected into Profile.skills
+    verifiedSkillsAdded: string[];             // Automatically injected into Profile.skills and verifiedSkills
+    relatedSkills: string[];                   // Skills evaluated in this assessment
     answers: IAssessmentAnswer[];
     completedAt: Date;
     createdAt: Date;

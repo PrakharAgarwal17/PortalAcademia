@@ -64,6 +64,13 @@ export interface IProfile extends Document {
     certifications?: ICertification[];
     pastExperience?: IPastExperience[];
     skills?: string[];
+    verifiedSkills?: string[];
+
+    // Alumni specific fields
+    isAlumni?: boolean;
+    graduationYear?: number;
+    currentCompany?: string;
+    currentRole?: string;
 
     // Faculty specific
     designation?: string;
@@ -233,6 +240,34 @@ const profileSchema = new Schema<IProfile>(
         skills: {
             type: [String],
             default: [],
+        },
+
+        verifiedSkills: {
+            type: [String],
+            default: [],
+        },
+
+        isAlumni: {
+            type: Boolean,
+            default: false,
+            index: true,
+        },
+
+        graduationYear: {
+            type: Number,
+            default: null,
+        },
+
+        currentCompany: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+
+        currentRole: {
+            type: String,
+            trim: true,
+            default: "",
         },
 
         // Faculty

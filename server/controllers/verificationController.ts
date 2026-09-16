@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import profileModel from "../models/profileModel.js";
+import { resolveAlumniStatus } from "../utils/alumniResolver.js";
 
 /**
  * @description Fetch all pending unverified credentials for students of the institution
@@ -16,15 +17,23 @@ export async function getPendingVerifications(req: Request, res: Response) {
         const institutionProfile = await profileModel.findOne({ userId: req.userId });
         const instName = institutionProfile?.institutionName || institutionProfile?.name;
 
-        // Query students: if institution has a known name, filter by it, otherwise show all unverified student credentials
-        const studentFilter: any = { accountType: "student" };
-        if (instName) {
-            const escapedName = instName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
-            studentFilter.$or = [
+        // Strict institution scoping: if institution has no name or profile, never leak other institutions' student credentials
+        if (!instName) {
+            return res.status(200).json({
+                success: true,
+                count: 0,
+                data: [],
+            });
+        }
+
+        const escapedName = instName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+        const studentFilter: any = {
+            accountType: "student",
+            $or: [
                 { institution: { $regex: new RegExp(escapedName, "i") } },
                 { institutionName: { $regex: new RegExp(escapedName, "i") } },
-            ];
-        }
+            ],
+        };
 
         const students = await profileModel.find(studentFilter);
         const pendingQueue: Array<{
@@ -198,56 +207,31 @@ export async function getInstitutionStudents(req: Request, res: Response) {
         const institutionProfile = await profileModel.findOne({ userId: req.userId });
         const instName = institutionProfile?.institutionName || institutionProfile?.name;
 
-        const studentFilter: any = { accountType: "student" };
-        if (instName) {
-            const escapedName = instName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
-            studentFilter.$or = [
+        // Strict institution scoping: if institution has no registered name, never leak students from other institutions
+        if (!instName) {
+            return res.status(200).json({
+                success: true,
+                count: 0,
+                data: [],
+                students: [],
+            });
+        }
+
+        const escapedName = instName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+        const studentFilter: any = {
+            accountType: "student",
+            $or: [
                 { institution: { $regex: new RegExp(escapedName, "i") } },
                 { institutionName: { $regex: new RegExp(escapedName, "i") } },
-            ];
-        }
+            ],
+        };
 
         const rawStudents = await profileModel.find(studentFilter).sort({ createdAt: -1 });
 
-        // Helper function to extract or estimate academic year / graduation batch
-        const computeAcademicYear = (educationList?: any[]): { academicYear: string; graduationBatch: string } => {
-            if (!educationList || educationList.length === 0) {
-                return { academicYear: "3rd Year", graduationBatch: "Class of 2026" };
-            }
-            const primaryEdu = educationList[0];
-            const timeline = (primaryEdu?.timeline || primaryEdu?.description || "").toLowerCase();
-
-            if (timeline.includes("1st") || timeline.includes("first") || timeline.includes("2028")) {
-                return { academicYear: "1st Year", graduationBatch: "Class of 2028" };
-            }
-            if (timeline.includes("2nd") || timeline.includes("second") || timeline.includes("2027")) {
-                return { academicYear: "2nd Year", graduationBatch: "Class of 2027" };
-            }
-            if (timeline.includes("4th") || timeline.includes("final") || timeline.includes("2025")) {
-                return { academicYear: "4th Year", graduationBatch: "Class of 2025" };
-            }
-            if (timeline.includes("3rd") || timeline.includes("third") || timeline.includes("2026")) {
-                return { academicYear: "3rd Year", graduationBatch: "Class of 2026" };
-            }
-
-            const matchYear = timeline.match(/20\d{2}/g);
-            if (matchYear && matchYear.length > 0) {
-                const endYear = parseInt(matchYear[matchYear.length - 1], 10);
-                const currentYear = new Date().getFullYear();
-                const diff = endYear - currentYear;
-                if (diff <= 0) return { academicYear: "4th Year", graduationBatch: `Class of ${endYear}` };
-                if (diff === 1) return { academicYear: "3rd Year", graduationBatch: `Class of ${endYear}` };
-                if (diff === 2) return { academicYear: "2nd Year", graduationBatch: `Class of ${endYear}` };
-                return { academicYear: "1st Year", graduationBatch: `Class of ${endYear}` };
-            }
-
-            return { academicYear: "3rd Year", graduationBatch: "Class of 2026" };
-        };
-
-        const { year, search } = req.query;
+        const { year, search, status } = req.query;
 
         let students = rawStudents.map((s) => {
-            const { academicYear, graduationBatch } = computeAcademicYear(s.education);
+            const alumniInfo = resolveAlumniStatus(s);
             const verifiedCertsCount = (s.certifications || []).filter((c) => c.isVerified).length;
             const totalCertsCount = (s.certifications || []).length;
             const firstEdu = (s.education && s.education.length > 0) ? s.education[0] : undefined;
@@ -266,8 +250,12 @@ export async function getInstitutionStudents(req: Request, res: Response) {
                 isEmailVerified: Boolean(s.isEmailVerified),
                 skills: s.skills || [],
                 education: s.education || [],
-                academicYear,
-                graduationBatch,
+                academicYear: alumniInfo.academicYear,
+                graduationBatch: alumniInfo.graduationBatch,
+                graduationYear: alumniInfo.graduationYear,
+                isAlumni: alumniInfo.isAlumni,
+                currentCompany: s.currentCompany || "",
+                currentRole: s.currentRole || "",
                 primaryDegree,
                 verifiedCertsCount,
                 totalCertsCount,
@@ -277,8 +265,12 @@ export async function getInstitutionStudents(req: Request, res: Response) {
             };
         });
 
-        // Apply academic year filter if provided
-        if (year && typeof year === "string" && year.toLowerCase() !== "all") {
+        // Apply alumni / enrollment status filter
+        if (status === "alumni" || (year && typeof year === "string" && year.toLowerCase() === "alumni")) {
+            students = students.filter((s) => s.isAlumni);
+        } else if (status === "enrolled") {
+            students = students.filter((s) => !s.isAlumni);
+        } else if (year && typeof year === "string" && year.toLowerCase() !== "all") {
             const lowerYear = year.toLowerCase();
             students = students.filter(
                 (s) =>
@@ -295,6 +287,8 @@ export async function getInstitutionStudents(req: Request, res: Response) {
                     s.name.toLowerCase().includes(term) ||
                     s.institutionEmail.toLowerCase().includes(term) ||
                     s.primaryDegree.toLowerCase().includes(term) ||
+                    s.currentCompany.toLowerCase().includes(term) ||
+                    s.currentRole.toLowerCase().includes(term) ||
                     s.skills.some((sk) => sk.toLowerCase().includes(term))
             );
         }
@@ -303,6 +297,7 @@ export async function getInstitutionStudents(req: Request, res: Response) {
             success: true,
             count: students.length,
             data: students,
+            students,
         });
     } catch (error) {
         console.error("getInstitutionStudents error:", error);
@@ -339,7 +334,17 @@ export async function getInstitutionMembers(req: Request, res: Response) {
         const institutionProfile = await profileModel.findOne({ userId: req.userId });
         const instName = institutionProfile?.institutionName || institutionProfile?.name;
 
-        const { role = "all", year, search } = req.query;
+        // Strict institution scoping: if institution has no registered name, never leak members from other institutions
+        if (!instName) {
+            return res.status(200).json({
+                success: true,
+                count: 0,
+                data: [],
+                members: [],
+            });
+        }
+
+        const { role = "all", year, search, status } = req.query;
 
         const memberFilter: any = {};
         if (role === "student") {
@@ -350,52 +355,16 @@ export async function getInstitutionMembers(req: Request, res: Response) {
             memberFilter.accountType = { $in: ["student", "faculty"] };
         }
 
-        if (instName) {
-            const escapedName = instName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
-            memberFilter.$or = [
-                { institution: { $regex: new RegExp(escapedName, "i") } },
-                { institutionName: { $regex: new RegExp(escapedName, "i") } },
-            ];
-        }
+        const escapedName = instName.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+        memberFilter.$or = [
+            { institution: { $regex: new RegExp(escapedName, "i") } },
+            { institutionName: { $regex: new RegExp(escapedName, "i") } },
+        ];
 
         const rawMembers = await profileModel.find(memberFilter).sort({ createdAt: -1 });
 
-        const computeAcademicYear = (educationList?: any[]): { academicYear: string; graduationBatch: string } => {
-            if (!educationList || educationList.length === 0) {
-                return { academicYear: "3rd Year", graduationBatch: "Class of 2026" };
-            }
-            const primaryEdu = educationList[0];
-            const timeline = (primaryEdu?.timeline || primaryEdu?.description || "").toLowerCase();
-
-            if (timeline.includes("1st") || timeline.includes("first") || timeline.includes("2028")) {
-                return { academicYear: "1st Year", graduationBatch: "Class of 2028" };
-            }
-            if (timeline.includes("2nd") || timeline.includes("second") || timeline.includes("2027")) {
-                return { academicYear: "2nd Year", graduationBatch: "Class of 2027" };
-            }
-            if (timeline.includes("4th") || timeline.includes("final") || timeline.includes("2025")) {
-                return { academicYear: "4th Year", graduationBatch: "Class of 2025" };
-            }
-            if (timeline.includes("3rd") || timeline.includes("third") || timeline.includes("2026")) {
-                return { academicYear: "3rd Year", graduationBatch: "Class of 2026" };
-            }
-
-            const matchYear = timeline.match(/20\d{2}/g);
-            if (matchYear && matchYear.length > 0) {
-                const endYear = parseInt(matchYear[matchYear.length - 1], 10);
-                const currentYear = new Date().getFullYear();
-                const diff = endYear - currentYear;
-                if (diff <= 0) return { academicYear: "4th Year", graduationBatch: `Class of ${endYear}` };
-                if (diff === 1) return { academicYear: "3rd Year", graduationBatch: `Class of ${endYear}` };
-                if (diff === 2) return { academicYear: "2nd Year", graduationBatch: `Class of ${endYear}` };
-                return { academicYear: "1st Year", graduationBatch: `Class of ${endYear}` };
-            }
-
-            return { academicYear: "3rd Year", graduationBatch: "Class of 2026" };
-        };
-
         let members = rawMembers.map((m) => {
-            const { academicYear, graduationBatch } = computeAcademicYear(m.education);
+            const alumniInfo = resolveAlumniStatus(m);
             const verifiedCertsCount = (m.certifications || []).filter((c) => c.isVerified).length;
             const totalCertsCount = (m.certifications || []).length;
             const firstEdu = (m.education && m.education.length > 0) ? m.education[0] : undefined;
@@ -416,8 +385,12 @@ export async function getInstitutionMembers(req: Request, res: Response) {
                 isEmailVerified: Boolean(m.isEmailVerified),
                 skills: m.skills || [],
                 education: m.education || [],
-                academicYear,
-                graduationBatch,
+                academicYear: alumniInfo.academicYear,
+                graduationBatch: alumniInfo.graduationBatch,
+                graduationYear: alumniInfo.graduationYear,
+                isAlumni: alumniInfo.isAlumni,
+                currentCompany: m.currentCompany || "",
+                currentRole: m.currentRole || "",
                 primaryDegree,
                 verifiedCertsCount,
                 totalCertsCount,
@@ -427,8 +400,12 @@ export async function getInstitutionMembers(req: Request, res: Response) {
             };
         });
 
-        // Year filter (applies mostly to students)
-        if (year && typeof year === "string" && year.toLowerCase() !== "all") {
+        // Status filter for alumni vs enrolled
+        if (status === "alumni" || (year && typeof year === "string" && year.toLowerCase() === "alumni")) {
+            members = members.filter((m) => m.isAlumni);
+        } else if (status === "enrolled") {
+            members = members.filter((m) => !m.isAlumni);
+        } else if (year && typeof year === "string" && year.toLowerCase() !== "all") {
             const lowerYear = year.toLowerCase();
             members = members.filter(
                 (m) =>
@@ -489,6 +466,18 @@ export async function getInstitutionMemberById(req: Request, res: Response) {
 
         if (!member) {
             return res.status(404).json({ success: false, message: "Member profile not found" });
+        }
+
+        // Strict Resource Scoping: Confirm the member belongs to the requester's institution (IDOR protection)
+        const institutionProfile = await profileModel.findOne({ userId: req.userId });
+        const instName = (institutionProfile?.institutionName || institutionProfile?.name || "").toLowerCase().trim();
+        const memberInst = (member.institution || member.institutionName || "").toLowerCase().trim();
+
+        if (!instName || !memberInst || (!memberInst.includes(instName) && !instName.includes(memberInst))) {
+            return res.status(403).json({
+                success: false,
+                message: "Forbidden: You cannot access member profiles outside your affiliated institution.",
+            });
         }
 
         const memberSkills = (member.skills || []).map((s) => s.toLowerCase().trim());
