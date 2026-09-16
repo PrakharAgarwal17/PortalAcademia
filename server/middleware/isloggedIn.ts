@@ -1,30 +1,77 @@
-import jwt from "jsonwebtoken"
-import type {JwtPayload} from "jsonwebtoken"
-import type { Request,Response,NextFunction } from "express"
+import jwt from "jsonwebtoken";
+import type { JwtPayload } from "jsonwebtoken";
+import type { Request, Response, NextFunction } from "express";
 
 interface MyJwtPayload extends JwtPayload {
-  userId: string;
+    id?: string;
+    userId?: string;
 }
 
-export default function isloggedIn(req:Request,res:Response,next:NextFunction){
-    try{
-        const accessToken=req.cookies?.accesstoken
-        if(!accessToken){
-            return res.status(401).json({message:"Unauthorized User"})
+declare global {
+    namespace Express {
+        interface Request {
+            userId?: string;
+        }
+    }
+}
+
+function getAccessSecret(): string {
+    return process.env.SECRET_ACCESS_TOKEN || process.env.JWT_PASS_KEY || "access_token_secret_key";
+}
+
+function getRefreshSecret(): string {
+    return process.env.SECRET_REFRESH_TOKEN || process.env.JWT_REFRESH_KEY || process.env.JWT_PASS_KEY || "refresh_token_secret_key";
+}
+
+export default function isloggedIn(req: Request, res: Response, next: NextFunction) {
+    try {
+        const accessToken = req.cookies?.accesstoken;
+        const refreshToken = req.cookies?.refreshtoken;
+
+        if (accessToken) {
+            try {
+                const check = jwt.verify(accessToken, getAccessSecret()) as MyJwtPayload;
+                const userId = check.id || check.userId;
+                if (userId) {
+                    req.userId = userId;
+                    return next();
+                }
+            } catch (tokenErr) {
+                // accesstoken expired or invalid, fall through to refreshtoken
+            }
         }
 
-        const secret=process.env.SECRET_ACCESS_TOKEN
+        if (refreshToken) {
+            try {
+                const check = jwt.verify(refreshToken, getRefreshSecret()) as MyJwtPayload;
+                const userId = check.id || check.userId;
+                if (userId) {
+                    req.userId = userId;
 
-        if (!secret) {
-             throw new Error("SECRET_ACCESS_TOKEN is missing");
+                    // Re-issue new accesstoken
+                    const isProd = process.env.NODE_ENV === "production";
+                    const newAccessToken = jwt.sign({ id: userId }, getAccessSecret(), {
+                        expiresIn: "15m",
+                    });
+
+                    res.cookie("accesstoken", newAccessToken, {
+                        httpOnly: true,
+                        secure: isProd,
+                        sameSite: isProd ? ("none" as const) : ("lax" as const),
+                        path: "/",
+                        maxAge: 15 * 60 * 1000,
+                    });
+
+                    return next();
+                }
+            } catch (refreshErr) {
+                // refreshToken invalid
+            }
         }
 
-        const check=jwt.verify(accessToken,secret) as MyJwtPayload
-
-        req.userId=check.userId
-        next()
-    }catch(err){
-        console.log(err)
-        return res.status(401).json({message:"Invalid or Expired Token"})
+        return res.status(401).json({ message: "Unauthorized User" });
+    } catch (err) {
+        console.log(err);
+        return res.status(401).json({ message: "Invalid or Expired Token" });
     }
 }

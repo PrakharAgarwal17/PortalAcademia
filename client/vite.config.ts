@@ -1,6 +1,7 @@
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 import { defineConfig } from 'vite'
+import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -8,4 +9,29 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] })
   ],
+  resolve: {
+    alias: {
+      "@": path.resolve(import.meta.dirname, "./src"),
+    },
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes("simple-icons")) {
+            return "simple-icons";
+          }
+        },
+      },
+    },
+    chunkSizeWarningLimit: 3500,
+  },
 })
