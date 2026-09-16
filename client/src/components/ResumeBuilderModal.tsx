@@ -15,9 +15,15 @@ import {
   Printer,
   FileCheck,
   Info,
+  Upload,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import SkillBadge from "./SkillBadge";
+import { calculateAtsScore, type AtsScoreBreakdown } from "../utils/atsScoring";
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
 
 export interface ResumeData {
   fullName: string;
@@ -307,8 +313,102 @@ export default function ResumeBuilderModal({
     certifications: [],
   });
 
-  const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
+  const [activeTab, setActiveTab] = useState<"edit" | "preview" | "upload">("edit");
   const [newSkillInput, setNewSkillInput] = useState("");
+
+  // Upload state
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadedResult, setUploadedResult] = useState<{
+    url: string;
+    filename: string;
+    atsAnalysis: AtsScoreBreakdown;
+  } | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Authoritative Unified ATS Analysis for the built resume
+  const atsAnalysis = useMemo(() => {
+    return calculateAtsScore(
+      {
+        fullName: resume.fullName,
+        email: resume.email,
+        phone: resume.phone,
+        location: resume.location,
+        summary: resume.summary,
+        skills: resume.skills,
+        verifiedSkills: profileData?.verifiedSkills || [],
+        institutionCredentials: (profileData?.certifications || []).map((c: any) => ({
+          title: c.title,
+          isVerified: Boolean(c.isVerified),
+        })),
+        education: resume.education,
+        experience: resume.experience,
+        certifications: resume.certifications,
+      },
+      {
+        requiredSkills: opportunity?.requiredSkills || [],
+        title: opportunity?.title,
+        category: opportunity?.category,
+      }
+    );
+  }, [resume, profileData, opportunity]);
+
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    const isDocx = file.type.includes("word") || file.name.toLowerCase().endsWith(".docx");
+    if (!isPdf && !isDocx) {
+      setUploadError("Please select a PDF or Word document (.docx).");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError("File size exceeds 5MB limit.");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("resume", file);
+      if (opportunity?._id) {
+        formData.append("opportunityId", opportunity._id);
+      }
+      if (opportunity?.requiredSkills) {
+        formData.append("requiredSkills", JSON.stringify(opportunity.requiredSkills));
+      }
+
+      const res = await fetch(`${API_BASE}/api/upload/resume-score`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to process resume upload.");
+      }
+
+      setUploadedResult({
+        url: data.url,
+        filename: data.filename,
+        atsAnalysis: data.atsAnalysis,
+      });
+    } catch (err: any) {
+      console.error("Resume upload error:", err);
+      setUploadError(err.message || "Network error while uploading resume.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleAttachUploaded = () => {
+    if (!uploadedResult) return;
+    onAttachResume(resume, uploadedResult.url, uploadedResult.atsAnalysis.totalScore);
+    onClose();
+  };
 
   // Sync profile data when modal opens - directly fetched from student profile
   useEffect(() => {
@@ -374,41 +474,6 @@ export default function ResumeBuilderModal({
       certifications: mappedCertifications,
     });
   }, [isOpen, profileData]);
-
-  // Compute ATS Score in Real-Time
-  const atsAnalysis = useMemo(() => {
-    const requiredSkills: string[] = opportunity?.requiredSkills || [];
-    const candidateSkills: string[] = resume.skills || [];
-
-    let matchedSkillCount = 0;
-    if (requiredSkills.length > 0) {
-      for (const req of requiredSkills) {
-        const lowerReq = req.toLowerCase().trim();
-        if (candidateSkills.some((s) => s.toLowerCase().includes(lowerReq) || lowerReq.includes(s.toLowerCase()))) {
-          matchedSkillCount++;
-        }
-      }
-    }
-
-    const skillScore = requiredSkills.length > 0 ? (matchedSkillCount / requiredSkills.length) * 100 : 80;
-
-    let completeness = 0;
-    if (resume.fullName && resume.email) completeness += 20;
-    if (resume.summary && resume.summary.length > 25) completeness += 20;
-    if (resume.education && resume.education.length > 0) completeness += 20;
-    if (resume.experience && resume.experience.length > 0) completeness += 20;
-    if (resume.certifications && (resume.certifications.length > 0 || resume.skills.length >= 4)) completeness += 20;
-
-    const totalATS = Math.min(100, Math.max(25, Math.round(skillScore * 0.5 + completeness * 0.5)));
-
-    return {
-      score: totalATS,
-      matchedSkills: matchedSkillCount,
-      totalRequired: requiredSkills.length,
-      skillScore: Math.round(skillScore),
-      completeness,
-    };
-  }, [resume, opportunity]);
 
   if (!isOpen) return null;
 
@@ -789,7 +854,7 @@ export default function ResumeBuilderModal({
   };
 
   const handleAttachAndSave = () => {
-    onAttachResume(resume, undefined, atsAnalysis.score);
+    onAttachResume(resume, undefined, atsAnalysis.totalScore);
     onClose();
   };
 
@@ -821,7 +886,7 @@ export default function ResumeBuilderModal({
                   ATS Match Score
                 </span>
                 <span className="text-xs font-mono font-extrabold text-primary">
-                  {atsAnalysis.score}% Compatible
+                  {uploadedResult ? uploadedResult.atsAnalysis.totalScore : atsAnalysis.totalScore}% Compatible
                 </span>
               </div>
             </div>
@@ -863,11 +928,189 @@ export default function ResumeBuilderModal({
             <FileCheck className="w-4 h-4" />
             <span>Live PDF Preview &amp; Download</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("upload")}
+            className={`text-xs font-semibold px-4 py-2 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
+              activeTab === "upload"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Upload className="w-4 h-4" />
+            <span>Upload Resume (PDF / DOCX)</span>
+          </button>
         </div>
 
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {activeTab === "edit" ? (
+          {activeTab === "upload" ? (
+            <div className="space-y-6 max-w-2xl mx-auto py-2">
+              <div className="text-center space-y-1">
+                <h4 className="text-base font-bold text-foreground">Upload Existing Resume</h4>
+                <p className="text-xs text-muted-foreground">
+                  Upload your pre-existing PDF or Word resume (.docx) to extract skills and compute an instant live ATS score against {opportunity ? `"${opportunity.title}"` : "this opportunity"}.
+                </p>
+              </div>
+
+              {/* Upload Dropzone */}
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragActive(true);
+                }}
+                onDragLeave={() => setDragActive(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragActive(false);
+                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    handleFileUpload(e.dataTransfer.files[0]);
+                  }
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                className={`p-8 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-3 text-center cursor-pointer transition-all ${
+                  dragActive
+                    ? "border-primary bg-primary/5 scale-[1.01]"
+                    : "border-border hover:border-primary/50 hover:bg-secondary/20"
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleFileUpload(e.target.files[0]);
+                    }
+                  }}
+                />
+
+                <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                  {isUploading ? (
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  ) : (
+                    <Upload className="w-6 h-6" />
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-foreground">
+                    {isUploading
+                      ? "Analyzing document structure & calculating ATS match..."
+                      : "Drag & drop your resume here, or browse files"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground font-mono">
+                    Supported: PDF, DOCX (Max: 5MB)
+                  </p>
+                </div>
+              </div>
+
+              {uploadError && (
+                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{uploadError}</span>
+                </div>
+              )}
+
+              {/* Uploaded Result Card */}
+              {uploadedResult && (
+                <div className="p-5 rounded-2xl bg-secondary/30 border border-border space-y-4 shadow-xs">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500">
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h5 className="text-xs font-bold text-foreground">{uploadedResult.filename}</h5>
+                        <p className="text-[10.5px] font-mono text-muted-foreground">
+                          Parsed &amp; Scored via Authoritative ATS Engine
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-[10px] font-mono text-muted-foreground uppercase block">
+                        ATS Match Score
+                      </span>
+                      <span className="text-xl font-mono font-extrabold text-primary">
+                        {uploadedResult.atsAnalysis.totalScore}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Score Breakdown Bar */}
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                    <div className="p-2.5 rounded-lg bg-card border border-border">
+                      <span className="text-[10px] text-muted-foreground block uppercase">Technical Skills Match (60%)</span>
+                      <span className="font-bold text-foreground text-sm">
+                        {uploadedResult.atsAnalysis.skillScore}%
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-card border border-border">
+                      <span className="text-[10px] text-muted-foreground block uppercase">Profile Completeness (40%)</span>
+                      <span className="font-bold text-foreground text-sm">
+                        {uploadedResult.atsAnalysis.completenessScore}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Matched Skills */}
+                  {uploadedResult.atsAnalysis.matchedSkills.length > 0 && (
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-mono text-muted-foreground uppercase block">
+                        Matched Skills in Document:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {uploadedResult.atsAnalysis.matchedSkills.map((sk) => (
+                          <span
+                            key={sk.skill}
+                            className="text-[10.5px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 font-semibold"
+                          >
+                            <Check className="w-3 h-3" />
+                            <span>{sk.skill}</span>
+                            <span className="text-[9px] opacity-75">({Math.round(sk.weight * 100)}%)</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Missing Skills */}
+                  {uploadedResult.atsAnalysis.missingSkills.length > 0 && (
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-mono text-muted-foreground uppercase block">
+                        Missing Opportunity Skills:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {uploadedResult.atsAnalysis.missingSkills.map((sk) => (
+                          <span
+                            key={sk}
+                            className="text-[10.5px] font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-semibold"
+                          >
+                            {sk}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action row in card */}
+                  <div className="pt-2 border-t border-border flex items-center justify-end">
+                    <button
+                      type="button"
+                      onClick={handleAttachUploaded}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold shadow-xs transition-all cursor-pointer"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>Attach Uploaded Resume ({uploadedResult.atsAnalysis.totalScore}%)</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : activeTab === "edit" ? (
             <div className="space-y-8">
               {/* Profile Sync Notice Banner */}
               <div className="flex items-start gap-3 p-3.5 rounded-xl bg-primary/5 border border-primary/20 text-xs text-foreground">
@@ -891,7 +1134,7 @@ export default function ResumeBuilderModal({
                       Role Skill Requirements Match
                     </span>
                     <span className="font-mono text-[11px] text-muted-foreground">
-                      {atsAnalysis.matchedSkills} of {atsAnalysis.totalRequired} Skills Matched
+                      {atsAnalysis.matchedSkills.filter((s) => s.source !== "unmatched").length} of {opportunity.requiredSkills?.length || 0} Skills Matched
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1.5 pt-1">
@@ -1517,34 +1760,53 @@ export default function ResumeBuilderModal({
         {/* Footer Actions */}
         <div className="px-6 py-4 border-t border-border flex items-center justify-end gap-3 bg-muted/20">
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleDownloadJsPDF}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 text-xs font-semibold border border-border transition-colors cursor-pointer"
-              title="Direct ATS PDF Download via jsPDF"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Download PDF (jsPDF)</span>
-            </button>
+            {activeTab === "upload" ? (
+              uploadedResult ? (
+                <button
+                  type="button"
+                  onClick={handleAttachUploaded}
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold shadow-md transition-all cursor-pointer"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Attach Uploaded Resume ({uploadedResult.atsAnalysis.totalScore}% ATS) &amp; Continue</span>
+                </button>
+              ) : (
+                <p className="text-xs text-muted-foreground font-mono">
+                  Select or drop a resume above to calculate live ATS score.
+                </p>
+              )
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={handleDownloadJsPDF}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 text-xs font-semibold border border-border transition-colors cursor-pointer"
+                  title="Direct ATS PDF Download via jsPDF"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download PDF (jsPDF)</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={handlePrintPDF}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 text-xs font-semibold border border-border transition-colors cursor-pointer"
-              title="Open browser print dialog"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Print Resume</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={handlePrintPDF}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 text-xs font-semibold border border-border transition-colors cursor-pointer"
+                  title="Open browser print dialog"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Resume</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={handleAttachAndSave}
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold shadow-md transition-all cursor-pointer"
-            >
-              <Check className="w-4 h-4" />
-              <span>Attach Resume &amp; Continue Application</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={handleAttachAndSave}
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold shadow-md transition-all cursor-pointer"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Attach Resume &amp; Continue Application</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

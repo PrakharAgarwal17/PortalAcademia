@@ -52,48 +52,29 @@ interface CohortTelemetry {
   curriculumDeficits: CohortDeficitItem[];
 }
 
-// Statutory Indian Institutional Placement Benchmarks (2025–26)
-const SECTOR_HIRING_DEMAND = [
-  { sector: "AI & GenAI Systems", sharePct: 34, growthYoY: "+78.4%", avgOfferLPA: "₹14.5 LPA", hiringPartners: "Google, Microsoft, HFTs, Sarvam AI" },
-  { sector: "Cloud & Enterprise SaaS", sharePct: 28, growthYoY: "+42.5%", avgOfferLPA: "₹10.2 LPA", hiringPartners: "AWS, Salesforce, Atlassian, Postman" },
-  { sector: "FinTech & Low-Latency Systems", sharePct: 18, growthYoY: "+35.1%", avgOfferLPA: "₹18.0 LPA", hiringPartners: "Tower Research, Zerodha, Razorpay" },
-  { sector: "Semiconductor & VLSI Embedded", sharePct: 12, growthYoY: "+48.0%", avgOfferLPA: "₹12.8 LPA", hiringPartners: "Qualcomm, Texas Instruments, Intel" },
-  { sector: "Gov-Tech & National Fellowships", sharePct: 8, growthYoY: "+22.0%", avgOfferLPA: "₹8.5 LPA", hiringPartners: "DRDO, ISRO, NIC, CDAC" },
-];
-
-// Curated curriculum modernization directives based on enterprise deficits
-const CURRICULUM_REMEDIES = [
-  {
-    targetDomain: "Generative AI & Agentic Inference",
-    detectedDeficit: "82% cohort lacks PyTorch & Vector DB pipelines",
-    remedyAction: "Introduce 4-credit Elective in Sem 6 with hands-on GPU containerization lab.",
-    timeframe: "Next Academic Council",
-    priority: "Critical",
-  },
-  {
-    targetDomain: "Cloud-Native Infrastructure & CI/CD",
-    detectedDeficit: "74% cohort lacks Docker & Kubernetes orchestration",
-    remedyAction: "Embed mandatory microservices milestone into Web Engineering Core Course.",
-    timeframe: "Immediate",
-    priority: "High",
-  },
-  {
-    targetDomain: "Memory-Safe Systems Programming",
-    detectedDeficit: "68% cohort restricted to legacy C without Rust/C++20",
-    remedyAction: "Adopt AICTE Model Curriculum on Low-Level Concurrency & Systems Security.",
-    timeframe: "AY 2026–27",
-    priority: "Medium",
-  },
-];
+interface MarketTrendsData {
+  demandVsSupply: Array<{
+    skill: string;
+    openPostings: number;
+    availableTalent: number;
+    marketDeficitPercent: number;
+  }>;
+  categoryVolume: Array<{
+    _id: string;
+    count: number;
+    totalApplicants: number;
+  }>;
+}
 
 export default function InstitutionTrendsPage() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<InstitutionProfile | null>(null);
   const [telemetry, setTelemetry] = useState<CohortTelemetry | null>(null);
+  const [marketTrends, setMarketTrends] = useState<MarketTrendsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   /**
-   * @description Fetch institution profile and cohort curriculum telemetry
+   * @description Fetch institution profile, cohort telemetry, and live industry market trends
    * @returns {Promise<void>}
    * @throws {Error} Logged on network failure
    */
@@ -108,8 +89,11 @@ export default function InstitutionTrendsPage() {
       fetch(`${API_BASE}/api/analytics/institution/cohort`, { credentials: "include" })
         .then((res) => res.json())
         .catch(() => ({ success: false })),
+      fetch(`${API_BASE}/api/analytics/industry/market-trends`, { credentials: "include" })
+        .then((res) => res.json())
+        .catch(() => ({ success: false })),
     ])
-      .then(([profData, cohortData]) => {
+      .then(([profData, cohortData, trendsData]) => {
         if (!isMounted) return;
 
         if (profData?.success && profData?.profile) {
@@ -127,6 +111,10 @@ export default function InstitutionTrendsPage() {
         if (cohortData?.success && cohortData?.data) {
           setTelemetry(cohortData.data);
         }
+
+        if (trendsData?.success && trendsData?.data) {
+          setMarketTrends(trendsData.data);
+        }
       })
       .catch((err) => console.error("Failed to load institutional telemetry:", err))
       .finally(() => {
@@ -138,6 +126,32 @@ export default function InstitutionTrendsPage() {
     };
   }, [navigate]);
 
+  // Dynamic Academic Reforms derived from real detected curriculum deficits
+  const dynamicRemedies = useMemo(() => {
+    if (!telemetry?.curriculumDeficits || telemetry.curriculumDeficits.length === 0) {
+      return [
+        {
+          targetDomain: "AI & Fullstack Modernization",
+          detectedDeficit: "Awaiting cohort skill baseline telemetry",
+          remedyAction: "Encourage students to complete skill assessments and verify credentials on the portal.",
+          timeframe: "Ongoing",
+          priority: "Medium" as const,
+        },
+      ];
+    }
+
+    return telemetry.curriculumDeficits.slice(0, 3).map((d) => {
+      const priority = d.curriculumDeficitPercent >= 75 ? "Critical" : (d.curriculumDeficitPercent >= 45 ? "High" : "Medium");
+      return {
+        targetDomain: `${d.skill} Competency & Systems`,
+        detectedDeficit: `${d.curriculumDeficitPercent}% cohort deficit (${d.cohortProficiencyCount} proficient vs ${d.marketDemandIndex} active postings)`,
+        remedyAction: `Introduce hands-on ${d.skill} micro-projects and industry workshops into the semester laboratory schedule.`,
+        timeframe: priority === "Critical" ? "Next Academic Council" : "AY 2026–27",
+        priority,
+      };
+    });
+  }, [telemetry]);
+
   // Skill Deficit Bar Chart Data
   const deficitChartData = useMemo(() => {
     if (telemetry?.curriculumDeficits && telemetry.curriculumDeficits.length > 0) {
@@ -148,7 +162,6 @@ export default function InstitutionTrendsPage() {
       }));
     }
 
-    // No static dummy benchmark fallback
     return [];
   }, [telemetry]);
 
@@ -218,84 +231,61 @@ export default function InstitutionTrendsPage() {
         {/* 1. Institutional Statutory Key Metrics Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="p-4 rounded-xl bg-card border border-border space-y-1.5 shadow-xs">
-            <span className="text-[10px] font-mono text-primary font-bold uppercase tracking-wider block">
-              Cohort Placement Alignment
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold font-mono text-foreground">
-                {telemetry?.averageReadinessScore || 84.6}%
-              </span>
-              <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold font-mono">
-                Tier-1 Aligned
-              </span>
+            <span className="text-xs font-medium text-muted-foreground">Enrolled Students Evaluated</span>
+            <div className="text-2xl font-bold font-mono text-foreground">
+              {telemetry?.totalStudents ?? 0}
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Synthesized across {telemetry?.totalStudents || "all"} enrolled student candidates against enterprise skill thresholds.
-            </p>
+            <span className="text-[11px] text-muted-foreground block">
+              Active student cohort under institutional oversight
+            </span>
           </div>
 
           <div className="p-4 rounded-xl bg-card border border-border space-y-1.5 shadow-xs">
-            <span className="text-[10px] font-mono text-primary font-bold uppercase tracking-wider block">
-              Median Offer Projection
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold font-mono text-foreground">₹9.4 LPA</span>
-              <span className="text-[11px] text-primary font-semibold font-mono">NIRF Baseline</span>
+            <span className="text-xs font-medium text-muted-foreground">Avg. Industry Readiness</span>
+            <div className="text-2xl font-bold font-mono text-primary">
+              {telemetry?.averageReadinessScore ?? 0}%
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Based on verified candidate competencies in Cloud, Fullstack, and DeepTech engineering.
-            </p>
+            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block font-semibold">
+              Based on verified skills &amp; objective test benchmarks
+            </span>
           </div>
 
           <div className="p-4 rounded-xl bg-card border border-border space-y-1.5 shadow-xs">
-            <span className="text-[10px] font-mono text-primary font-bold uppercase tracking-wider block">
-              Curriculum Deficit Rate
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold font-mono text-foreground">
-                {telemetry?.curriculumDeficits?.length ? `${Math.round(telemetry.curriculumDeficits.reduce((acc, c) => acc + c.curriculumDeficitPercent, 0) / telemetry.curriculumDeficits.length)}%` : "24.2%"}
-              </span>
-              <span className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold font-mono">
-                Actionable Gap
-              </span>
+            <span className="text-xs font-medium text-muted-foreground">Credential Verification Rate</span>
+            <div className="text-2xl font-bold font-mono text-foreground">
+              {telemetry?.verificationRate ?? 0}%
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Percentage of high-frequency industry technologies not currently integrated into core labs.
-            </p>
+            <span className="text-[11px] text-muted-foreground block">
+              {telemetry?.totalVerifiedCredentials ?? 0} of {telemetry?.totalCertificationsSubmitted ?? 0} submitted credentials authenticated
+            </span>
           </div>
 
           <div className="p-4 rounded-xl bg-card border border-border space-y-1.5 shadow-xs">
-            <span className="text-[10px] font-mono text-primary font-bold uppercase tracking-wider block">
-              Verified Portfolio Rate
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold font-mono text-foreground">
-                {telemetry?.verificationRate ?? 88.4}%
-              </span>
-              <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold font-mono">
-                Audited & Approved
-              </span>
+            <span className="text-xs font-medium text-muted-foreground">Primary Curriculum Deficits</span>
+            <div className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400">
+              {telemetry?.curriculumDeficits?.length ?? 0} Domains
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Percentage of submitted student credentials officially verified by the placement cell.
-            </p>
+            <span className="text-[11px] text-muted-foreground block">
+              High-growth technical competencies requiring syllabus reform
+            </span>
           </div>
         </div>
 
-        {/* 2. Curriculum Deficit vs Market Demand Matrix */}
+        {/* 2. Charts and Directives Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Deficit Bar Chart Box */}
           <div className="lg:col-span-2 bg-card border border-border rounded-xl p-5 space-y-4 shadow-xs">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-500" />
-                  Curriculum Skill Deficit vs. Enterprise Market Demand
-                </h2>
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-primary" />
+                  Curriculum Competency Deficits vs Live Industry Demand
+                </h3>
                 <p className="text-[11px] text-muted-foreground">
-                  Compares market hiring frequency against current cohort competency to isolate academic syllabus gaps.
+                  Comparison between enterprise job postings and student verified proficiency across technical domains.
                 </p>
               </div>
-              <div className="flex items-center gap-3 text-[10px] font-mono">
+              <div className="flex items-center gap-3 text-xs font-mono">
                 <span className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-xs bg-blue-500" />
                   Market Demand
@@ -345,7 +335,7 @@ export default function InstitutionTrendsPage() {
               </h3>
 
               <div className="space-y-2.5">
-                {CURRICULUM_REMEDIES.map((remedy, idx) => (
+                {dynamicRemedies.map((remedy, idx) => (
                   <div key={idx} className="p-3 bg-secondary/30 rounded-lg border border-border text-xs space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-foreground">{remedy.targetDomain}</span>
@@ -382,53 +372,73 @@ export default function InstitutionTrendsPage() {
           </div>
         </div>
 
-        {/* 3. Sectoral Placement Demand Breakdown */}
+        {/* 3. Live Sectoral Placement Demand & Skill Deficits */}
         <div className="bg-card border border-border rounded-xl p-5 space-y-4 shadow-xs">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
                 <Briefcase className="w-4 h-4 text-primary" />
-                Sectoral Placement Demand & Corporate Hiring Quotas (2025–26)
+                Live Industry Hiring Demand &amp; Talent Supply Analytics (2025–26)
               </h2>
               <p className="text-[11px] text-muted-foreground">
-                Distribution of verified enterprise campus requirements, average CTC bands, and prime institutional recruiters.
+                Real-time active employer postings vs available talent computed directly from active industry listings.
               </p>
             </div>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary font-bold border border-primary/20">
-              Verified Corporate Demand
+              Live Industry Postings Telemetry
             </span>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground font-mono text-[10px] uppercase">
-                  <th className="py-2.5 px-3">Industry Domain</th>
-                  <th className="py-2.5 px-3">Placement Share</th>
-                  <th className="py-2.5 px-3">YoY Hiring Momentum</th>
-                  <th className="py-2.5 px-3">Average Package</th>
-                  <th className="py-2.5 px-3 text-right">Prime Corporate Recruiters</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {SECTOR_HIRING_DEMAND.map((sec, idx) => (
-                  <tr key={idx} className="hover:bg-secondary/30 transition-colors">
-                    <td className="py-3 px-3 font-semibold text-foreground flex items-center gap-2">
-                      <TrendingUp className="w-3.5 h-3.5 text-primary" />
-                      <span>{sec.sector}</span>
-                    </td>
-                    <td className="py-3 px-3 font-mono font-bold text-foreground">{sec.sharePct}%</td>
-                    <td className="py-3 px-3 font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                      {sec.growthYoY}
-                    </td>
-                    <td className="py-3 px-3 font-mono font-bold text-primary">{sec.avgOfferLPA}</td>
-                    <td className="py-3 px-3 text-right text-muted-foreground text-[11px]">
-                      {sec.hiringPartners}
-                    </td>
+            {(!marketTrends?.demandVsSupply || marketTrends.demandVsSupply.length === 0) ? (
+              <div className="py-8 text-center text-xs text-muted-foreground">
+                No active industry hiring demand data currently available.
+              </div>
+            ) : (
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-border text-muted-foreground font-mono text-[10px] uppercase">
+                    <th className="py-2.5 px-3">Required Skill / Domain</th>
+                    <th className="py-2.5 px-3">Active Employer Postings</th>
+                    <th className="py-2.5 px-3">Available Talent Supply</th>
+                    <th className="py-2.5 px-3">Market Deficit Index</th>
+                    <th className="py-2.5 px-3 text-right">Placement Recommendation</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {marketTrends.demandVsSupply.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-secondary/30 transition-colors">
+                      <td className="py-3 px-3 font-semibold text-foreground flex items-center gap-2">
+                        <TrendingUp className="w-3.5 h-3.5 text-primary" />
+                        <span className="uppercase font-mono">{item.skill}</span>
+                      </td>
+                      <td className="py-3 px-3 font-mono font-bold text-foreground">
+                        {item.openPostings} roles
+                      </td>
+                      <td className="py-3 px-3 font-mono font-bold text-muted-foreground">
+                        {item.availableTalent} candidates
+                      </td>
+                      <td className="py-3 px-3 font-mono font-bold">
+                        <span
+                          className={
+                            item.marketDeficitPercent >= 60
+                              ? "text-rose-600 dark:text-rose-400"
+                              : "text-amber-600 dark:text-amber-400"
+                          }
+                        >
+                          {item.marketDeficitPercent}% deficit
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right text-muted-foreground text-[11px] font-mono">
+                        {item.marketDeficitPercent >= 60
+                          ? "Prioritize in Campus Drives"
+                          : "Adequate Talent Alignment"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
