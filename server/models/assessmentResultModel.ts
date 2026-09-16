@@ -38,6 +38,7 @@ export interface IAssessmentResult extends Document {
     passed: boolean;
     badgeAwarded?: string;
     verifiedSkillsAdded: string[];
+    relatedSkills: string[];
     answers: IAssessmentAnswer[];
     softSkillsReport?: ISoftSkillsReport;
     completedAt: Date;
@@ -80,6 +81,7 @@ const assessmentResultSchema = new Schema<IAssessmentResult>(
         passed: { type: Boolean, required: true },
         badgeAwarded: { type: String, default: null },
         verifiedSkillsAdded: [{ type: String }],
+        relatedSkills: [{ type: String, default: [] }],
         answers: [assessmentAnswerSchema],
         softSkillsReport: {
             communication: {

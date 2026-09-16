@@ -15,6 +15,7 @@ import {
   Brain,
   Compass,
   Cpu,
+  RefreshCw,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -74,9 +75,21 @@ interface TestResultItem {
   completedAt: string;
 }
 
+export interface SkillStatItem {
+  skill: string;
+  totalAttempts: number;
+  averagePercentage: number;
+  bestPercentage: number;
+  latestPercentage: number;
+  isPassed: boolean;
+  badgeAwarded?: string;
+  lastAttemptDate: string;
+}
+
 export default function SkillAssessmentsPage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [testedSkills, setTestedSkills] = useState<string[]>([]);
+  const [skillStats, setSkillStats] = useState<SkillStatItem[]>([]);
   const [pastResults, setPastResults] = useState<TestResultItem[]>([]);
   const [customSkillInput, setCustomSkillInput] = useState<string>("");
 
@@ -120,14 +133,21 @@ export default function SkillAssessmentsPage() {
   const fetchTestResults = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/api/assessments/my-results`, { credentials: "include" });
-      const data = (await res.json()) as { success?: boolean; data?: TestResultItem[] };
+      const data = (await res.json()) as { success?: boolean; data?: TestResultItem[]; skillStats?: SkillStatItem[] };
       if (data.success && Array.isArray(data.data)) {
         setPastResults(data.data);
+        if (Array.isArray(data.skillStats)) {
+          setSkillStats(data.skillStats);
+        }
         const verifiedSet = new Set<string>();
         data.data.forEach((r) => {
           if (r.passed) {
             (r.verifiedSkillsAdded || []).forEach((s: string) => verifiedSet.add(s.toLowerCase()));
           }
+        });
+        // Also add any skills from skillStats that are marked passed
+        (data.skillStats || []).forEach((s) => {
+          if (s.isPassed) verifiedSet.add(s.skill.toLowerCase());
         });
         setTestedSkills(Array.from(verifiedSet));
       }
@@ -543,31 +563,66 @@ export default function SkillAssessmentsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {aggregatedSkills.map((skill: string, idx: number) => {
                     const isTested = testedSkills.some((ts) => ts.toLowerCase() === skill.toLowerCase());
+                    const stat = skillStats.find((s) => s.skill.toLowerCase() === skill.toLowerCase());
                     return (
                       <div
                         key={idx}
-                        className="p-3.5 rounded-md bg-card border border-border flex items-center justify-between shadow-xs hover:border-primary/40 transition-colors"
+                        className="p-3.5 rounded-md bg-card border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-xs hover:border-primary/40 transition-colors"
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <SkillBadge skill={skill} size="sm" isTested={isTested} />
+                          {stat && (
+                            <span className="text-[11px] font-mono text-muted-foreground bg-secondary/80 px-2 py-0.5 rounded-sm border border-border">
+                              Avg: <strong className="text-foreground">{stat.averagePercentage}%</strong> ({stat.totalAttempts} {stat.totalAttempts === 1 ? "attempt" : "attempts"})
+                            </span>
+                          )}
                         </div>
 
-                        {isTested ? (
-                          <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-sm border border-emerald-500/20 font-semibold flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                            Verified Active
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={isGeneratingTest}
-                            onClick={() => handleGenerateTest(skill)}
-                            className="text-xs font-mono text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1 rounded-sm border border-primary/20 font-semibold flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
-                          >
-                            <Sparkles className="w-3 h-3" />
-                            <span>Generate AI Test →</span>
-                          </button>
-                        )}
+                        <div className="flex items-center gap-2 self-end sm:self-auto">
+                          {isTested ? (
+                            <>
+                              <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-sm border border-emerald-500/20 font-semibold flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                Verified Active
+                              </span>
+                              <button
+                                type="button"
+                                disabled={isGeneratingTest}
+                                onClick={() => handleGenerateTest(skill)}
+                                className="text-xs font-mono text-primary bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-sm border border-primary/20 font-semibold flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                                title="Retest this skill. The final displayed score is the average of all attempts on record."
+                              >
+                                <RefreshCw className="w-3 h-3" />
+                                <span>Retest</span>
+                              </button>
+                            </>
+                          ) : stat ? (
+                            <>
+                              <span className="text-xs font-mono text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-1 rounded-sm border border-amber-500/20 font-semibold">
+                                Needs Retest ({stat.latestPercentage}%)
+                              </span>
+                              <button
+                                type="button"
+                                disabled={isGeneratingTest}
+                                onClick={() => handleGenerateTest(skill)}
+                                className="text-xs font-mono text-primary bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-sm border border-primary/20 font-semibold flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                              >
+                                <RefreshCw className="w-3 h-3" />
+                                <span>Retest</span>
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isGeneratingTest}
+                              onClick={() => handleGenerateTest(skill)}
+                              className="text-xs font-mono text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1 rounded-sm border border-primary/20 font-semibold flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              <span>Generate AI Test →</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -747,31 +802,66 @@ export default function SkillAssessmentsPage() {
                   "Engineering Leadership",
                 ].map((skill, idx) => {
                   const isTested = testedSkills.some((ts) => ts.toLowerCase() === skill.toLowerCase());
+                  const stat = skillStats.find((s) => s.skill.toLowerCase() === skill.toLowerCase());
                   return (
                     <div
                       key={idx}
-                      className="p-3.5 rounded-md bg-card border border-border flex items-center justify-between shadow-xs hover:border-primary/40 transition-colors"
+                      className="p-3.5 rounded-md bg-card border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-xs hover:border-primary/40 transition-colors"
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <SkillBadge skill={skill} size="sm" isTested={isTested} />
+                        {stat && (
+                          <span className="text-[11px] font-mono text-muted-foreground bg-secondary/80 px-2 py-0.5 rounded-sm border border-border">
+                            Avg: <strong className="text-foreground">{stat.averagePercentage}%</strong> ({stat.totalAttempts} {stat.totalAttempts === 1 ? "attempt" : "attempts"})
+                          </span>
+                        )}
                       </div>
 
-                      {isTested ? (
-                        <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-sm border border-emerald-500/20 font-semibold flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                          Verified Active
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={isGeneratingSoftSkills}
-                          onClick={() => handleGenerateSoftSkillTest()}
-                          className="text-xs font-mono text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1 rounded-sm border border-primary/20 font-semibold flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
-                        >
-                          <Sparkles className="w-3 h-3" />
-                          <span>Assess Competency →</span>
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2 self-end sm:self-auto">
+                        {isTested ? (
+                          <>
+                            <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-sm border border-emerald-500/20 font-semibold flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                              Verified Active
+                            </span>
+                            <button
+                              type="button"
+                              disabled={isGeneratingSoftSkills}
+                              onClick={() => handleGenerateSoftSkillTest()}
+                              className="text-xs font-mono text-primary bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-sm border border-primary/20 font-semibold flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                              title="Retest behavioral competency. Final score reflects the average of all recorded attempts."
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              <span>Retest</span>
+                            </button>
+                          </>
+                        ) : stat ? (
+                          <>
+                            <span className="text-xs font-mono text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-1 rounded-sm border border-amber-500/20 font-semibold">
+                              Needs Retest ({stat.latestPercentage}%)
+                            </span>
+                            <button
+                              type="button"
+                              disabled={isGeneratingSoftSkills}
+                              onClick={() => handleGenerateSoftSkillTest()}
+                              className="text-xs font-mono text-primary bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-sm border border-primary/20 font-semibold flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              <span>Retest</span>
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={isGeneratingSoftSkills}
+                            onClick={() => handleGenerateSoftSkillTest()}
+                            className="text-xs font-mono text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1 rounded-sm border border-primary/20 font-semibold flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            <span>Assess Competency →</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

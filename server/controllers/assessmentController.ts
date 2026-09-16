@@ -333,6 +333,9 @@ export async function submitAssessment(req: Request, res: Response) {
                 passed,
                 badgeAwarded: badgeAwarded || "",
                 verifiedSkillsAdded,
+                relatedSkills: assessment.skillVectors && assessment.skillVectors.length > 0
+                    ? assessment.skillVectors
+                    : ["Workplace Communication", "Team Collaboration", "Critical Problem Solving", "Engineering Leadership"],
                 softSkillsReport,
                 answers: evaluatedAnswers.map((ea) => ({
                     questionId: ea.questionId,
@@ -345,6 +348,15 @@ export async function submitAssessment(req: Request, res: Response) {
                 completedAt: new Date(),
             });
 
+            // Compute cumulative attempts and average for this soft skills assessment
+            const priorAttempts = await assessmentResultModel.find({
+                studentId: req.userId,
+                assessmentId: assessment._id,
+            });
+            const totalAttempts = priorAttempts.length;
+            const sumPercentages = priorAttempts.reduce((sum, att) => sum + (att.percentage || 0), 0);
+            const averagePercentage = totalAttempts > 0 ? Math.round(sumPercentages / totalAttempts) : overallIndex;
+
             return res.status(200).json({
                 success: true,
                 data: {
@@ -352,6 +364,8 @@ export async function submitAssessment(req: Request, res: Response) {
                     score: overallIndex,
                     totalQuestions,
                     percentage: overallIndex,
+                    averagePercentage,
+                    totalAttempts,
                     passed,
                     badgeAwarded,
                     verifiedSkillsAdded,
@@ -452,6 +466,7 @@ export async function submitAssessment(req: Request, res: Response) {
             passed,
             badgeAwarded: badgeAwarded || "",
             verifiedSkillsAdded,
+            relatedSkills: assessment.skillVectors && assessment.skillVectors.length > 0 ? assessment.skillVectors : [],
             answers: evaluatedAnswers.map((ea) => ({
                 questionId: ea.questionId,
                 selectedOptionIndex: ea.selectedOptionIndex,
@@ -463,6 +478,18 @@ export async function submitAssessment(req: Request, res: Response) {
             completedAt: new Date(),
         });
 
+        // Compute cumulative attempts and average for this skill/assessment
+        const priorAttempts = await assessmentResultModel.find({
+            studentId: req.userId,
+            $or: [
+                { assessmentId: assessment._id },
+                { relatedSkills: { $in: assessment.skillVectors } }
+            ]
+        });
+        const totalAttempts = priorAttempts.length;
+        const sumPercentages = priorAttempts.reduce((sum, att) => sum + (att.percentage || 0), 0);
+        const averagePercentage = totalAttempts > 0 ? Math.round(sumPercentages / totalAttempts) : percentage;
+
         return res.status(200).json({
             success: true,
             data: {
@@ -470,6 +497,8 @@ export async function submitAssessment(req: Request, res: Response) {
                 score: correctCount,
                 totalQuestions,
                 percentage,
+                averagePercentage,
+                totalAttempts,
                 passed,
                 badgeAwarded,
                 verifiedSkillsAdded,
@@ -488,7 +517,7 @@ export async function submitAssessment(req: Request, res: Response) {
 }
 
 /**
- * @description Get all past assessment results for the logged-in student
+ * @description Get all past assessment results for the logged-in student with aggregated skill-level stats (average of all attempts)
  * @route GET /api/assessments/my-results
  * @access Authenticated (Student)
  */
@@ -502,10 +531,82 @@ export async function getMyResults(req: Request, res: Response) {
             .find({ studentId: req.userId })
             .sort({ completedAt: -1 });
 
+        // Aggregate statistics per skill across all recorded attempts
+        const skillStatsMap: Record<string, {
+            skill: string;
+            totalAttempts: number;
+            averagePercentage: number;
+            bestPercentage: number;
+            latestPercentage: number;
+            isPassed: boolean;
+            badgeAwarded?: string | undefined;
+            lastAttemptDate: Date;
+            attempts: Array<{
+                resultId: string;
+                score: number;
+                totalQuestions: number;
+                percentage: number;
+                passed: boolean;
+                completedAt: Date;
+            }>;
+        }> = {};
+
+        for (const resItem of results) {
+            const skills = (resItem.relatedSkills && resItem.relatedSkills.length > 0)
+                ? resItem.relatedSkills
+                : (resItem.verifiedSkillsAdded && resItem.verifiedSkillsAdded.length > 0)
+                ? resItem.verifiedSkillsAdded
+                : [resItem.assessmentTitle.replace(/\s*(Competency Exam|Assessment|Specialist)/i, "").trim()];
+
+            for (const rawSkill of skills) {
+                const normalized = rawSkill.trim().toLowerCase();
+                if (!normalized) continue;
+
+                if (!skillStatsMap[normalized]) {
+                    skillStatsMap[normalized] = {
+                        skill: rawSkill.trim(),
+                        totalAttempts: 0,
+                        averagePercentage: 0,
+                        bestPercentage: 0,
+                        latestPercentage: resItem.percentage,
+                        isPassed: false,
+                        badgeAwarded: resItem.badgeAwarded || undefined,
+                        lastAttemptDate: resItem.completedAt,
+                        attempts: [],
+                    };
+                }
+
+                const stat = skillStatsMap[normalized]!;
+                stat.totalAttempts += 1;
+                stat.attempts.push({
+                    resultId: (resItem as any)._id.toString(),
+                    score: resItem.score,
+                    totalQuestions: resItem.totalQuestions,
+                    percentage: resItem.percentage,
+                    passed: resItem.passed,
+                    completedAt: resItem.completedAt,
+                });
+                if (resItem.passed) stat.isPassed = true;
+                if (resItem.badgeAwarded && !stat.badgeAwarded) {
+                    stat.badgeAwarded = resItem.badgeAwarded;
+                }
+            }
+        }
+
+        // Finalize averages and best scores for each skill
+        for (const key of Object.keys(skillStatsMap)) {
+            const stat = skillStatsMap[key];
+            if (!stat) continue;
+            const pcts = stat.attempts.map((a) => a.percentage);
+            stat.averagePercentage = Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length);
+            stat.bestPercentage = Math.max(...pcts);
+        }
+
         return res.status(200).json({
             success: true,
             count: results.length,
             data: results,
+            skillStats: Object.values(skillStatsMap),
         });
     } catch (error) {
         console.error("getMyResults error:", error);
