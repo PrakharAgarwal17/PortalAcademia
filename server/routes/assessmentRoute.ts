@@ -5,6 +5,7 @@ import {
     submitAssessment,
     getMyResults,
     generateSkillAssessment,
+    generateSoftSkillAssessment,
 } from "../controllers/assessmentController.js";
 import isloggedIn from "../middleware/isloggedIn.js";
 
@@ -19,6 +20,9 @@ router.get("/my-results", isloggedIn, getMyResults);
 // Generate custom skill assessment based on selected profile skills or on-the-spot target skill
 router.post("/generate", isloggedIn, generateSkillAssessment);
 router.post("/generate-for-user", isloggedIn, generateSkillAssessment);
+
+// Generate dedicated scenario-based soft skills assessment with multi-dimensional weighted scoring
+router.post("/generate-soft-skills", isloggedIn, generateSoftSkillAssessment);
 
 // Specific assessment questions (without answer keys)
 router.get("/:id", isloggedIn, getAssessmentById);

@@ -20,20 +20,23 @@ export async function getAssessments(req: Request, res: Response) {
             });
         }
 
-        const { category, skill } = req.query;
+        const { category, skill, assessmentType } = req.query;
         const query: any = {};
 
         if (category) {
             query.category = category;
         }
+        if (assessmentType) {
+            query.assessmentType = assessmentType;
+        }
         if (skill) {
             query.skillVectors = { $regex: String(skill), $options: "i" };
         }
 
-        // Fetch assessments, explicitly projecting out correct answers to prevent client cheating
+        // Fetch assessments, explicitly projecting out correct answers and secret option weights to prevent client cheating
         const assessments = await assessmentModel
             .find(query)
-            .select("-questions.correctOptionIndex -questions.explanation")
+            .select("-questions.correctOptionIndex -questions.explanation -questions.optionDimensionWeights")
             .sort({ createdAt: -1 });
 
         const payload = {
@@ -65,7 +68,7 @@ export async function getAssessmentById(req: Request, res: Response) {
         const { id } = req.params;
         const assessment = await assessmentModel
             .findById(id)
-            .select("-questions.correctOptionIndex -questions.explanation");
+            .select("-questions.correctOptionIndex -questions.explanation -questions.optionDimensionWeights");
 
         if (!assessment) {
             return res.status(404).json({
@@ -123,9 +126,247 @@ export async function submitAssessment(req: Request, res: Response) {
             });
         }
 
+        const totalQuestions = assessment.questions.length;
+        const isSoftSkills = assessment.assessmentType === "soft_skills" || assessment.category === "SoftSkills";
+
+        if (isSoftSkills) {
+            // Behavioral / Soft Skills Scenario-Based Assessment Evaluation
+            const dimensions = ["communication", "teamwork", "problemSolving", "leadership"] as const;
+            type Dimension = typeof dimensions[number];
+
+            const rawTotals: Record<Dimension, number> = {
+                communication: 0,
+                teamwork: 0,
+                problemSolving: 0,
+                leadership: 0,
+            };
+            const maxTotals: Record<Dimension, number> = {
+                communication: 0,
+                teamwork: 0,
+                problemSolving: 0,
+                leadership: 0,
+            };
+
+            const evaluatedAnswers: Array<{
+                questionId: string;
+                selectedOptionIndex: number;
+                writtenAnswer?: string;
+                timeTakenSeconds?: number;
+                isFlaggedAI: boolean;
+                isCorrect: boolean;
+                explanation: string;
+            }> = [];
+
+            for (const q of assessment.questions) {
+                const studentAns = answers.find((a) => a.questionId === q.questionId);
+                const selected = studentAns?.selectedOptionIndex !== undefined ? studentAns.selectedOptionIndex : -1;
+                const timeTaken = studentAns?.timeTakenSeconds || 0;
+
+                const weightsArr = q.optionDimensionWeights || [];
+                for (const d of dimensions) {
+                    const maxWeightInQ = weightsArr.length > 0
+                        ? Math.max(...weightsArr.map((w: any) => Number(w[d] ?? 0)))
+                        : 5;
+                    maxTotals[d] += maxWeightInQ > 0 ? maxWeightInQ : 5;
+
+                    if (selected >= 0 && selected < weightsArr.length) {
+                        const chosenWeight = Number(weightsArr[selected]?.[d] ?? 0);
+                        rawTotals[d] += chosenWeight;
+                    }
+                }
+
+                evaluatedAnswers.push({
+                    questionId: q.questionId,
+                    selectedOptionIndex: selected,
+                    writtenAnswer: "",
+                    timeTakenSeconds: timeTaken,
+                    isFlaggedAI: false,
+                    isCorrect: selected >= 0,
+                    explanation: q.explanation || "Scenario evaluated based on behavioral and collaboration dimensions.",
+                });
+            }
+
+            const normalized: Record<Dimension, number> = {
+                communication: 0,
+                teamwork: 0,
+                problemSolving: 0,
+                leadership: 0,
+            };
+            const verdicts: Record<Dimension, string> = {
+                communication: "Developing",
+                teamwork: "Developing",
+                problemSolving: "Developing",
+                leadership: "Developing",
+            };
+
+            for (const d of dimensions) {
+                const max = maxTotals[d] > 0 ? maxTotals[d] : 1;
+                const raw = rawTotals[d];
+                const pct = Math.min(100, Math.max(0, Math.round((raw / max) * 100)));
+                normalized[d] = pct;
+                if (pct >= 85) verdicts[d] = "Exemplary";
+                else if (pct >= 70) verdicts[d] = "Proficient";
+                else if (pct >= 50) verdicts[d] = "Competent";
+                else verdicts[d] = "Developing";
+            }
+
+            const overallIndex = Math.round(
+                (normalized.communication + normalized.teamwork + normalized.problemSolving + normalized.leadership) / 4
+            );
+
+            // Determine primary behavioral archetype
+            const sortedDimensions: Dimension[] = [...dimensions].sort((a, b) => normalized[b] - normalized[a]);
+            const top1: Dimension = sortedDimensions[0] ?? "communication";
+            const top2: Dimension = sortedDimensions[1] ?? "teamwork";
+            const lowest: Dimension = sortedDimensions[3] ?? "leadership";
+
+            let archetype = "Balanced Workplace Professional";
+            if (
+                (top1 === "problemSolving" && top2 === "leadership") ||
+                (top1 === "leadership" && top2 === "problemSolving")
+            ) {
+                archetype = "Decisive Technical Leader";
+            } else if (
+                (top1 === "communication" && top2 === "teamwork") ||
+                (top1 === "teamwork" && top2 === "communication")
+            ) {
+                archetype = "Collaborative Team Orchestrator";
+            } else if (
+                (top1 === "problemSolving" && top2 === "teamwork") ||
+                (top1 === "teamwork" && top2 === "problemSolving")
+            ) {
+                archetype = "Pragmatic Solutions Partner";
+            } else if (
+                (top1 === "communication" && top2 === "leadership") ||
+                (top1 === "leadership" && top2 === "communication")
+            ) {
+                archetype = "Strategic Influencer & Communicator";
+            }
+
+            const dimensionLabels: Record<Dimension, string> = {
+                communication: "Empathetic & Transparent Communication",
+                teamwork: "Cross-Functional Collaboration & Team Synergy",
+                problemSolving: "Systemic Root-Cause & Analytical Problem Solving",
+                leadership: "Accountability, Mentorship & Technical Leadership",
+            };
+
+            const dimensionTips: Record<Dimension, string> = {
+                communication: "Practice active listening and proactive asynchronous updates during ambiguous project stages.",
+                teamwork: "Foster psychological safety by soliciting peer feedback early and offering compassionate code reviews.",
+                problemSolving: "Balance immediate firefighting with preventive post-mortems and long-term architectural stability.",
+                leadership: "Take proactive ownership of cross-team dependencies and mentor junior colleagues on engineering best practices.",
+            };
+
+            const keyStrengths = [
+                `High competency in ${dimensionLabels[top1]} (${normalized[top1]}%)`,
+                `Strong collaborative output in ${dimensionLabels[top2]} (${normalized[top2]}%)`,
+            ];
+
+            const growthAreas = [
+                `Growth opportunity in ${dimensionLabels[lowest]} (${normalized[lowest]}%): ${dimensionTips[lowest]}`,
+            ];
+
+            const softSkillsReport = {
+                communication: {
+                    rawScore: rawTotals.communication,
+                    maxPossible: maxTotals.communication,
+                    normalizedScore: normalized.communication,
+                    verdict: verdicts.communication,
+                },
+                teamwork: {
+                    rawScore: rawTotals.teamwork,
+                    maxPossible: maxTotals.teamwork,
+                    normalizedScore: normalized.teamwork,
+                    verdict: verdicts.teamwork,
+                },
+                problemSolving: {
+                    rawScore: rawTotals.problemSolving,
+                    maxPossible: maxTotals.problemSolving,
+                    normalizedScore: normalized.problemSolving,
+                    verdict: verdicts.problemSolving,
+                },
+                leadership: {
+                    rawScore: rawTotals.leadership,
+                    maxPossible: maxTotals.leadership,
+                    normalizedScore: normalized.leadership,
+                    verdict: verdicts.leadership,
+                },
+                overallIndex,
+                archetype,
+                keyStrengths,
+                growthAreas,
+            };
+
+            const passed = overallIndex >= assessment.passPercentage;
+            const badgeAwarded = passed ? (assessment.badgeAwarded || "Certified Workplace Collaborator") : "";
+            let verifiedSkillsAdded: string[] = [];
+
+            if (passed) {
+                const profile = await profileModel.findOne({ userId: req.userId });
+                if (profile) {
+                    const currentSkills = new Set(profile.skills || []);
+                    const vectorsToAdd = assessment.skillVectors && assessment.skillVectors.length > 0
+                        ? assessment.skillVectors
+                        : ["Workplace Communication", "Team Collaboration", "Critical Problem Solving", "Engineering Leadership"];
+                    vectorsToAdd.forEach((skill) => currentSkills.add(skill));
+                    profile.skills = Array.from(currentSkills);
+
+                    if (profile.accountType === "faculty") {
+                        const currentExpertise = new Set(profile.expertise || []);
+                        vectorsToAdd.forEach((skill) => currentExpertise.add(skill));
+                        profile.expertise = Array.from(currentExpertise);
+                    }
+
+                    await profile.save();
+                    verifiedSkillsAdded = vectorsToAdd;
+                }
+            }
+
+            const result = await assessmentResultModel.create({
+                studentId: req.userId,
+                assessmentId: assessment._id,
+                assessmentTitle: assessment.title,
+                assessmentType: "soft_skills",
+                score: overallIndex,
+                totalQuestions,
+                percentage: overallIndex,
+                passed,
+                badgeAwarded: badgeAwarded || "",
+                verifiedSkillsAdded,
+                softSkillsReport,
+                answers: evaluatedAnswers.map((ea) => ({
+                    questionId: ea.questionId,
+                    selectedOptionIndex: ea.selectedOptionIndex,
+                    writtenAnswer: "",
+                    timeTakenSeconds: ea.timeTakenSeconds || 0,
+                    isFlaggedAI: false,
+                    isCorrect: true,
+                })),
+                completedAt: new Date(),
+            });
+
+            return res.status(200).json({
+                success: true,
+                data: {
+                    resultId: (result as any)._id,
+                    score: overallIndex,
+                    totalQuestions,
+                    percentage: overallIndex,
+                    passed,
+                    badgeAwarded,
+                    verifiedSkillsAdded,
+                    passPercentage: assessment.passPercentage,
+                    aiFlaggedCount: 0,
+                    softSkillsReport,
+                    assessmentType: "soft_skills",
+                    answers: evaluatedAnswers,
+                },
+            });
+        }
+
+        // Standard Technical MCQ & Writing Evaluation Branch
         let correctCount = 0;
         let aiFlaggedCount = 0;
-        const totalQuestions = assessment.questions.length;
         const evaluatedAnswers: Array<{
             questionId: string;
             selectedOptionIndex: number;
@@ -204,6 +445,7 @@ export async function submitAssessment(req: Request, res: Response) {
             studentId: req.userId,
             assessmentId: assessment._id,
             assessmentTitle: assessment.title,
+            assessmentType: "technical",
             score: correctCount,
             totalQuestions,
             percentage,
@@ -636,6 +878,410 @@ export async function generateSkillAssessment(req: Request, res: Response) {
         return res.status(500).json({
             success: false,
             message: "Failed to generate custom assessment",
+        });
+    }
+}
+
+/**
+ * Deterministic fallback scenarios covering 8 realistic workplace engineering dilemmas with multi-dimensional weights
+ */
+function buildDeterministicSoftSkillScenarios(): IAssessmentQuestion[] {
+    return [
+        {
+            questionId: "soft_q1",
+            questionText: "Critical Production Outage & Blame Dynamics: During a Friday evening release, a critical production service goes down, affecting 15% of active users. A junior engineer on your team pushes an unreviewed hotfix branch in panic. Your engineering manager asks in the public incident Slack channel what went wrong and who approved the deployment. How do you respond?",
+            type: "mcq",
+            difficultyLevel: "medium",
+            concept: "Blameless Culture & Crisis Management",
+            options: [
+                "Immediately acknowledge the outage in the incident channel, redirect focus to rolling back to the last stable release, and state that a thorough blameless post-mortem will be conducted once service availability is restored.",
+                "Explain privately to the manager what the junior engineer did, then take over the incident channel to independently debug the failing code and write a proper fix.",
+                "Post a message reassuring stakeholders that the team is working on it, while pairing directly with the junior engineer in private to walk through rollback steps together so they learn without feeling exposed.",
+                "Keep silent in the public channel until you have isolated the root cause line-by-line, then post the exact diff and technical breakdown of the error."
+            ],
+            optionDimensionWeights: [
+                { communication: 5, teamwork: 4, problemSolving: 5, leadership: 5 },
+                { communication: 2, teamwork: 2, problemSolving: 4, leadership: 3 },
+                { communication: 4, teamwork: 5, problemSolving: 4, leadership: 4 },
+                { communication: 1, teamwork: 1, problemSolving: 4, leadership: 1 }
+            ],
+            correctOptionIndex: 0,
+            explanation: "Prioritizes service recovery and psychological safety, avoiding public finger-pointing while demonstrating decisive leadership and transparent communication.",
+            weight: 2
+        },
+        {
+            questionId: "soft_q2",
+            questionText: "Sprint Deadline vs Technical Debt: Two days before sprint freeze, the Product Manager requests a high-priority feature tweak promised to a key enterprise client. Adding it now will mean bypassing automated integration tests and increasing technical debt in a core billing module. What is your approach?",
+            type: "mcq",
+            difficultyLevel: "medium",
+            concept: "Trade-off Negotiation & Quality Advocacy",
+            options: [
+                "Schedule a quick 15-minute sync with the PM to present the architectural risks and test coverage impact. Propose delivering a scoped-down version behind a feature flag for that specific client, while scheduling full test automation in the next immediate sprint.",
+                "Strictly reject the request citing the team's Definition of Done and engineering quality guidelines, refusing to compromise test coverage for sprint scope changes.",
+                "Agree to implement the full feature immediately and work overtime over the weekend to write the missing integration tests on your own time.",
+                "Analyze the minimal blast radius of the change, isolate the billing logic with temporary runtime guards, and notify the QA team to perform targeted manual sanity verification before sign-off."
+            ],
+            optionDimensionWeights: [
+                { communication: 5, teamwork: 5, problemSolving: 5, leadership: 4 },
+                { communication: 2, teamwork: 1, problemSolving: 2, leadership: 3 },
+                { communication: 2, teamwork: 3, problemSolving: 2, leadership: 1 },
+                { communication: 3, teamwork: 4, problemSolving: 4, leadership: 3 }
+            ],
+            correctOptionIndex: 0,
+            explanation: "Collaborative problem solving that addresses business urgency through feature flags without alienating cross-functional partners or quietly creating tech debt.",
+            weight: 2
+        },
+        {
+            questionId: "soft_q3",
+            questionText: "Disagreement Over System Architecture: You and a senior peer strongly disagree on whether to migrate an existing monolithic service to event-driven microservices or refactor it into a modular monolith. The discussion in code reviews and architecture meetings has stalled progress for over a week. How do you break the deadlock?",
+            type: "mcq",
+            difficultyLevel: "medium",
+            concept: "Architectural Alignment & Constructive Debate",
+            options: [
+                "Compile an objective Architectural Decision Record (ADR) mapping both options against concrete team metrics: infrastructure costs, team cognitive load, operational complexity, and delivery velocity. Propose a small time-boxed spike (proof-of-concept) to test the riskiest assumptions before deciding.",
+                "Escalate immediately to the VP of Engineering or Tech Lead to make the final executive decision and end the debate.",
+                "Concede to your peer's proposal to preserve team harmony and avoid further conflict, even if you harbor technical reservations.",
+                "Invite a neutral Staff Engineer from another domain team to review both architectural diagrams and facilitate a consensus workshop."
+            ],
+            optionDimensionWeights: [
+                { communication: 5, teamwork: 4, problemSolving: 5, leadership: 5 },
+                { communication: 2, teamwork: 1, problemSolving: 2, leadership: 2 },
+                { communication: 1, teamwork: 3, problemSolving: 1, leadership: 1 },
+                { communication: 4, teamwork: 5, problemSolving: 4, leadership: 3 }
+            ],
+            correctOptionIndex: 0,
+            explanation: "Grounds architectural debate in empirical data and low-risk prototyping (spikes), demonstrating high analytical problem solving and collaborative leadership.",
+            weight: 2
+        },
+        {
+            questionId: "soft_q4",
+            questionText: "Underperforming Teammate in a Paired Deliverable: You are paired with a colleague on a mission-critical sprint deliverable. For the past three daily standups, they have reported being blocked by minor issues, hasn't committed working code, and is falling behind schedule. How do you intervene?",
+            type: "mcq",
+            difficultyLevel: "medium",
+            concept: "Peer Mentorship & Accountability",
+            options: [
+                "Reach out via a supportive 1-on-1 call to understand what is genuinely blocking them, offer to pair-program on the tricky module for an hour, and help break their task into smaller, manageable milestones.",
+                "Take over their assigned branch quietly in the evening and complete the feature yourself to ensure the team hits the sprint commitment.",
+                "Raise their lack of progress publicly in the next team standup so the Scrum Master and Manager are forced to reallocate the tickets.",
+                "Re-evaluate the task dependencies together, identify if the ticket was poorly specified, and collaborate on updating the acceptance criteria and technical notes."
+            ],
+            optionDimensionWeights: [
+                { communication: 5, teamwork: 5, problemSolving: 4, leadership: 4 },
+                { communication: 1, teamwork: 1, problemSolving: 3, leadership: 1 },
+                { communication: 1, teamwork: 1, problemSolving: 1, leadership: 1 },
+                { communication: 4, teamwork: 4, problemSolving: 5, leadership: 3 }
+            ],
+            correctOptionIndex: 0,
+            explanation: "Empathetic communication combined with hands-on pairing promotes peer growth while protecting sprint commitments without toxicity or martyr behavior.",
+            weight: 2
+        },
+        {
+            questionId: "soft_q5",
+            questionText: "Managing Unrealistic Stakeholder Expectations: During a quarterly roadmap review, the sales director promises an enterprise client that a complex real-time analytics dashboard will be delivered in 3 weeks, though your team's engineering estimation was 8 weeks. How do you handle this discrepancy?",
+            type: "mcq",
+            difficultyLevel: "medium",
+            concept: "Stakeholder Expectation Management",
+            options: [
+                "Meet with the sales director and product manager with a transparent breakdown of work streams. Present a phased delivery proposal: an MVP covering the client's core high-value metrics in 3 weeks, followed by deep analytics in subsequent releases.",
+                "Publicly dispute the timeline in the all-hands meeting to make it clear engineering was never consulted before promises were made.",
+                "Ask the engineering team to cut corners on code reviews, error logging, and performance benchmarks to hit the 3-week deadline.",
+                "Quantify the technical risks, required resources, and trade-offs in an executive summary email to leadership, requesting budget for contractor augmentation if 3 weeks is mandatory."
+            ],
+            optionDimensionWeights: [
+                { communication: 5, teamwork: 5, problemSolving: 5, leadership: 5 },
+                { communication: 1, teamwork: 1, problemSolving: 1, leadership: 2 },
+                { communication: 1, teamwork: 2, problemSolving: 1, leadership: 1 },
+                { communication: 4, teamwork: 3, problemSolving: 4, leadership: 4 }
+            ],
+            correctOptionIndex: 0,
+            explanation: "Demonstrates strategic diplomacy by turning an unviable deadline into a viable phased-release milestone that satisfies client needs without burning out engineering.",
+            weight: 2
+        },
+        {
+            questionId: "soft_q6",
+            questionText: "Receiving Critical Feedback on Code & Design: During an in-depth pull request review, a staff architect leaves 25 comments criticizing your API design, pointing out edge cases you missed, and questioning your chosen data structure. You spent the entire week on this PR. How do you process and respond?",
+            type: "mcq",
+            difficultyLevel: "medium",
+            concept: "Feedback Receptivity & Continuous Learning",
+            options: [
+                "Take a step back to detach ego from code. Go through each comment systematically, thank the reviewer for identifying edge cases, ask clarifying questions where trade-offs aren't clear, and update the PR with unit tests addressing the concerns.",
+                "Defend your design choices assertively on all 25 comments, arguing that the architect's suggestions are over-engineered for the current business phase.",
+                "Accept and blindly implement all 25 changes without question, even if you suspect some of the suggestions might degrade database performance.",
+                "Schedule a quick 10-minute huddle with the architect to align on the core design principles and agree on which changes are blocking vs non-blocking suggestions."
+            ],
+            optionDimensionWeights: [
+                { communication: 5, teamwork: 4, problemSolving: 5, leadership: 4 },
+                { communication: 2, teamwork: 1, problemSolving: 2, leadership: 2 },
+                { communication: 1, teamwork: 2, problemSolving: 1, leadership: 1 },
+                { communication: 5, teamwork: 5, problemSolving: 4, leadership: 4 }
+            ],
+            correctOptionIndex: 0,
+            explanation: "Emotional intelligence and constructive receptivity allow turning dense critical feedback into elevated code quality and technical maturity.",
+            weight: 2
+        },
+        {
+            questionId: "soft_q7",
+            questionText: "Ethical Dilemma: Privacy & Telemetry Tracking: A product feature requires capturing user keystroke telemetry and search queries to improve predictive suggestions. While reviewing the implementation, you notice that sensitive user credentials or personal identifying information (PII) might occasionally be transmitted unmasked to external logging tools. What do you do?",
+            type: "mcq",
+            difficultyLevel: "medium",
+            concept: "Engineering Ethics & Security Advocacy",
+            options: [
+                "Immediately halt merging the branch, file a security concern, and present a client-side masking and regex sanitization solution to the lead and PM that scrubs PII while retaining the needed telemetry signals.",
+                "Ship the feature as designed since telemetry is standard practice and security compliance can be audited at a later quarterly review.",
+                "Delete the telemetry code unilaterally without informing the product team to ensure user privacy is preserved.",
+                "Document the exact risk with reproducible test cases, calculate compliance exposure under GDPR/data regulations, and schedule an emergency review with the engineering manager."
+            ],
+            optionDimensionWeights: [
+                { communication: 4, teamwork: 4, problemSolving: 5, leadership: 5 },
+                { communication: 1, teamwork: 1, problemSolving: 1, leadership: 1 },
+                { communication: 1, teamwork: 1, problemSolving: 2, leadership: 2 },
+                { communication: 5, teamwork: 3, problemSolving: 4, leadership: 5 }
+            ],
+            correctOptionIndex: 0,
+            explanation: "Exemplifies ethical engineering leadership by protecting end-user privacy while proactively engineering a compliant technical alternative.",
+            weight: 2
+        },
+        {
+            questionId: "soft_q8",
+            questionText: "Navigating Team Burnout & Morale Dip: Following three back-to-back intense sprint crunches, several team members appear visibly exhausted, PR review times have doubled, and cynicism is rising in retro meetings. As an active team member, what step do you take?",
+            type: "mcq",
+            difficultyLevel: "medium",
+            concept: "Team Dynamics & Sustainable Engineering",
+            options: [
+                "Use the team retrospective to voice constructive observations about unsustainable pacing. Advocate for dedicating the next sprint to tech debt, documentation, and tooling upgrades to allow the team to recharge while maintaining productivity.",
+                "Ignore the mood and focus solely on your individual tickets to avoid getting dragged into team politics.",
+                "Complain openly on private messaging channels to validate your peers' frustration with management.",
+                "Propose quick asynchronous team rituals (like peer shoutouts/kudos) and volunteer to take on some tedious triage tasks to alleviate pressure on teammates."
+            ],
+            optionDimensionWeights: [
+                { communication: 5, teamwork: 5, problemSolving: 4, leadership: 5 },
+                { communication: 1, teamwork: 1, problemSolving: 1, leadership: 1 },
+                { communication: 1, teamwork: 2, problemSolving: 1, leadership: 1 },
+                { communication: 4, teamwork: 5, problemSolving: 3, leadership: 4 }
+            ],
+            correctOptionIndex: 0,
+            explanation: "Constructive cultural leadership that addresses the systemic causes of burnout through structural sprint planning rather than passive venting.",
+            weight: 2
+        }
+    ];
+}
+
+/**
+ * Calls Groq LLM to synthesize dynamic scenario-based soft skills MCQs with dimensional weights
+ */
+async function generateAiSoftSkillQuestions(
+    theme: string,
+    userRole: string,
+    candidateSkills: string[]
+): Promise<{
+    title?: string;
+    description?: string;
+    badgeAwarded?: string;
+    questions: IAssessmentQuestion[];
+} | null> {
+    const apiKey = process.env.GROQ_API_KEY || process.env.GROK_API_KEY;
+    if (!apiKey) {
+        return null;
+    }
+
+    const groqCandidateModels = [
+        "openai/gpt-oss-120b",
+        "qwen/qwen3.8-27b",
+        "groq/compound-mini",
+        "groq/compound",
+        "openai/gpt-oss-20b",
+    ];
+
+    const systemPrompt = `You are an organizational psychologist and senior engineering leader designing scenario-based workplace dilemma questions to assess behavioral competencies, team dynamics, communication, and leadership in software engineers.
+Target Focus / Theme: ${theme}.
+Candidate role: ${userRole}. Background: ${candidateSkills.slice(0, 6).join(", ") || "Engineering & Team Collaboration"}.
+
+Respond ONLY with valid JSON matching this exact schema:
+{
+  "title": "${theme} Behavioral Assessment",
+  "description": "Scenario-based evaluation measuring workplace communication, cross-functional collaboration, problem solving, and engineering leadership.",
+  "category": "SoftSkills",
+  "difficulty": "Intermediate",
+  "badgeAwarded": "Certified Workplace Collaborator",
+  "questions": [
+    {
+      "questionId": "sq1",
+      "questionText": "Detailed workplace dilemma description (1-3 sentences establishing high stakes, trade-offs, or interpersonal friction)...",
+      "type": "mcq",
+      "concept": "Crisis Management & Accountability",
+      "options": [
+        "Action option A: Balanced proactive response...",
+        "Action option B: Individualist or reactive response...",
+        "Action option C: People-first or passive response...",
+        "Action option D: Analytical or procedural response..."
+      ],
+      "optionDimensionWeights": [
+        { "communication": 5, "teamwork": 4, "problemSolving": 5, "leadership": 5 },
+        { "communication": 2, "teamwork": 2, "problemSolving": 4, "leadership": 3 },
+        { "communication": 4, "teamwork": 5, "problemSolving": 3, "leadership": 4 },
+        { "communication": 1, "teamwork": 1, "problemSolving": 3, "leadership": 1 }
+      ],
+      "correctOptionIndex": 0,
+      "explanation": "Why balanced communication and collaborative problem solving excels in this scenario.",
+      "weight": 2
+    }
+  ]
+}
+
+Strict requirements:
+- Exactly 8 scenario-based questions.
+- Every question MUST be a realistic workplace situation (production outages, deadline crunches vs tech debt, architecture arguments, underperforming peers, stakeholder demands, critical PR reviews, ethics/PII leaks, burnout).
+- NO definitional questions (e.g. NEVER ask 'What is active listening?').
+- Each question must have exactly 4 options.
+- optionDimensionWeights MUST contain exactly 4 items corresponding to the 4 options.
+- Each item in optionDimensionWeights MUST have integers between 0 and 5 for all 4 keys: "communication", "teamwork", "problemSolving", "leadership".
+- Output pure JSON only. No markdown fences.`;
+
+    for (const candidateModel of groqCandidateModels) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+            const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    model: candidateModel,
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        {
+                            role: "user",
+                            content: `Generate an 8-question scenario-based behavioral assessment for "${theme}". Output pure JSON only.`,
+                        },
+                    ],
+                    temperature: 0.4,
+                    max_completion_tokens: 4000,
+                    response_format: { type: "json_object" },
+                }),
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                console.warn(`Groq soft skills model ${candidateModel} returned status: ${response.status}`);
+                continue;
+            }
+
+            const data = await response.json();
+            const rawContent = data.choices?.[0]?.message?.content;
+            if (!rawContent) continue;
+
+            const parsed = JSON.parse(rawContent);
+            if (Array.isArray(parsed.questions) && parsed.questions.length >= 6) {
+                // Ensure all questions have optionDimensionWeights
+                const validQuestions = parsed.questions.map((q: any, idx: number) => ({
+                    questionId: q.questionId || `sq_${idx + 1}`,
+                    questionText: q.questionText,
+                    type: "mcq" as const,
+                    difficultyLevel: "medium" as const,
+                    concept: q.concept || "Behavioral Dilemma",
+                    options: Array.isArray(q.options) && q.options.length === 4
+                        ? q.options
+                        : ["Collaborative resolution", "Direct action", "Peer consultation", "Process escalation"],
+                    optionDimensionWeights: Array.isArray(q.optionDimensionWeights) && q.optionDimensionWeights.length === 4
+                        ? q.optionDimensionWeights.map((w: any) => ({
+                            communication: Math.min(5, Math.max(0, Number(w.communication ?? 3))),
+                            teamwork: Math.min(5, Math.max(0, Number(w.teamwork ?? 3))),
+                            problemSolving: Math.min(5, Math.max(0, Number(w.problemSolving ?? 3))),
+                            leadership: Math.min(5, Math.max(0, Number(w.leadership ?? 3))),
+                        }))
+                        : [
+                            { communication: 5, teamwork: 4, problemSolving: 5, leadership: 4 },
+                            { communication: 2, teamwork: 2, problemSolving: 4, leadership: 3 },
+                            { communication: 4, teamwork: 5, problemSolving: 3, leadership: 4 },
+                            { communication: 2, teamwork: 2, problemSolving: 2, leadership: 2 },
+                        ],
+                    correctOptionIndex: 0,
+                    explanation: q.explanation || "Evaluated across communication, teamwork, problem solving, and leadership dimensions.",
+                    weight: 2,
+                }));
+
+                return {
+                    title: parsed.title || `${theme} Behavioral Competency Assessment`,
+                    description: parsed.description || "Scenario-based evaluation measuring workplace communication, cross-functional collaboration, and leadership.",
+                    badgeAwarded: parsed.badgeAwarded || "Certified Workplace Collaborator",
+                    questions: validQuestions,
+                };
+            }
+        } catch (err) {
+            console.warn(`Groq soft skills candidate ${candidateModel} failed:`, err);
+        }
+    }
+    return null;
+}
+
+/**
+ * @description Generate dedicated Scenario-Based Soft Skills & Behavioral Assessment
+ * @route POST /api/assessments/generate-soft-skills
+ * @access Authenticated
+ */
+export async function generateSoftSkillAssessment(req: Request, res: Response) {
+    try {
+        const { theme: explicitTheme } = req.body as { theme?: string };
+        const theme = explicitTheme?.trim() || "Workplace Collaboration & Incident Response";
+
+        // Fetch user profile context
+        const profile = req.userId ? await profileModel.findOne({ userId: req.userId }) : null;
+        const userRole = profile?.accountType || "candidate";
+        const candidateSkills = [
+            ...(profile?.skills || []),
+            ...(profile?.expertise || []),
+        ];
+
+        // Call Groq LLM to synthesize scenarios dynamically
+        const aiAssessment = await generateAiSoftSkillQuestions(theme, userRole, candidateSkills);
+
+        const questions: IAssessmentQuestion[] = aiAssessment?.questions && aiAssessment.questions.length >= 6
+            ? aiAssessment.questions
+            : buildDeterministicSoftSkillScenarios();
+
+        const title = aiAssessment?.title || `${theme} Behavioral Assessment`;
+        const description = aiAssessment?.description || "Scenario-based evaluation measuring communication, cross-functional teamwork, root-cause problem solving, and leadership.";
+        const badgeAwarded = aiAssessment?.badgeAwarded || "Certified Workplace Collaborator";
+
+        // Create persistent assessment record in DB
+        const newAssessment = await assessmentModel.create({
+            title,
+            description,
+            category: "SoftSkills",
+            assessmentType: "soft_skills",
+            skillVectors: ["Workplace Communication", "Team Collaboration", "Critical Problem Solving", "Engineering Leadership"],
+            durationMinutes: 15,
+            passPercentage: 60,
+            difficulty: "Intermediate",
+            questions,
+            badgeAwarded,
+            createdBy: req.userId ? (req.userId as any) : undefined,
+        } as any);
+
+        // Sanitize questions so correct answers and secret optionDimensionWeights aren't exposed to client
+        const sanitized = newAssessment.toObject();
+        sanitized.questions = (sanitized.questions || []).map((q: any) => {
+            const { correctOptionIndex, explanation, optionDimensionWeights, ...rest } = q;
+            return rest;
+        });
+
+        // Invalidate assessments cache
+        await deleteCache("cache:assessments:*");
+
+        return res.status(201).json({
+            success: true,
+            data: sanitized,
+        });
+    } catch (error) {
+        console.error("generateSoftSkillAssessment error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to generate soft skills assessment",
         });
     }
 }

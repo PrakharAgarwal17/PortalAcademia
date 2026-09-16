@@ -12,6 +12,12 @@ import {
   FileText,
   HelpCircle,
   Timer,
+  Users,
+  MessageSquare,
+  Brain,
+  Compass,
+  TrendingUp,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,11 +33,30 @@ export interface Question {
   weight?: number;
 }
 
+export interface DimensionalScore {
+  rawScore: number;
+  maxPossible: number;
+  normalizedScore: number;
+  verdict: "Exemplary" | "Proficient" | "Competent" | "Developing" | string;
+}
+
+export interface SoftSkillsReport {
+  communication: DimensionalScore;
+  teamwork: DimensionalScore;
+  problemSolving: DimensionalScore;
+  leadership: DimensionalScore;
+  overallIndex: number;
+  archetype: string;
+  keyStrengths: string[];
+  growthAreas: string[];
+}
+
 export interface AssessmentData {
   _id: string;
   title: string;
   description: string;
   category: string;
+  assessmentType?: "technical" | "soft_skills";
   skillVectors: string[];
   passPercentage: number;
   badgeAwarded: string;
@@ -169,7 +194,12 @@ export default function SkillTestRunnerModal({
     }
   };
 
-  const isWritingQuestion = currentQ?.type === "writing" || currentQ?.difficultyLevel === "writing";
+  const isSoftSkills =
+    assessment.category === "SoftSkills" ||
+    assessment.assessmentType === "soft_skills" ||
+    !!testResult?.softSkillsReport;
+
+  const isWritingQuestion = !isSoftSkills && (currentQ?.type === "writing" || currentQ?.difficultyLevel === "writing");
   const accumulatedTimeSpent = (timeTakenPerQuestion[currentQ?.questionId || ""] || 0) + currentQuestionElapsed;
   const currentWritingText = writingAnswers[currentQ?.questionId || ""] || "";
   const isCurrentFastWriting = isWritingQuestion && currentWritingText.length >= 15 && accumulatedTimeSpent < 10;
@@ -188,7 +218,7 @@ export default function SkillTestRunnerModal({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-bold">
-                10-Question Competency Exam
+                {isSoftSkills ? "Behavioral & Soft Skills Scenario Assessment" : "10-Question Competency Exam"}
               </span>
               <span className="text-xs font-mono text-muted-foreground">
                 Pass mark: {assessment.passPercentage}%
@@ -209,66 +239,225 @@ export default function SkillTestRunnerModal({
 
         {/* Test Results Overview View */}
         {testResult ? (
-          <div className="space-y-5 py-3 text-center">
-            <div
-              className={cn(
-                "w-20 h-20 rounded-full mx-auto flex items-center justify-center text-2xl font-bold font-mono border-2 shadow-lg",
-                testResult.passed
-                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
-                  : "bg-red-500/10 text-red-600 border-red-500/30"
-              )}
-            >
-              {testResult.percentage}%
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold text-foreground">
-                {testResult.passed ? "Assessment Passed & Verified!" : "Benchmark Threshold Not Met"}
-              </h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                You scored {testResult.score} out of {testResult.totalQuestions} questions correctly.
-              </p>
-
-              {testResult.badgeAwarded && (
-                <div className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold">
-                  <Award className="w-4 h-4" />
-                  Verified Badge Earned: {testResult.badgeAwarded}
-                </div>
-              )}
-            </div>
-
-            {/* AI Flagging Telemetry Summary */}
-            {testResult.aiFlaggedCount > 0 ? (
-              <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs space-y-1 text-left max-w-md mx-auto">
-                <div className="flex items-center gap-1.5 font-bold">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                  <span>AI Generation Flag Triggered ({testResult.aiFlaggedCount} Question(s))</span>
-                </div>
-                <p className="text-[11px] opacity-90 leading-relaxed">
-                  One or more written scenario responses were completed in under 10 seconds (&lt;10s) and flagged as <strong>"Seems AI Generated"</strong> in your official telemetry audit.
-                </p>
-              </div>
-            ) : (
-              <div className="p-3 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs flex items-center justify-center gap-2 max-w-md mx-auto">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Verified Genuine Human Submission — No AI Flags</span>
-              </div>
-            )}
-
-            <div className="pt-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="text-xs font-bold px-6 py-2.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
+          testResult.softSkillsReport ? (
+            /* Multi-Dimensional Behavioral & Soft Skills Report */
+            <div className="space-y-5 py-2 text-center">
+              <div
+                className={cn(
+                  "w-20 h-20 rounded-full mx-auto flex items-center justify-center text-2xl font-bold font-mono border-2 shadow-lg",
+                  testResult.passed
+                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                    : "bg-red-500/10 text-red-600 border-red-500/30"
+                )}
               >
-                Return to Dashboard
-              </button>
+                {testResult.softSkillsReport.overallIndex}%
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold text-foreground">
+                  {testResult.passed
+                    ? "Behavioral Competency Verified!"
+                    : "Benchmark Threshold Not Met"}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Overall Soft Skills Index: {testResult.softSkillsReport.overallIndex}% (Threshold: {assessment.passPercentage}%)
+                </p>
+
+                {/* Behavioral Archetype Badge */}
+                <div className="mt-2.5 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/25 text-xs font-bold shadow-xs">
+                  <Compass className="w-4 h-4" />
+                  <span>Archetype: {testResult.softSkillsReport.archetype}</span>
+                </div>
+              </div>
+
+              {/* 4 Multi-Dimensional Dimension Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                {[
+                  {
+                    key: "communication",
+                    label: "Communication",
+                    icon: MessageSquare,
+                    data: testResult.softSkillsReport.communication,
+                    color: "text-sky-600 dark:text-sky-400",
+                    bg: "bg-sky-500/10",
+                    border: "border-sky-500/20",
+                    bar: "bg-sky-500",
+                  },
+                  {
+                    key: "teamwork",
+                    label: "Teamwork & Collaboration",
+                    icon: Users,
+                    data: testResult.softSkillsReport.teamwork,
+                    color: "text-emerald-600 dark:text-emerald-400",
+                    bg: "bg-emerald-500/10",
+                    border: "border-emerald-500/20",
+                    bar: "bg-emerald-500",
+                  },
+                  {
+                    key: "problemSolving",
+                    label: "Analytical Problem Solving",
+                    icon: Brain,
+                    data: testResult.softSkillsReport.problemSolving,
+                    color: "text-purple-600 dark:text-purple-400",
+                    bg: "bg-purple-500/10",
+                    border: "border-purple-500/20",
+                    bar: "bg-purple-500",
+                  },
+                  {
+                    key: "leadership",
+                    label: "Engineering Leadership",
+                    icon: Award,
+                    data: testResult.softSkillsReport.leadership,
+                    color: "text-amber-600 dark:text-amber-400",
+                    bg: "bg-amber-500/10",
+                    border: "border-amber-500/20",
+                    bar: "bg-amber-500",
+                  },
+                ].map((dim) => (
+                  <div
+                    key={dim.key}
+                    className={cn("p-3.5 rounded-md border bg-card space-y-2", dim.border)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <dim.icon className={cn("w-4 h-4", dim.color)} />
+                        <span className="text-xs font-bold text-foreground">{dim.label}</span>
+                      </div>
+                      <span
+                        className={cn(
+                          "text-[10px] font-mono font-bold px-2 py-0.5 rounded",
+                          dim.bg,
+                          dim.color
+                        )}
+                      >
+                        {dim.data?.verdict || "Proficient"}
+                      </span>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div className="w-full bg-secondary/80 rounded-full h-2 overflow-hidden">
+                      <div
+                        className={cn("h-full rounded-full transition-all duration-500", dim.bar)}
+                        style={{ width: `${dim.data?.normalizedScore || 0}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground">
+                      <span>Normalized: {dim.data?.normalizedScore || 0}%</span>
+                      <span>Raw: {dim.data?.rawScore || 0}/{dim.data?.maxPossible || 0} pts</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Strengths & Growth Areas */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                <div className="p-3.5 rounded-md bg-emerald-500/5 border border-emerald-500/20 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span>Identified Strengths</span>
+                  </div>
+                  <ul className="text-[11px] text-muted-foreground space-y-1 list-disc list-inside">
+                    {testResult.softSkillsReport.keyStrengths?.map((s: string, i: number) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="p-3.5 rounded-md bg-sky-500/5 border border-sky-500/20 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-sky-600 dark:text-sky-400">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Targeted Development Focus</span>
+                  </div>
+                  <ul className="text-[11px] text-muted-foreground space-y-1 list-disc list-inside">
+                    {testResult.softSkillsReport.growthAreas?.map((g: string, i: number) => (
+                      <li key={i}>{g}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Verified Badge Earned */}
+              {testResult.badgeAwarded && (
+                <div className="p-3 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-xs font-mono text-emerald-700 dark:text-emerald-300 flex items-center justify-center gap-2">
+                  <Award className="w-4 h-4 text-emerald-600" />
+                  <span>Verified Credential Badge: <strong>{testResult.badgeAwarded}</strong></span>
+                </div>
+              )}
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="text-xs font-bold px-6 py-2.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
+                >
+                  Return to Dashboard
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            /* Technical Test Result View */
+            <div className="space-y-5 py-3 text-center">
+              <div
+                className={cn(
+                  "w-20 h-20 rounded-full mx-auto flex items-center justify-center text-2xl font-bold font-mono border-2 shadow-lg",
+                  testResult.passed
+                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                    : "bg-red-500/10 text-red-600 border-red-500/30"
+                )}
+              >
+                {testResult.percentage}%
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold text-foreground">
+                  {testResult.passed ? "Assessment Passed & Verified!" : "Benchmark Threshold Not Met"}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  You scored {testResult.score} out of {testResult.totalQuestions} questions correctly.
+                </p>
+
+                {testResult.badgeAwarded && (
+                  <div className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold">
+                    <Award className="w-4 h-4" />
+                    Verified Badge Earned: {testResult.badgeAwarded}
+                  </div>
+                )}
+              </div>
+
+              {/* AI Flagging Telemetry Summary */}
+              {testResult.aiFlaggedCount > 0 ? (
+                <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs space-y-1 text-left max-w-md mx-auto">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <span>AI Generation Flag Triggered ({testResult.aiFlaggedCount} Question(s))</span>
+                  </div>
+                  <p className="text-[11px] opacity-90 leading-relaxed">
+                    One or more written scenario responses were completed in under 10 seconds (&lt;10s) and flagged as <strong>"Seems AI Generated"</strong> in your official telemetry audit.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs flex items-center justify-center gap-2 max-w-md mx-auto">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>Verified Genuine Human Submission — No AI Flags</span>
+                </div>
+              )}
+
+              <div className="pt-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="text-xs font-bold px-6 py-2.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
+                >
+                  Return to Dashboard
+                </button>
+              </div>
+            </div>
+          )
         ) : (
           /* Live Interactive Exam Stepper */
           <div className="space-y-4">
-            {/* Question Section Stepper Tabs (1–3 Easy, 4–6 Med, 7–10 Writing) */}
+            {/* Question Section Stepper Tabs */}
             <div className="flex items-center justify-between gap-1 overflow-x-auto pb-2 border-b border-border">
               {assessment.questions.map((q, idx) => {
                 const isAnswered =
@@ -295,7 +484,7 @@ export default function SkillTestRunnerModal({
                         : "bg-secondary/60 border-border text-muted-foreground hover:bg-secondary"
                     )}
                   >
-                    Q{idx + 1}
+                    {isSoftSkills ? `S${idx + 1}` : `Q${idx + 1}`}
                   </button>
                 );
               })}
@@ -305,10 +494,12 @@ export default function SkillTestRunnerModal({
             <div className="flex items-center justify-between gap-2 bg-secondary/40 p-2.5 rounded-md border border-border">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-foreground">
-                  Question {currentIdx + 1} of {assessment.questions.length}
+                  {isSoftSkills ? `Scenario ${currentIdx + 1} of ${assessment.questions.length}` : `Question ${currentIdx + 1} of ${assessment.questions.length}`}
                 </span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-card border border-border text-muted-foreground uppercase">
-                  {currentQ?.difficultyLevel === "easy"
+                  {isSoftSkills
+                    ? (currentQ?.concept || "Workplace Dilemma Scenario")
+                    : currentQ?.difficultyLevel === "easy"
                     ? "Easy MCQ (1 pt)"
                     : currentQ?.difficultyLevel === "medium"
                     ? "Medium Concept MCQ (2 pts)"

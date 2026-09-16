@@ -9,10 +9,29 @@ export interface IAssessmentAnswer {
     isCorrect: boolean;
 }
 
+export interface IDimensionalScore {
+    rawScore: number;
+    maxPossible: number;
+    normalizedScore: number; // 0 - 100%
+    verdict: string;         // "Exemplary" | "Proficient" | "Competent" | "Developing"
+}
+
+export interface ISoftSkillsReport {
+    communication: IDimensionalScore;
+    teamwork: IDimensionalScore;
+    problemSolving: IDimensionalScore;
+    leadership: IDimensionalScore;
+    overallIndex: number; // 0 - 100%
+    archetype: string;
+    keyStrengths: string[];
+    growthAreas: string[];
+}
+
 export interface IAssessmentResult extends Document {
     studentId: mongoose.Types.ObjectId;
     assessmentId: mongoose.Types.ObjectId;
     assessmentTitle: string;
+    assessmentType: "technical" | "soft_skills";
     score: number;
     totalQuestions: number;
     percentage: number;
@@ -20,6 +39,7 @@ export interface IAssessmentResult extends Document {
     badgeAwarded?: string;
     verifiedSkillsAdded: string[];
     answers: IAssessmentAnswer[];
+    softSkillsReport?: ISoftSkillsReport;
     completedAt: Date;
 }
 
@@ -49,6 +69,11 @@ const assessmentResultSchema = new Schema<IAssessmentResult>(
             required: true,
         },
         assessmentTitle: { type: String, required: true },
+        assessmentType: {
+            type: String,
+            enum: ["technical", "soft_skills"],
+            default: "technical",
+        },
         score: { type: Number, required: true },
         totalQuestions: { type: Number, required: true },
         percentage: { type: Number, required: true },
@@ -56,6 +81,36 @@ const assessmentResultSchema = new Schema<IAssessmentResult>(
         badgeAwarded: { type: String, default: null },
         verifiedSkillsAdded: [{ type: String }],
         answers: [assessmentAnswerSchema],
+        softSkillsReport: {
+            communication: {
+                rawScore: { type: Number, default: 0 },
+                maxPossible: { type: Number, default: 0 },
+                normalizedScore: { type: Number, default: 0 },
+                verdict: { type: String, default: "" },
+            },
+            teamwork: {
+                rawScore: { type: Number, default: 0 },
+                maxPossible: { type: Number, default: 0 },
+                normalizedScore: { type: Number, default: 0 },
+                verdict: { type: String, default: "" },
+            },
+            problemSolving: {
+                rawScore: { type: Number, default: 0 },
+                maxPossible: { type: Number, default: 0 },
+                normalizedScore: { type: Number, default: 0 },
+                verdict: { type: String, default: "" },
+            },
+            leadership: {
+                rawScore: { type: Number, default: 0 },
+                maxPossible: { type: Number, default: 0 },
+                normalizedScore: { type: Number, default: 0 },
+                verdict: { type: String, default: "" },
+            },
+            overallIndex: { type: Number, default: 0 },
+            archetype: { type: String, default: "" },
+            keyStrengths: [{ type: String }],
+            growthAreas: [{ type: String }],
+        },
         completedAt: { type: Date, default: Date.now },
     },
     {

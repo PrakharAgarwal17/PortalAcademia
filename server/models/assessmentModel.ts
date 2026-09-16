@@ -1,5 +1,12 @@
 import mongoose, { Schema, type Document, type Model } from "mongoose";
 
+export interface ISoftSkillWeights {
+    communication: number;   // 0 - 5
+    teamwork: number;        // 0 - 5
+    problemSolving: number;  // 0 - 5
+    leadership: number;      // 0 - 5
+}
+
 export interface IAssessmentQuestion {
     questionId: string;
     questionText: string;
@@ -10,18 +17,21 @@ export interface IAssessmentQuestion {
     correctOptionIndex: number;
     explanation?: string;
     weight: number;
+    // Multi-dimensional weights for each option (for soft skills scenarios)
+    optionDimensionWeights?: ISoftSkillWeights[];
 }
 
 export interface IAssessment extends Document {
     title: string;
     description: string;
-    category: "Technical" | "Aptitude" | "Domain";
-    skillVectors: string[]; // e.g. ["Python", "Data Engineering"]
+    category: "Technical" | "Aptitude" | "Domain" | "SoftSkills";
+    assessmentType: "technical" | "soft_skills";
+    skillVectors: string[]; // e.g. ["Python"] or ["Communication", "Conflict Resolution"]
     durationMinutes: number;
     passPercentage: number;
     difficulty: "Beginner" | "Intermediate" | "Advanced";
     questions: IAssessmentQuestion[];
-    badgeAwarded: string; // e.g. "Certified Python Practitioner"
+    badgeAwarded: string; // e.g. "Certified Python Practitioner" or "Certified Workplace Leadership Practitioner"
     createdBy?: mongoose.Types.ObjectId;
     createdAt: Date;
     updatedAt: Date;
@@ -38,6 +48,14 @@ const assessmentQuestionSchema = new Schema<IAssessmentQuestion>(
         correctOptionIndex: { type: Number, required: true, default: 0 },
         explanation: { type: String, default: "" },
         weight: { type: Number, default: 1 },
+        optionDimensionWeights: [
+            {
+                communication: { type: Number, default: 0 },
+                teamwork: { type: Number, default: 0 },
+                problemSolving: { type: Number, default: 0 },
+                leadership: { type: Number, default: 0 },
+            },
+        ],
     },
     { _id: false }
 );
@@ -48,9 +66,14 @@ const assessmentSchema = new Schema<IAssessment>(
         description: { type: String, required: true },
         category: {
             type: String,
-            enum: ["Technical", "Aptitude", "Domain"],
+            enum: ["Technical", "Aptitude", "Domain", "SoftSkills"],
             required: true,
             default: "Technical",
+        },
+        assessmentType: {
+            type: String,
+            enum: ["technical", "soft_skills"],
+            default: "technical",
         },
         skillVectors: [{ type: String, required: true }],
         durationMinutes: { type: Number, required: true, default: 15 },

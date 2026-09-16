@@ -1,367 +1,526 @@
 # PortalAcademia
 
-> **Smart India Hackathon 2026 — Problem Statement 26044**  
-> **Enterprise Academia-Industry Collaboration & Career Readiness Platform**  
-> Bridging the critical gap between institutional engineering curriculum and dynamic real-world industry demands through verified competencies, AI-driven assessments, corporate sabbaticals, and telemetry-backed talent pipelines.
+<div align="center">
+
+**Smart India Hackathon 2026 — Problem Statement 26044**  
+### Enterprise Academia-Industry Collaboration, Verified Skill Credentials & Career Intelligence Platform
+
+[![Node.js](https://img.shields.io/badge/Node.js-v20+-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![Express](https://img.shields.io/badge/Express-v5.0-000000?logo=express&logoColor=white)](https://expressjs.com)
+[![React](https://img.shields.io/badge/React-v19-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Vite](https://img.shields.io/badge/Vite-8.x-646CFF?logo=vite&logoColor=white)](https://vitejs.dev)
+[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-v3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![MongoDB](https://img.shields.io/badge/MongoDB-7.0+-47A248?logo=mongodb&logoColor=white)](https://www.mongodb.com)
+[![Redis](https://img.shields.io/badge/Redis-6.x-DC382D?logo=redis&logoColor=white)](https://redis.io)
+[![Groq AI](https://img.shields.io/badge/Groq-Llama%203.3%2070B-F55036?logo=meta&logoColor=white)](https://groq.com)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+*Connecting Students, Faculty, Academic Institutions, and Industry Partners through cryptographically audited credentials, real-time market demand benchmarks, on-demand AI skill assessments, and streamlined corporate endorsement pipelines.*
+
+</div>
 
 ---
 
-## Table of Contents
+## 📑 Table of Contents
 
-1. [Platform Overview](#platform-overview)
-2. [Core Architecture & Tech Stack](#core-architecture--tech-stack)
-3. [Stakeholder Portals & Capabilities](#stakeholder-portals--capabilities)
-   - [Student Dashboard](#1-student-dashboard)
-   - [Faculty Immersion Portal](#2-faculty-immersion-portal)
-   - [Industry & Corporate Console](#3-industry--corporate-console)
-   - [Institution Administration Portal](#4-institution-administration-portal)
-4. [AI Engine & Real-Time Assessment System](#ai-engine--real-time-assessment-system)
-5. [Market & R&D Trends Analytics](#market--rd-trends-analytics)
-6. [Project Structure](#project-structure)
-7. [Getting Started & Local Development](#getting-started--local-development)
-   - [Prerequisites](#prerequisites)
-   - [1. Clone & Dependencies](#1-clone-repository)
-   - [2. MongoDB & Redis Setup](#2-start-mongodb--redis)
-   - [3. Server Configuration](#3-configure-the-server)
-   - [4. Client Configuration](#4-configure-the-client)
-   - [5. Database Seeding](#5-seed-the-database)
-8. [API Route Contract Reference](#api-route-contract-reference)
-9. [Design & UI Standards](#design--ui-standards)
-10. [License](#license)
-
----
-
-## Platform Overview
-
-Traditional academia-to-industry pathways suffer from fragmented syllabus alignment, delayed curriculum modernization, and superficial resume screening. **PortalAcademia** establishes an end-to-end ecosystem connecting:
-- **Students** seeking vetted technical internships, hackathons, and certified competencies.
-- **Faculty** advancing national R&D grants, corporate sabbaticals, FDPs, and CAS credits.
-- **Industry Partners** hiring high-fit candidates with verified skill match scores and screening pipelines.
-- **Institutions** tracking accreditation metrics (NBA, NAAC, OBE CO-PO mapping) and endorsing vetted opportunities.
+1. [Executive Summary & Problem Statement](#1-executive-summary--problem-statement)
+2. [High-Level Architecture](#2-high-level-architecture)
+   - [System Architecture Diagram](#system-architecture-diagram)
+   - [Data Flow & Endorsement Lifecycle](#data-flow--endorsement-lifecycle)
+3. [Comprehensive Tech Stack](#3-comprehensive-tech-stack)
+4. [Stakeholder Portals & Feature Matrix](#4-stakeholder-portals--feature-matrix)
+   - [Student Portal](#a-student-portal)
+   - [Faculty Immersion Portal](#b-faculty-immersion-portal)
+   - [Institution Administration Portal](#c-institution-administration-portal)
+   - [Industry & Recruiter Console](#d-industry--recruiter-console)
+5. [AI Assessment & Career Intelligence Engine](#5-ai-assessment--career-intelligence-engine)
+6. [Market Trends & Skill Gap Diagnostics](#6-market-trends--skill-gap-diagnostics)
+7. [Security, RBAC & Role Protection](#7-security-rbac--role-protection)
+8. [Database Schema & Data Models](#8-database-schema--data-models)
+9. [Complete API Reference](#9-complete-api-reference)
+10. [Repository Directory Structure](#10-repository-directory-structure)
+11. [Setup, Installation & Local Development](#11-setup-installation--local-development)
+    - [Prerequisites](#prerequisites)
+    - [Environment Configuration](#environment-configuration)
+    - [Database Seeding](#database-seeding)
+    - [Running the Application](#running-the-application)
+12. [License & Acknowledgements](#12-license--acknowledgements)
 
 ---
 
-## Core Architecture & Tech Stack
+## 1. Executive Summary & Problem Statement
+
+### The Problem
+Traditional higher technical education faces critical structural bottlenecks:
+- **Curriculum-Market Misalignment**: Academic syllabi lag 2–3 years behind rapid technological shifts (AI/ML, Cloud-Native, Systems Security, VLSI).
+- **Unverified Credential Inflation**: Self-declared resume skills and non-proctored certificates result in high screening costs for corporate talent teams.
+- **Fragmented Industry-Academia Linkages**: Lack of formal channels for university placement cells to endorse vetted industry opportunities to specific cohorts.
+- **Faculty Stagnation**: Limited avenues for educators to undertake faculty development programs (FDPs), industry sabbaticals, and applied research grants.
+
+### The Solution: PortalAcademia
+PortalAcademia provides a unified, telemetry-backed operational ecosystem designed for national scale:
+- **Cryptographically Audited Portfolios**: Institutional Placement & Training Offices verify student certifications and internships with timestamped audit trails.
+- **Groq-Powered AI Skill Assessments**: Dynamic, on-demand technical testing that evaluates candidates and automatically awards verified skill badges upon passing.
+- **One-Click Institutional Endorsements**: Colleges review industry postings and endorse them directly to their students or faculty, highlighting them as **"Recommended by [College Name]"**.
+- **Macro & Micro Market Trends**: Real-time comparison across 5 macro engineering streams, isolating syllabus deficits against live hiring quotas.
+- **1-Click ATS Resume Builder**: Instant PDF export powered by `jsPDF` and brand icons from `simple-icons`.
+
+---
+
+## 2. High-Level Architecture
+
+### System Architecture Diagram
+
+```mermaid
+flowchart TB
+    subgraph ClientLayer ["Client Layer (React 19 + TypeScript + Vite)"]
+        SPA["Single Page Application (Vite 8)"]
+        Router["React Router v7 (Strict Role Guards)"]
+        Redux["Redux Toolkit (Auth, Profile, Theme State)"]
+        UIComp["UI System: Tailwind v3 + Lucide + Simple-Icons + Recharts"]
+        PDFGen["Client-side ATS Resume Exporter (jsPDF + html2canvas)"]
+    end
+
+    subgraph GatewayLayer ["Network & Security Gateway"]
+        CORS["CORS (Credentials: true)"]
+        CookieParser["Cookie Parser (httpOnly JWT Session)"]
+        RateLimiter["Redis-backed Rate Limiter"]
+    end
+
+    subgraph BackendLayer ["Application Server (Node.js 20+ / Express v5 TS)"]
+        AuthModule["Auth & OTP Engine (Bcrypt + Nodemailer + Google OAuth)"]
+        ProfileModule["Profile & Verification Controller"]
+        OppModule["Opportunity & Endorsement Controller"]
+        AppModule["Application Triage & Review Controller"]
+        AssessModule["Assessment & AI Generation Engine"]
+        AnalyticsModule["Market Trends & Deficit Analytics"]
+    end
+
+    subgraph ServicesLayer ["External Cloud Services"]
+        GroqAI["Groq Cloud API (Llama 3.3 70B Engine)"]
+        Cloudinary["Cloudinary Media CDN (Avatars & Banners)"]
+        Nodemailer["SMTP Relay (Gmail / Transactional Email)"]
+        AISHE["AISHE Statutory Directory (aishe-institutions-list)"]
+    end
+
+    subgraph StorageLayer ["Persistence & Caching Layer"]
+        MongoDB[("MongoDB 7.0 (Mongoose ODM)\nUsers · Profiles · Opportunities\nApplications · Assessments")]
+        RedisCache[("Redis 6.x (ioredis)\nDistributed Telemetry Caching\nCache Invalidation on Mutation")]
+    end
+
+    SPA --> Router --> GatewayLayer
+    GatewayLayer --> BackendLayer
+    BackendLayer --> StorageLayer
+    BackendLayer --> ServicesLayer
+    BackendLayer --> GroqAI
+```
+
+### Data Flow & Endorsement Lifecycle
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Industry as Industry Partner
+    actor Inst as University Admin
+    actor Student as Enrolled Student
+    participant API as PortalAcademia API
+    participant Cache as Redis Cache
+    participant DB as MongoDB
+
+    Industry->>API: POST /api/opportunities (Publish Tech Role)
+    API->>DB: Save Opportunity (status: active)
+    API->>Cache: Invalidate cache:opportunities:*
+    API-->>Industry: 201 Created
+
+    Inst->>API: GET /api/opportunities (Browse Posted Feed)
+    API-->>Inst: Return Live Opportunities
+    Inst->>API: POST /api/opportunities/:id/recommend (Target: "students")
+    API->>DB: Append College Name & Inst ID to recommendedByColleges
+    API->>Cache: Invalidate cache:opportunities:*
+    API-->>Inst: 200 Endorsement Confirmed
+
+    Student->>API: GET /api/opportunities?targetAudience=student
+    API-->>Student: Return Opportunities Feed
+    Note over Student: System matches student.institution with recommendedByColleges
+    Student->>Student: Renders Gold Badge: "Recommended by [College Name]"
+    Student->>API: POST /api/applications (Submit Proposal)
+    API->>DB: Record Application with Profile Snapshot
+    API-->>Student: 201 Application Submitted
+```
+
+---
+
+## 3. Comprehensive Tech Stack
+
+| Layer | Technology | Version | Purpose & Usage in Codebase |
+|:---|:---|:---|:---|
+| **Frontend Framework** | **React** | `v19.0.0` | Core UI library with modern hooks, Suspense, and functional components. |
+| **Language** | **TypeScript** | `v5.x` | Strict end-to-end type safety across client models, server controllers, and database schemas. |
+| **Build Tool** | **Vite** | `v8.2.2` | Ultra-fast HMR and optimized production bundling with Rolldown. |
+| **Styling & CSS** | **Tailwind CSS** | `v3.4.17` | Utility-first responsive design, dark/light theme tokens, and custom animation utilities. |
+| **State Management** | **Redux Toolkit** | `v2.5.1` | Global auth hydration (`authSlice`), session state, and profile state. |
+| **Routing** | **React Router** | `v7.1.5` | Client-side routing with `<ProtectedRoute>` and `<RoleProtectedRoute>` role guards. |
+| **Charts & Graphs** | **Recharts** | `v2.15.1` | Multi-stream trajectory area charts, curriculum deficit bar charts, and salary distribution curves. |
+| **Icons & Brand SVGs** | **Lucide React** + **Simple Icons** | `v0.475` / `v14.9` | 100+ UI action icons plus 3,000+ official tech brand logos with verified hex colors (`skillIcons.ts`). |
+| **PDF Generation** | **jsPDF** + **html2canvas** | `v4.2.1` / `v1.4.1` | 1-click ATS resume document generation and rasterized multi-page export. |
+| **Backend Framework** | **Express.js** | `v5.2.1` | REST API framework handling routing, error boundaries, and JSON body parsing. |
+| **Database** | **MongoDB** | `v7.0+` | Primary NoSQL document store with Mongoose ODM schemas and index optimizations. |
+| **Caching Layer** | **Redis** (`ioredis`) | `v6.0.0` | In-memory distributed caching for public opportunity feeds and telemetry with automatic fallback. |
+| **AI Engine** | **Groq Cloud SDK** | `Llama 3.3 70B` | Real-time question generation, career chat advisor, and gap analysis. |
+| **Authentication** | **JWT** + **Passport.js** | `v9.0` / `v0.7` | Signed httpOnly cookie sessions and Google OAuth 2.0 social login. |
+| **Email Delivery** | **Nodemailer** | `v10.0.0` | Transactional email delivery for 6-digit cryptographic registration OTPs. |
+| **Media CDN** | **Cloudinary** + **Multer** | `v2.11` / `v2.3` | Multipart profile picture and university credential upload processing. |
+| **Statutory Data** | **aishe-institutions-list** | `v1.0.7` | Official Government of India AISHE code lookup for university validation. |
+
+---
+
+## 4. Stakeholder Portals & Feature Matrix
+
+### A. Student Portal
+- **Opportunity Marketplace (`/dashboard/student`)**:
+  - Live filter by category (`Internship`, `Job`, `Hackathon`, `Workshop`, `Research`), mode (`Remote`, `Hybrid`, `On-site`), and search keywords.
+  - **Dynamic Skill Match Percentage**: Compares candidate's verified profile skills against opportunity prerequisites.
+  - **Institutional Endorsement Highlight**: Opportunities endorsed by the student's university display an animated gold star badge: `"Recommended by [College Name]"`.
+  - **Duplicate Application Prevention**: Automatic state tracking changes the button to `"Applied"` once a proposal is submitted.
+- **ATS Resume Builder & 1-Click PDF Export**:
+  - Integrated modal supporting contact details, education, past internships, projects, and verified skills.
+  - Real-time ATS compatibility scoring and 1-click download via `jsPDF`.
+- **Skill Management with Brand Icons**:
+  - Autocomplete search over 3,000+ technologies powered by `simple-icons`.
+  - Official brand logos and authentic brand colors displayed on every badge.
+- **Standardized Assessments (`/assessments`)**:
+  - Take timed assessments to earn permanent cryptographic skill verification marks.
+- **Market Trends & Skill Gap Diagnostics (`/trends/student`, `/trends/diagnosis`)**:
+  - Macro trajectory graphs across 5 major software engineering streams.
+  - Personalized diagnosis pinpointing high-demand 2026 enterprise skills missing from the student's profile.
+
+### B. Faculty Immersion Portal
+- **Academic Immersion & Grants Desk (`/dashboard/faculty`)**:
+  - Discovery feed for Faculty Development Programs (FDPs), DST-SERB research grants, IEEE conferences, and corporate sabbaticals.
+  - CAS & MHRD promotion credit alignment telemetry.
+- **Faculty Trends & R&D Intelligence (`/trends/faculty`)**:
+  - National grant allocation benchmarks, Scopus/IEEE indexing velocities, and NEP 2020 curriculum directives.
+- **Institutional Alignment**:
+  - View university-endorsed faculty training residencies.
+
+### C. Institution Administration Portal
+- **Credential Verification Gate (`/dashboard/institution`)**:
+  - Audit queue for submitted student certificates and experience records.
+  - Placement cell officers verify credentials with 1 click, attaching official university approval stamps.
+- **Posted Opportunities & Endorsement Desk**:
+  - Browse all active industry listings for students and faculty.
+  - Filter by target audience (`All`, `For Students`, `For Faculty`) and category.
+  - **Confirmation Modal**: Explicit confirmation dialog to endorse postings, automatically updating student feeds.
+- **Faculty & Student Directory (`/institution/directory`)**:
+  - Complete university roster with role filters (`Students`, `Faculty`), admission/batch year filters, and live search.
+- **Member Profile Review & Skill Diagnostics (`/institution/member/:id`)**:
+  - Inspect any student or faculty member's profile.
+  - View verified skills alongside **Lacking Skills (2026 Market Gaps)** calculated against corporate demand benchmarks.
+- **Institutional Macro Market Trends (`/trends/institution`)**:
+  - University placement trajectory, cohort curriculum deficit analytics, and sector hiring demand curves (without individual student bias).
+
+### D. Industry & Recruiter Console
+- **Opportunity Publisher (`/dashboard/industry`)**:
+  - Publish internships, jobs, hackathons, and sabbaticals with custom skill requirements, stipends, locations, and target audience (`student`, `faculty`, `both`).
+- **Applicant Triage & Pipeline Management**:
+  - Review applicant submissions with candidate match scores and profile snapshots.
+  - Transition candidate states: `Under Review` ➔ `Shortlisted` ➔ `Technical Interview` ➔ `Offered` ➔ `Rejected`.
+
+---
+
+## 5. AI Assessment & Career Intelligence Engine
+
+```mermaid
+flowchart LR
+    User([Student / Faculty]) -->|Selects Skill| ClientReq[Client Trigger]
+    ClientReq -->|POST /api/assessments/generate-for-user| Server[Express Backend]
+    Server -->|Prompt with Schema Constraint| Groq[Groq Llama 3.3 70B]
+    Groq -->|5 Structured Questions + Answers| Server
+    Server -->|Saves Assessment Document| DB[(MongoDB)]
+    Server -->>|Delivers Timed Quiz| Modal[Assessment Runner Modal]
+    Modal -->|POST /submit| Server
+    Server -->|Score >= 70%| Badging[Award Verified Skill Badge]
+    Badging -->|Persisted to Profile| DB
+```
+
+1. **Dynamic Test Generation**:
+   - When a user chooses to test any technology, Groq's high-speed Llama 3.3 model generates 5 objective multiple-choice questions complete with scenario-based premises, 4 options, balanced weights, and pedagogical explanations.
+2. **Proctored Countdown Modal**:
+   - Timed test runner with auto-submission upon timer expiry.
+3. **Automated Skill Verification**:
+   - Achieving $\ge 70\%$ automatically updates the user's profile, elevating the skill badge to **Verified** across all dashboard feeds and recruiter search tables.
+
+---
+
+## 6. Market Trends & Skill Gap Diagnostics
+
+PortalAcademia categorizes the tech industry into 5 core macro streams:
+1. **Generative AI & LLM Systems** (PyTorch, LangChain, Vector DBs, vLLM, Triton)
+2. **Cloud-Native & Distributed Computing** (Kubernetes, Docker, Go, gRPC, Terraform)
+3. **Full-Stack & Enterprise Web** (TypeScript, React, Next.js, Node.js, PostgreSQL)
+4. **Cybersecurity & Zero-Trust Architecture** (eBPF, Rust, SIEM, Penetration Testing)
+5. **Mobile & Edge Embedded Systems** (Flutter, Swift, Embedded C++, WebAssembly)
+
+### Personalized Skill Diagnosis (`/trends/diagnosis`)
+- Benchmarks candidate skills against high-priority market vectors.
+- Calculates an individual **Readiness Percentage**.
+- Suggests targeted remediation paths with direct links to take AI assessments.
+
+---
+
+## 7. Security, RBAC & Role Protection
+
+PortalAcademia enforces a strict defense-in-depth security model:
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                          CLIENT (Vite + React 19)                      │
-│   Tailwind CSS v3 · shadcn/ui · Redux Toolkit · Lucide · Simple Icons  │
-│   Recharts Telemetry · Responsive Stakeholder Navigation & Modals      │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │  HTTP (Credentials: include / httpOnly Cookie)
-┌───────────────────────────────────▼────────────────────────────────────┐
-│                         BACKEND (Express v5 + Node.js)                 │
-│   Strict TypeScript · Mongoose ODM · Session & RBAC Middleware         │
-│   Nodemailer (OTP Engine) · Multer & Cloudinary (Media CDN)            │
-└───────────────┬───────────────────┬───────────────────┬────────────────┘
-                │                   │                   │
-    ┌───────────▼─────────┐ ┌───────▼────────┐ ┌────────▼────────┐
-    │      MongoDB 7      │ │  Redis Caching │ │  Groq AI Cloud  │
-    │  (Users, Profiles,  │ │  (Telemetry &  │ │ (Llama 3.3 70B  │
-    │   Opps, Apps, Logs) │ │   Rate-limits) │ │  Dynamic Tests) │
-    └─────────────────────┘ └────────────────┘ └─────────────────┘
+Unauthenticated User
+       │
+       ▼
+   /auth (Email OTP / Google OAuth)
+       │
+       ▼
+  JWT Issued (httpOnly, Secure, SameSite: Lax)
+       │
+       ▼
+   /onboarding (Select: Student | Faculty | Institution | Industry)
+       │
+       ▼
+   RoleProtectedRoute (Strict Role Match)
+   ├── student     ──> /dashboard/student, /trends/student, /trends/diagnosis
+   ├── faculty     ──> /dashboard/faculty, /trends/faculty
+   ├── institution ──> /dashboard/institution, /institution/directory, /institution/member/:id, /trends/institution
+   └── industry    ──> /dashboard/industry
 ```
 
-| Layer | Technologies & Libraries |
-|---|---|
-| **Frontend** | React 19, TypeScript, Vite, Tailwind CSS v3, Redux Toolkit, React Router v7, Lucide Icons, Simple Icons SVG mapping, Recharts |
-| **Backend** | Node.js 20+, Express v5, TypeScript, Mongoose ODM, Cookie-parser, CORS, Dotenv, Bcrypt |
-| **Database & Cache** | MongoDB 7.0+, Redis (Distributed cache with graceful in-memory fallback) |
-| **AI Intelligence** | Groq Cloud API (`llama-3.3-70b-versatile`) for dynamic assessment generation & contextual chat advisors |
-| **Media & Storage** | Cloudinary API via Multer for high-resolution avatars and cover banners |
-| **Email & Auth** | Nodemailer (secure transactional email OTPs), Google OAuth 2.0, httpOnly JWT cookies |
+- **httpOnly Cookies**: JWT tokens cannot be read by browser JavaScript, preventing XSS token exfiltration.
+- **Role Guards (`RoleProtectedRoute`)**: Prevents cross-role access (e.g., a student attempting to access `/dashboard/institution` or an institution viewing student diagnosis).
+- **Mongoose ObjectId Validation**: Sanitizes and validates all route parameters to defend against injection attacks.
 
 ---
 
-## Stakeholder Portals & Capabilities
+## 8. Database Schema & Data Models
 
-### 1. Student Dashboard
-- **Live Opportunity Feed**: Filter curated internships, hackathons, and technical masterclasses by domain, mode (Remote/Hybrid/On-site), or category.
-- **Real-Time Skill Match Scoring**: Algorithmic match percentage calculating student profile competencies against opportunity prerequisites.
-- **Verified Brand Badges**: Autocomplete integration with 3000+ Simple Icons SVGs for verified tech stacks (Python, Docker, React, PyTorch, Kubernetes, etc.).
-- **Interactive Proposal Desk**: One-click application modal with custom cover notes and applicant tracking.
-- **AI Career Mentor**: Contextual chat drawer analyzing missing skills and preparing students for competitive interviews.
+PortalAcademia models are organized under `server/models/`:
 
-### 2. Faculty Immersion Portal
-- **Academic Immersion Feed**: Discovery of premier Faculty Development Programs (FDPs), DST-SERB / co-funded clean energy research grants, IEEE conferences, and corporate sabbaticals (DRDO, Intel VLSI).
-- **Institutional Endorsements**: Opportunities tagged with official recommendations from academic councils and dean offices.
-- **CAS & MHRD Credit Alignment**: Advisory telemetry indicating which programs grant statutory CAS points for academic promotions.
-- **AI Academic Advisor**: Contextual assistant answering queries on IP frameworks, patent applications, and corporate research residencies.
-
-### 3. Industry & Corporate Console
-- **Recruitment Pipeline**: Real-time review table showing applicants, verified match scores, submitted proposals, and applicant institutions.
-- **Pipeline Status Transitions**: Manage applicants with direct state actions (`Under Review`, `Shortlisted`, `Interviewing`, `Accepted`, `Rejected`).
-- **Opportunity Publisher**: Create, edit, and close technical job postings, hackathons, and sabbaticals with custom skill vectors and compensation tiers.
-- **Hiring Telemetry**: Visual metrics tracking applicant count, average candidate match quality, and hiring pipeline health.
-
-### 4. Institution Administration Portal
-- **Accreditation Telemetry**: Monitor institutional readiness, NIRF/NBA quality indicators, and outcome-based education metrics.
-- **Opportunity Endorsement Gate**: Officially endorse and recommend corporate postings to the university's student or faculty cohorts.
-- **Roster & Verification Desk**: Oversee student academic records and faculty credentials with AISHE institutional mapping.
+| Model | File | Primary Responsibility | Key Fields |
+|:---|:---|:---|:---|
+| **User** | `userModel.ts` | Authentication and account status | `email`, `password` (hashed), `provider`, `isVerified`, `isOnboarded` |
+| **Profile** | `profileModel.ts` | Complete stakeholder persona | `userId`, `accountType`, `name`, `headline`, `institution`, `aisheCode`, `skills[]`, `certifications[]`, `education[]`, `pastExperience[]` |
+| **Opportunity** | `opportunityModel.ts` | Job, internship, grant, and hackathon postings | `title`, `organization`, `category`, `domain`, `stipendOrPrize`, `requiredSkills[]`, `targetAudience`, `recommendedByColleges[]`, `recommendedToStudentsBy[]`, `recommendedToFacultyBy[]`, `status` |
+| **Application** | `applicationModel.ts` | Student/faculty candidate proposals | `opportunityId`, `applicantId`, `applicantType`, `status`, `coverLetter`, `resumeUrl`, `matchScore` |
+| **Assessment** | `assessmentModel.ts` | Dynamic and standardized skill evaluations | `title`, `skillVectors[]`, `questions[]` (`questionText`, `options[]`, `correctOptionIndex`, `explanation`), `passPercentage` |
+| **AssessmentResult** | `assessmentResultModel.ts` | User test submission records | `userId`, `assessmentId`, `score`, `passed`, `verifiedSkillsGranted[]` |
 
 ---
 
-## AI Engine & Real-Time Assessment System
+## 9. Complete API Reference
 
-PortalAcademia features an on-demand technical testing engine powered by Groq's high-speed Llama 3.3 70B model:
+### Authentication (`/api/auth`)
+- `POST /api/auth/signup` — Dispatch 6-digit registration OTP to user's email.
+- `POST /api/auth/verifyotp` — Verify OTP, provision user account, set httpOnly session cookie.
+- `POST /api/auth/signin` — Authenticate via email/password.
+- `POST /api/auth/SignOut` — Clear session cookie and invalidate token.
+- `POST /api/auth/checkAuth` — Verify session cookie and hydrate Redux client state.
+- `GET /api/auth/google` & `/api/auth/google/callback` — Google OAuth 2.0 flow.
 
-1. **On-Demand Generation (`POST /api/assessments/generate-for-user`)**:
-   - Any user (student or faculty) can select any skill (or enter a custom technology).
-   - Groq dynamically formats 5 targeted, conceptual multiple-choice questions with balanced weights, real-world scenarios, and detailed explanations.
-2. **Standardized Assessment Runner Modal**:
-   - Countdown timer per question with auto-submission on expiration.
-   - Immediate scoring feedback, pass/fail thresholds (70%), and in-depth answer explanations.
-3. **Automated Accreditation Badge**:
-   - Passing an assessment automatically marks the skill as **Verified** across the user's public profile, dashboard badges, and recruiter candidate tables.
+### Profiles (`/api/profile`)
+- `GET /api/profile/me` — Fetch currently authenticated user's profile.
+- `GET /api/profile/:id` — Fetch public profile by profile or user ID.
+- `PUT /api/profile` — Update bio, headline, skills, education, experience, and institutional metadata.
+- `POST /api/profile/avatar` — Upload profile photo to Cloudinary.
+
+### Opportunities (`/api/opportunities`)
+- `GET /api/opportunities` — Fetch live opportunity marketplace with filters (`category`, `mode`, `targetAudience`, `search`).
+- `GET /api/opportunities/:id` — Retrieve opportunity details.
+- `POST /api/opportunities` — Publish technical listing (Industry/Institution).
+- `PUT /api/opportunities/:id` — Edit active opportunity listing.
+- `DELETE /api/opportunities/:id` — Close or delete listing.
+- `POST /api/opportunities/:id/recommend` — Endorse opportunity for institutional cohorts (Target: `students` | `faculty`).
+
+### Institutional Verification & Directory (`/api/verification`)
+- `GET /api/verification/pending` — Fetch unverified student credentials queue for the institution.
+- `PUT /api/verification/verify/:studentId/:credentialId` — Verify student credential and grant tamper-evident badge.
+- `GET /api/verification/institution-students` — Query enrolled students filtered by year and search keywords.
+- `GET /api/verification/institution-members` — Query all university members (students & faculty) with role checkboxes and batch filters.
+- `GET /api/verification/institution-members/:id` — Retrieve member diagnostics (Verified Skills vs 2026 Lacking Market Skills).
+
+### Applications (`/api/applications`)
+- `POST /api/applications` — Submit application proposal for an opportunity.
+- `GET /api/applications/my-applications` — Retrieve applicant's submitted proposals.
+- `GET /api/applications/opportunity/:id` — Recruiter view of candidates who applied.
+- `PUT /api/applications/:id/status` — Advance candidate status in review pipeline.
+
+### Assessments & AI Engine (`/api/assessments`, `/api/ai`)
+- `GET /api/assessments` — List standardized assessments.
+- `POST /api/assessments/generate-for-user` — Generate on-demand 5-question technical quiz using Groq Llama 3.3 70B.
+- `POST /api/assessments/:id/submit` — Submit quiz answers, calculate score, grant badges.
+- `POST /api/ai/chat` — Contextual AI Career & Academic Advisor query handler.
 
 ---
 
-## Market & R&D Trends Analytics
-
-Dedicated market intelligence portals built with **Recharts**:
-
-- **Student Trends (`/trends/student`)**:
-  - Top 10 in-demand industry skill vectors (AI/ML, Cloud & DevOps, Full-Stack, Cyber, VLSI).
-  - Salary distribution brackets for fresh graduates (₹4 LPA to ₹45+ LPA).
-  - Hiring velocity by domain and quarterly corporate recruitment volumes.
-- **Faculty Trends (`/trends/faculty`)**:
-  - Statutory R&D grant allocations by national agencies (MeitY C2S, DST-SERB, DRDO CARS, CSIR, ICMR Health-AI).
-  - Scopus and IEEE publication velocity benchmarks.
-  - National Education Policy (NEP 2020) curriculum modernization and patent indexing.
-
----
-
-## Project Structure
+## 10. Repository Directory Structure
 
 ```
 PortalAcademia/
-├── client/                           # Vite + React 19 Frontend SPA
+├── .repo_docs/                       # Comprehensive architectural & API documentation
+│   ├── API_CONTRACTS.md              # Detailed API route definitions and payloads
+│   ├── ARCHITECTURE.md               # System design patterns, security, and data flow
+│   ├── COMPONENTS.md                 # Frontend component design system catalog
+│   ├── ROUTES_AND_PAGES.md           # Route definitions, guards, and navigation matrix
+│   ├── STATE_AND_DATA.md             # Redux store slices, Mongoose models, and caching
+│   └── UTILS_AND_SERVICES.md         # Pure utilities, icon mapping, and helper functions
+│
+├── client/                           # React 19 + TypeScript + Vite Frontend SPA
+│   ├── public/                       # Favicons, static role graphics, illustrations
 │   ├── src/
-│   │   ├── components/               # Navbar, SkillBadge, SkillInput, Modals
-│   │   │   ├── Navbar.tsx            # Contextual multi-role header
-│   │   │   ├── ProfileEditModal.tsx  # Granular section-by-section profile editor
-│   │   │   ├── SkillBadge.tsx        # Dynamic brand badge with SVG & tested checkmark
-│   │   │   ├── SkillInput.tsx        # Autocomplete search with Simple Icons
-│   │   │   ├── SkillTestRunnerModal  # Timed assessment engine
-│   │   │   └── TestConfirmationModal # AI test generation prompt
-│   │   ├── context/                  # Redux store, authSlice, profileSlice, theme
-│   │   ├── lib/                      # Pure utilities (cn, skillIcons, formatters)
-│   │   └── pages/                    # Stakeholder dashboards & feature views
-│   │       ├── dashboards/           # Student, Faculty, Industry, Institution
-│   │       ├── trends/               # StudentTrendsPage, FacultyTrendsPage
-│   │       ├── onboarding/           # Individual & Organization multi-step onboarding
-│   │       ├── AuthPage.tsx          # Sign In & Sign Up with email OTP
-│   │       ├── ProfilePage.tsx       # Comprehensive public & self profile console
-│   │       ├── SkillAssessmentsPage  # Assessment directory & AI generator
-│   │       └── LandingPage.tsx       # Institutional landing portal
-│   ├── .env.example
+│   │   ├── components/               # Navbar, SkillBadge, Modals, ResumeBuilder
+│   │   │   ├── Navbar.tsx            # Global stakeholder navbar with dark mode & AI bot
+│   │   │   ├── ResumeBuilderModal.tsx# ATS Resume Editor with 1-click jsPDF export
+│   │   │   ├── SkillBadge.tsx        # Brand SVG badge with verified state
+│   │   │   ├── SkillTestRunnerModal  # Proctored timer assessment runner
+│   │   │   └── ProfileEditModal.tsx  # Granular multi-section profile editor
+│   │   ├── context/                  # Redux toolkit store, authSlice, themeContext
+│   │   ├── lib/                      # skillIcons.ts (Simple-Icons), utils.ts (cn)
+│   │   ├── pages/
+│   │   │   ├── dashboards/           # Student, Faculty, Institution, Industry Dashboards
+│   │   │   ├── institution/          # InstitutionDirectoryPage, InstitutionMemberProfilePage
+│   │   │   ├── trends/               # StudentTrendsPage, FacultyTrendsPage, StudentDiagnosisPage, InstitutionTrendsPage
+│   │   │   ├── onboarding/           # Onboarding flow (SelectType, Individual, Organization)
+│   │   │   ├── AiGuidePage.tsx       # Dedicated AI HelpBot Assistant console
+│   │   │   ├── AuthPage.tsx          # Login & Signup with email OTP flow
+│   │   │   ├── LandingPage.tsx       # Public landing page with problem statement
+│   │   │   └── ProfilePage.tsx       # Stakeholder profile view
+│   │   ├── App.tsx                   # Route declarations & RoleProtectedRoute definitions
+│   │   └── main.tsx                  # Application entry point & Store Provider
 │   ├── package.json
-│   └── tailwind.config.js
+│   ├── tailwind.config.js
+│   └── vite.config.ts
 │
-├── server/                           # Express v5 TypeScript Backend API
-│   ├── config/                       # connectDB.ts, redisClient.ts
-│   ├── controllers/                  # auth, profile, opportunity, application,
-│   │                                 # assessment, analytics, ai
-│   ├── middleware/                   # isloggedIn.ts, rbacMiddleware.ts
-│   ├── models/                       # Mongoose schemas (User, Profile, Opportunity,
-│   │                                 # Application, Assessment, AssessmentResult)
-│   ├── routes/                       # Express route declarations
-│   ├── scripts/                      # seedDatabase.ts seeder utility
-│   ├── .env.example
-│   └── package.json
+├── server/                           # Express v5 + TypeScript Backend API
+│   ├── config/                       # connectDB.ts (Mongoose), redisClient.ts (ioredis)
+│   ├── controllers/                  # auth, profile, opportunity, application, verification, assessment, ai
+│   ├── middleware/                   # isloggedIn.ts (JWT cookie verification)
+│   ├── models/                       # userModel, profileModel, opportunityModel, applicationModel, assessmentModel
+│   ├── routes/                       # authRoute, profileRoute, opportunityRoute, applicationRoute, verificationRoute, assessmentRoute, aiRoute
+│   ├── scripts/
+│   │   ├── seedDatabase.ts           # Standard test credentials & assessments seed script
+│   │   └── seed10TopResumes.ts       # 10 realistic candidate profiles with ATS resumes
+│   ├── app.ts                        # Server entry point, middleware registration, and port binding
+│   ├── package.json
+│   └── tsconfig.json
 │
-└── docker-compose.yml                # Local MongoDB container definition
+├── docker-compose.yml                # Containerized local MongoDB configuration
+└── README.md                         # Project documentation
 ```
 
 ---
 
-## Getting Started & Local Development
+## 11. Setup, Installation & Local Development
 
 ### Prerequisites
-- **Node.js** v20.0.0 or higher
-- **npm** v10+
-- **Docker Desktop** (for local MongoDB) or an external MongoDB connection string
-- *(Optional)* **Redis** for distributed cache (in-memory fallback active by default)
-- **Groq API Key** (free tier available at [console.groq.com](https://console.groq.com))
+- **Node.js** `v20.0.0` or higher
+- **npm** `v10.0.0` or higher
+- **MongoDB** (Local instance via Docker or MongoDB Atlas URI)
+- *(Optional)* **Redis** server running locally on `127.0.0.1:6379`
+- **Groq Cloud API Key** (Free tier available at [console.groq.com](https://console.groq.com))
 
 ---
 
-### 1. Clone Repository
+### Environment Configuration
 
-```bash
-git clone https://github.com/Sparsh-2007/PortalAcademia.git
-cd PortalAcademia
-```
-
----
-
-### 2. Start MongoDB & Redis
-
-You can launch a local MongoDB instance using the included `docker-compose.yml`:
-
-```bash
-docker compose up -d
-```
-
-> MongoDB runs on `mongodb://root:rootpassword@localhost:27017` with database name `PortalAcademia`.
-
----
-
-### 3. Configure the Server
-
-```bash
-cd server
-cp .env.example .env
-```
-
-Edit `server/.env` with your environment credentials:
+#### 1. Backend Configuration (`server/.env`)
+Create `server/.env` with the following variables:
 
 ```env
-# Database
-MONGO_URL=mongodb://root:rootpassword@127.0.0.1:27017
+# MongoDB Connection
+MONGO_URL=mongodb://127.0.0.1:27017
 
-# Security
-JWT_PASS_KEY=your_super_secret_jwt_encryption_key_26044
-SESSION_SECRET=your_session_secret_key
+# Security & Sessions
+JWT_PASS_KEY=your_secure_random_jwt_key_here_sih2026
+SESSION_SECRET=your_secure_session_secret_here
 
-# Frontend URL for CORS
+# Frontend URL (CORS origin)
 FRONTEND_URL=http://localhost:5173
 
-# Email OTP Service (Nodemailer with Gmail App Password)
+# Email OTP Service (Nodemailer Gmail App Password)
 EMAIL=your_email@gmail.com
-PASSWORD=your_16_digit_gmail_app_password
+PASSWORD=your_16_character_gmail_app_password
 
-# Groq Cloud AI Key (Llama 3.3 70B Engine)
+# Groq Cloud AI Engine (Llama 3.3 70B)
 GROQ_API_KEY=gsk_your_groq_api_key_here
+GROK_API_KEY=gsk_your_groq_api_key_here
 
-# Cloudinary (Profile Image & Banner Uploads)
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
+# Cloudinary (Profile Pictures & Document Uploads)
+CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+CLOUDINARY_API_KEY=your_cloudinary_api_key
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 
-# Optional Redis Cache
+# Redis Cache (Gracefully falls back if offline)
 REDIS_URL=redis://127.0.0.1:6379
 ```
 
-Install dependencies and start the backend development server:
-
-```bash
-npm install
-npm run dev
-# Server running at http://localhost:3000
-```
-
----
-
-### 4. Configure the Client
-
-In a new terminal window:
-
-```bash
-cd client
-cp .env.example .env
-```
-
-Ensure `client/.env` points to your backend URL:
+#### 2. Frontend Configuration (`client/.env`)
+Create `client/.env` pointing to the backend server:
 
 ```env
 VITE_API_BASE_URL=http://localhost:3000
 ```
 
-Install dependencies and start the client:
-
-```bash
-npm install
-npm run dev
-# Vite dev server running at http://localhost:5173
-```
-
 ---
 
-### 5. Seed the Database
+### Database Seeding
 
-To instantly populate the database with test accounts, standardized assessments, and active profiles:
+To quickly populate test data including stakeholder accounts, assessments, and opportunities:
 
 ```bash
+# In the server directory
 cd server
 npx tsx scripts/seedDatabase.ts
 ```
 
 #### Seeded Test Credentials:
 | Stakeholder Role | Email | Password |
-|---|---|---|
+|:---|:---|:---|
 | **Student** | `student.test@portalacademia.ac.in` | `Password123!` |
-| **Faculty** | `faculty.test@portalacademia.ac.in` | `Password123!` |
+| **Faculty Member** | `faculty.test@portalacademia.ac.in` | `Password123!` |
+| **Institution Placement Cell** | `iitb.admin@portalacademia.ac.in` | `Password123!` |
 | **Industry Recruiter** | `industry.test@company.com` | `Password123!` |
-| **Institution Admin** | `iitb.admin@portalacademia.ac.in` | `Password123!` |
+
+*(Optional)* To seed 10 rich candidate resumes for testing recruiter triage:
+```bash
+npx tsx scripts/seed10TopResumes.ts
+```
 
 ---
 
-## API Route Contract Reference
+### Running the Application
 
-Base URL: `http://localhost:3000` (Configurable via `VITE_API_BASE_URL`)
+#### Start the Backend Server:
+```bash
+cd server
+npm install
+npm run dev
+# Server listening on http://localhost:3000
+```
 
-### Authentication (`/api/auth`)
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| `POST` | `/api/auth/signup` | Public | Send OTP email to register new user |
-| `POST` | `/api/auth/verifyotp` | Public | Verify 6-digit OTP, create user, set cookie |
-| `POST` | `/api/auth/signin` | Public | Authenticate user, issue httpOnly session cookie |
-| `POST` | `/api/auth/SignOut` | Authenticated | Invalidate session and clear cookie |
-| `POST` | `/api/auth/checkAuth` | Authenticated | Hydrate Redux state from active cookie |
+#### Start the Frontend Client:
+```bash
+cd client
+npm install
+npm run dev
+# Vite client active on http://localhost:5173
+```
 
-### Profiles (`/api/profile`)
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| `GET` | `/api/profile/me` | Authenticated | Retrieve current user's profile |
-| `GET` | `/api/profile/:id` | Authenticated | Retrieve public profile by user/profile ID |
-| `PUT` | `/api/profile` | Authenticated | Update bio, headline, skills, education, experience |
-| `POST` | `/api/profile/avatar` | Authenticated | Upload profile avatar to Cloudinary |
-
-### Opportunities (`/api/opportunities`)
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| `GET` | `/api/opportunities` | Authenticated | Query opportunities with filters (`targetAudience`, `category`, `mode`) |
-| `GET` | `/api/opportunities/:id` | Authenticated | Get opportunity details |
-| `POST` | `/api/opportunities` | Industry / Inst. | Publish new technical listing |
-| `PUT` | `/api/opportunities/:id` | Publisher | Update existing listing details |
-| `DELETE` | `/api/opportunities/:id` | Publisher | Close or withdraw listing |
-| `POST` | `/api/opportunities/:id/recommend` | Institution | Officially endorse listing for cohort |
-
-### Applications (`/api/applications`)
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| `POST` | `/api/applications` | Student / Faculty | Submit proposal/application for opportunity |
-| `GET` | `/api/applications/my-applications` | Authenticated | View current user's submitted proposals |
-| `GET` | `/api/applications/opportunity/:id` | Industry / Inst. | Recruiter views applicants pipeline |
-| `PUT` | `/api/applications/:id/status` | Industry / Inst. | Update candidate review state |
-
-### Assessments & AI Engine (`/api/assessments`)
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| `GET` | `/api/assessments` | Authenticated | List standardized assessments |
-| `POST` | `/api/assessments/generate-for-user` | Authenticated | **Groq AI Engine** generates on-demand 5-question test |
-| `POST` | `/api/assessments/:id/submit` | Authenticated | Submit answers, calculate score, grant badges |
-| `GET` | `/api/assessments/my-results` | Authenticated | Retrieve verified test history |
-
-### AI Advisor (`/api/ai`)
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| `POST` | `/api/ai/chat` | Authenticated | Query contextual AI advisor for career or grant advice |
+Open your browser and navigate to `http://localhost:5173` to explore PortalAcademia!
 
 ---
 
-## Design & UI Standards
+## 12. License & Acknowledgements
 
-PortalAcademia adheres to an **Anti-Slop Enterprise / Gov-Tech** design philosophy:
-- **Swiss Typographic Grid**: High-contrast typography, `tabular-nums` for metrics and timestamps, clean baseline alignment.
-- **Surface Architecture**: High density, structure through precise borders (`border-border`), and elimination of blurry glassmorphism blobs.
-- **Micro-Radius**: Strict `rounded-sm` to `rounded-xl` boundaries; zero over-rounded bubble cards.
-- **Dynamic Feedback**: Comprehensive RTK state handling covering inline skeleton loaders, distinct 2px solid active rings, and instant action feedback.
-
----
-
-## License
-
-Distributed under the **MIT License**. Created for the **Smart India Hackathon 2026** (Problem Statement 26044).
+- **License**: Released under the **MIT License**.
+- **Hackathon**: Developed for the **Smart India Hackathon 2026** under **Problem Statement 26044**.
+- **Special Thanks**:
+  - [Groq](https://groq.com) for ultra-low latency AI inference with Llama 3.3 70B.
+  - [Simple Icons](https://simple-icons.org) for high-fidelity developer brand assets.
+  - [Ministry of Education / AICTE](https://www.aicte-india.org) for national curriculum reform guidance.
