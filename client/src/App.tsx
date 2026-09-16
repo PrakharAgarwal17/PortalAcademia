@@ -176,7 +176,23 @@ function AppShell() {
   const { isLoading, isInitialized } = useAppSelector((s) => s.auth);
 
   useEffect(() => {
-    dispatch(checkAuthThunk());
+    const searchParams = new URLSearchParams(window.location.search);
+    const isGoogleOAuthRedirect = searchParams.get("auth") === "google";
+
+    if (isGoogleOAuthRedirect) {
+      // After a Google OAuth redirect, cookies take a moment to be committed
+      // by the browser. A brief delay ensures Set-Cookie is fully processed
+      // before we call checkAuth, avoiding a false "unauthenticated" state.
+      const timer = setTimeout(() => {
+        dispatch(checkAuthThunk());
+        // Clean up the query param from the URL without re-rendering
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, "", cleanUrl);
+      }, 300);
+      return () => clearTimeout(timer);
+    } else {
+      dispatch(checkAuthThunk());
+    }
   }, [dispatch]);
 
   // Show a full-screen loader while the initial session check is in flight

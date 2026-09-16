@@ -26,17 +26,29 @@ import aiRoute from "./routes/aiRoute.js"
 const app=express()
 connectDB()
 
+// Trust reverse proxy in production (Render, Railway, Heroku, etc.)
+// Without this, express won't see HTTPS and will refuse to set Secure cookies
+app.set("trust proxy", 1);
+
 app.use(cors({
     origin: process.env.FRONTEND_URL || "http://localhost:5173",
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true
 }))
 
+const isProd = process.env.NODE_ENV === "production";
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "default_session_secret_portal_academia",
     resave: false,
     saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: isProd,                           // HTTPS only in production
+      sameSite: isProd ? "none" : "lax",        // cross-site cookies for deployed env
+      maxAge: 10 * 60 * 1000,                   // 10 minutes (just for OAuth handshake)
+    },
   })
 );
 

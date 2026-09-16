@@ -632,36 +632,33 @@ export const googleSuccess = async (
         const user = req.user as GoogleUser;
 
         if (!user || !user._id) {
-            return res.status(401).json({
-                success: false,
-                message: "Google Authentication Failed",
-            });
+            const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+            return res.redirect(`${frontendUrl}/auth?error=google_auth_failed`);
         }
 
         const email = user.email;
 
         if (!email) {
-            return res.status(400).json({
-                success: false,
-                message: "Email not found",
-            });
+            const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+            return res.redirect(`${frontendUrl}/auth?error=email_not_found`);
         }
 
-        // Generate ONLY accesstoken and refreshtoken (no third token name!)
+        // Generate JWT tokens and set httpOnly cookies
         const { accesstoken, refreshtoken } = generateTokens(String(user._id), true);
         setAuthCookies(res, accesstoken, refreshtoken, true);
 
         const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
+        // Append ?auth=google so the frontend knows this is a fresh OAuth redirect
+        // and re-verifies the session before deciding where to navigate
         const redirectPath = user.isOnboarded ? "/dashboard" : "/onboarding/select-type";
 
-        return res.redirect(`${frontendUrl}${redirectPath}`);
+        return res.redirect(`${frontendUrl}${redirectPath}?auth=google`);
 
     } catch (error) {
         console.error("Google Auth error:", error);
-        return res.status(500).json({
-            success: false,
-            message: "Something went wrong",
-        });
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        return res.redirect(`${frontendUrl}/auth?error=server_error`);
     }
 };
 
