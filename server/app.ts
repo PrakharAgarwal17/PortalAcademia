@@ -24,14 +24,29 @@ import analyticsRoute from "./routes/analyticsRoute.js"
 import aiRoute from "./routes/aiRoute.js"
 
 const app=express()
+// Connect to PortalAcademia Database
 connectDB()
 
 // Trust reverse proxy in production (Render, Railway, Heroku, etc.)
 // Without this, express won't see HTTPS and will refuse to set Secure cookies
 app.set("trust proxy", 1);
 
+const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://portal-academia-phi.vercel.app",
+    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL.replace(/\/+$/, "")] : []),
+];
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const normalized = origin.replace(/\/+$/, "");
+        if (allowedOrigins.includes(normalized) || normalized.endsWith(".vercel.app")) {
+            return callback(null, true);
+        }
+        return callback(null, true);
+    },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true
 }))

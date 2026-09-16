@@ -9,15 +9,23 @@ import applicationModel from "../models/applicationModel.js";
 
 dotenv.config();
 
-const MONGO_URI =
-    process.env.MONGO_URL
-        ? `${process.env.MONGO_URL}/PortalAcademia`
-        : process.env.MONGODB_URI || "mongodb://root:rootpassword@localhost:27017/PortalAcademia";
+function getMongoUri(): string {
+    const raw = process.env.MONGO_URL || process.env.MONGODB_URI || "mongodb://root:rootpassword@localhost:27017";
+    if (raw.includes("/PortalAcademia")) {
+        return raw;
+    }
+    if (raw.includes("?")) {
+        return raw.replace("?", "/PortalAcademia?");
+    }
+    return `${raw.replace(/\/+$/, "")}/PortalAcademia`;
+}
+
+const MONGO_URI = getMongoUri();
 
 async function seed() {
     try {
         console.log("Connecting to MongoDB for database seeding...");
-        await mongoose.connect(MONGO_URI);
+        await mongoose.connect(MONGO_URI, { dbName: "PortalAcademia" });
         console.log("Connected to MongoDB successfully.");
 
         const hashedPassword = await bcrypt.hash("Password123!", 10);
@@ -291,8 +299,147 @@ async function seed() {
             ],
         });
 
-        // 4. Clear predefined opportunities
+        // 4. Seed Marketplace Opportunities across all 6 categories
         await opportunityModel.deleteMany({});
+        console.log("Seeding marketplace opportunities across all 6 categories...");
+
+        const opp1 = await opportunityModel.create({
+            title: "AI Research & Applied NLP Engineering Intern",
+            description: "Work directly with senior AI researchers at TCS Innovation Labs developing domain-adapted LLMs and knowledge graphs for enterprise search.",
+            organization: "Tata Consultancy Services",
+            createdBy: industryUser._id,
+            category: "internship",
+            domain: "Machine Learning & Natural Language Processing",
+            location: "Bengaluru, KA",
+            mode: "Hybrid",
+            duration: "6 Months",
+            stipendOrPrize: "₹45,000 / mo",
+            requiredSkills: ["Python", "PyTorch", "NLP", "React"],
+            eligibility: "Pre-final / final year B.Tech, M.Tech, or MCA candidates with verified Python competency.",
+            deadline: "2026-10-30",
+            status: "active",
+            targetAudience: "student",
+            recommendedToStudentsBy: [institutionUser._id],
+            applicantCount: 3,
+        });
+
+        const opp2 = await opportunityModel.create({
+            title: "Smart Ayush Healthcare Innovation Challenge 2026",
+            description: "National hackathon sponsored by Ministry of Ayush tackling digital herbarium classification, clinical telemetry standardization, and patient symptom triaging.",
+            organization: "Ministry of Ayush / SIH",
+            createdBy: industryUser._id,
+            category: "hackathon",
+            domain: "Ayurvedic Healthcare Telemetry",
+            location: "New Delhi (Grand Finale) / Virtual Sprints",
+            mode: "Hybrid",
+            duration: "48 Hours",
+            stipendOrPrize: "₹3,50,000 Prize Pool",
+            requiredSkills: ["React", "Node.js", "Data Analysis", "MongoDB"],
+            eligibility: "Student teams of 4-6 members enrolled in accredited AISHE Indian institutions.",
+            deadline: "2026-11-15",
+            status: "active",
+            targetAudience: "student",
+            recommendedToStudentsBy: [institutionUser._id],
+            applicantCount: 14,
+        });
+
+        const opp3 = await opportunityModel.create({
+            title: "AWS Cloud Practitioner & Serverless Architecture Masterclass",
+            description: "4-week hands-on deep dive covering AWS Lambda, API Gateway, DynamoDB, and infrastructure-as-code with official certification examination vouchers.",
+            organization: "AWS Academy & PortalAcademia",
+            createdBy: industryUser._id,
+            category: "workshop",
+            domain: "Cloud Architecture & DevOps",
+            location: "Remote (Interactive Virtual Lab)",
+            mode: "Remote",
+            duration: "4 Weeks",
+            stipendOrPrize: "Free Certified Voucher (Value ₹12,000)",
+            requiredSkills: ["Cloud", "Linux", "Docker"],
+            eligibility: "Open to all students and faculty seeking official AWS Cloud certification.",
+            deadline: "2026-10-15",
+            status: "active",
+            targetAudience: "both",
+            recommendedToStudentsBy: [institutionUser._id],
+            recommendedToFacultyBy: [institutionUser._id],
+            applicantCount: 28,
+        });
+
+        const opp4 = await opportunityModel.create({
+            title: "Faculty Development Program (FDP) on AI & Pedagogical Modernization",
+            description: "Intensive 2-week hybrid refresher program empowering university professors to integrate live industry telemetry, case studies, and ML tools into syllabus design.",
+            organization: "IIT Bombay & Ministry of Education",
+            createdBy: institutionUser._id,
+            category: "fdp",
+            domain: "Higher Education Curriculum Modernization",
+            location: "Mumbai, Maharashtra",
+            mode: "Hybrid",
+            duration: "2 Weeks",
+            stipendOrPrize: "MHRD Certified Credit Badge",
+            requiredSkills: ["Machine Learning", "Curriculum Design", "Python"],
+            eligibility: "Accredited university professors, assistant professors, and lecturers across all departments.",
+            deadline: "2026-10-25",
+            status: "active",
+            targetAudience: "faculty",
+            recommendedToFacultyBy: [institutionUser._id],
+            applicantCount: 9,
+        });
+
+        const opp5 = await opportunityModel.create({
+            title: "Industrial Sabbatical in Autonomous Systems & Robotics",
+            description: "Corporate sabbatical residency at DRDO laboratories for university faculty to conduct defense robotics research, unmanned aerial system simulation, and embedded control testing.",
+            organization: "DRDO Research & Development Center",
+            createdBy: industryUser._id,
+            category: "sabbatical",
+            domain: "Robotics, Autonomous Navigation & Control",
+            location: "Pune, Maharashtra",
+            mode: "On-site",
+            duration: "3 - 6 Months",
+            stipendOrPrize: "₹1,20,000 / mo Fellowship",
+            requiredSkills: ["Robotics", "Embedded Systems", "C++", "Linux"],
+            eligibility: "Tenured or contract faculty with Ph.D. or 5+ years academic teaching experience in engineering.",
+            deadline: "2026-11-30",
+            status: "active",
+            targetAudience: "faculty",
+            recommendedToFacultyBy: [institutionUser._id],
+            applicantCount: 4,
+        });
+
+        const opp6 = await opportunityModel.create({
+            title: "Joint Industry-Academia Ayurvedic Telemetry Knowledge Graph",
+            description: "Sponsored corporate-academic research grant to build a unified ontologic knowledge graph linking classical Ayurvedic formulations with modern biochemical telemetry.",
+            organization: "Dabur Research & Ministry of Ayush",
+            createdBy: industryUser._id,
+            category: "research",
+            domain: "Medical Informatics & Knowledge Graphs",
+            location: "New Delhi / Remote",
+            mode: "Hybrid",
+            duration: "12 Months",
+            stipendOrPrize: "₹15,00,000 Seed Grant",
+            requiredSkills: ["Knowledge Graphs", "Python", "Data Analysis"],
+            eligibility: "Joint proposals led by a university professor paired with student researchers.",
+            deadline: "2026-12-15",
+            status: "active",
+            targetAudience: "faculty",
+            recommendedToFacultyBy: [institutionUser._id],
+            applicantCount: 6,
+        });
+
+        // 5. Seed Initial Sample Application
+        await applicationModel.deleteMany({});
+        await applicationModel.create({
+            opportunityId: opp1._id,
+            applicantId: studentUser._id,
+            applicantName: "Priya Sharma",
+            applicantEmail: "priya.sharma@iitb.ac.in",
+            applicantInstitution: "Indian Institute of Technology Bombay",
+            applicantSkills: ["React", "TypeScript", "Node.js", "Python", "Docker"],
+            matchScore: 92,
+            status: "Shortlisted",
+            appliedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+            notes: "I have hands-on experience building NLP text processing pipelines and modern React dashboards.",
+            reviewerNotes: "Excellent profile. Passed standardized Python test with 90%. Advancing to interview.",
+        });
+
         console.log("Database seeded successfully!");
         console.log(`- Seeded 4 User Profiles: Student, Industry, Institution, Faculty`);
         console.log(`- Seeded 2 Standardized Assessments: Python & Cloud/Containers`);
