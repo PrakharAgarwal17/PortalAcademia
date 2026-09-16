@@ -10,8 +10,8 @@ export interface ISoftSkillWeights {
 export interface IAssessmentQuestion {
     questionId: string;
     questionText: string;
-    type?: "mcq" | "writing";
-    difficultyLevel?: "easy" | "medium" | "writing";
+    type?: "mcq" | "writing" | "speaking";
+    difficultyLevel?: "easy" | "medium" | "writing" | "speaking";
     concept?: string;
     options: string[];
     correctOptionIndex: number;
@@ -19,6 +19,9 @@ export interface IAssessmentQuestion {
     weight: number;
     // Multi-dimensional weights for each option (for soft skills scenarios)
     optionDimensionWeights?: ISoftSkillWeights[];
+    // Open-ended speaking response specifications (60-90s)
+    speakingDurationSeconds?: number;
+    evaluationRubric?: string[];
 }
 
 export interface IAssessment extends Document {
@@ -41,8 +44,8 @@ const assessmentQuestionSchema = new Schema<IAssessmentQuestion>(
     {
         questionId: { type: String, required: true },
         questionText: { type: String, required: true },
-        type: { type: String, enum: ["mcq", "writing"], default: "mcq" },
-        difficultyLevel: { type: String, enum: ["easy", "medium", "writing"], default: "easy" },
+        type: { type: String, enum: ["mcq", "writing", "speaking"], default: "mcq" },
+        difficultyLevel: { type: String, enum: ["easy", "medium", "writing", "speaking"], default: "easy" },
         concept: { type: String, default: "" },
         options: [{ type: String, required: true }],
         correctOptionIndex: { type: Number, required: true, default: 0 },
@@ -56,6 +59,8 @@ const assessmentQuestionSchema = new Schema<IAssessmentQuestion>(
                 leadership: { type: Number, default: 0 },
             },
         ],
+        speakingDurationSeconds: { type: Number, default: 60 },
+        evaluationRubric: [{ type: String }],
     },
     { _id: false }
 );

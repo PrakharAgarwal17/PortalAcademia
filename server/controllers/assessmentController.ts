@@ -826,6 +826,27 @@ export async function generateSkillAssessment(req: Request, res: Response) {
             "Full-Stack Web Development";
         const mainSkill = String(rawSkill).trim();
 
+        // If the requested skill is a soft skill (speaking, communication, etc.), route directly to soft skills assessment!
+        const SOFT_SKILL_KEYWORDS = [
+            "speaking",
+            "communication",
+            "soft skill",
+            "softskill",
+            "teamwork",
+            "leadership",
+            "presentation",
+            "conflict resolution",
+            "negotiation",
+            "interpersonal",
+            "verbal",
+            "collaboration",
+            "problem solving",
+        ];
+        const isSoft = SOFT_SKILL_KEYWORDS.some((kw) => mainSkill.toLowerCase().includes(kw));
+        if (isSoft) {
+            return generateSoftSkillAssessment(req, res);
+        }
+
         // Fetch requesting user's profile to ground exam context and difficulty
         const profile = req.userId ? await profileModel.findOne({ userId: req.userId }) : null;
         const userRole = profile?.accountType || "candidate";
@@ -883,30 +904,129 @@ export async function generateSkillAssessment(req: Request, res: Response) {
 }
 
 /**
- * Deterministic fallback scenarios covering 8 realistic workplace engineering dilemmas with multi-dimensional weights
+ * Deterministic fallback scenarios covering authentic workplace dilemmas & speaking response scenarios
  */
 function buildDeterministicSoftSkillScenarios(): IAssessmentQuestion[] {
     return [
         {
-            questionId: "soft_q1",
-            questionText: "Critical Production Outage & Blame Dynamics: During a Friday evening release, a critical production service goes down, affecting 15% of active users. A junior engineer on your team pushes an unreviewed hotfix branch in panic. Your engineering manager asks in the public incident Slack channel what went wrong and who approved the deployment. How do you respond?",
-            type: "mcq",
-            difficultyLevel: "medium",
-            concept: "Blameless Culture & Crisis Management",
+            questionId: "soft_q1_speaking",
+            questionText: "Sample 1 — Explaining a technical concept: You are working on a project and your non-technical manager asks you: 'Can you explain what an API is and why our application needs one?' What would you say? (Record or articulate a 60–90 second answer).",
+            type: "speaking",
+            difficultyLevel: "speaking",
+            concept: "Explaining Technical Concepts Simply",
+            speakingDurationSeconds: 90,
+            evaluationRubric: [
+                "Clarity",
+                "Structure",
+                "Vocabulary",
+                "Ability to explain technical concepts simply",
+                "Relevance",
+                "Confidence/fluency"
+            ],
             options: [
-                "Immediately acknowledge the outage in the incident channel, redirect focus to rolling back to the last stable release, and state that a thorough blameless post-mortem will be conducted once service availability is restored.",
-                "Explain privately to the manager what the junior engineer did, then take over the incident channel to independently debug the failing code and write a proper fix.",
-                "Post a message reassuring stakeholders that the team is working on it, while pairing directly with the junior engineer in private to walk through rollback steps together so they learn without feeling exposed.",
-                "Keep silent in the public channel until you have isolated the root cause line-by-line, then post the exact diff and technical breakdown of the error."
+                "Analogy-First: Compare an API to a restaurant waiter taking customer requests to the kitchen and bringing back the meal, showing why our app needs one to securely connect to external services without exposing core database internals.",
+                "Protocol-Direct: Explain low-level HTTP protocols, REST endpoints, JSON serialization, and status codes without analogies.",
+                "Business-Centric: Focus on business velocity and cost savings, explaining that APIs allow our application to plug into payment processors and auth providers in days instead of months.",
+                "Process-Delegation: Provide a quick high-level summary and share architectural documentation links for deeper reading."
+            ],
+            optionDimensionWeights: [
+                { communication: 5, teamwork: 4, problemSolving: 5, leadership: 4 },
+                { communication: 2, teamwork: 2, problemSolving: 4, leadership: 2 },
+                { communication: 4, teamwork: 4, problemSolving: 4, leadership: 5 },
+                { communication: 2, teamwork: 2, problemSolving: 2, leadership: 2 }
+            ],
+            correctOptionIndex: 0,
+            explanation: "Using intuitive real-world analogies to communicate complex system concepts to non-technical stakeholders demonstrates top-tier communication and collaborative problem solving.",
+            weight: 2
+        },
+        {
+            questionId: "soft_q2_speaking",
+            questionText: "Sample 2 — Team communication: You are working in a team and another developer has implemented something differently from what the team agreed upon. Speak for 60 seconds explaining how you would approach the situation.",
+            type: "speaking",
+            difficultyLevel: "speaking",
+            concept: "Team Communication & Conflict Handling",
+            speakingDurationSeconds: 60,
+            evaluationRubric: [
+                "Professional communication",
+                "Collaboration",
+                "Conflict handling",
+                "Clarity",
+                "Tone"
+            ],
+            options: [
+                "Empathetic 1-on-1: Schedule a supportive private conversation to curiously inquire about the edge cases that led to their implementation, review the original team ADR together, and collaborate on an aligned solution without public confrontation.",
+                "Direct Rejection: Leave blocking change requests on the PR citing the sprint architecture agreement and ask the tech lead to enforce compliance.",
+                "Silent Concession: Quietly adapt your own code to accommodate their changes to avoid friction and preserve sprint velocity.",
+                "Public Standup Escalation: Bring up the divergence immediately in the morning standup so the whole team can debate the two approaches."
+            ],
+            optionDimensionWeights: [
+                { communication: 5, teamwork: 5, problemSolving: 5, leadership: 5 },
+                { communication: 2, teamwork: 1, problemSolving: 2, leadership: 2 },
+                { communication: 1, teamwork: 2, problemSolving: 1, leadership: 1 },
+                { communication: 3, teamwork: 3, problemSolving: 3, leadership: 3 }
+            ],
+            correctOptionIndex: 0,
+            explanation: "Empathetic private alignment focused on understanding intent preserves psychological safety while maintaining engineering standards.",
+            weight: 2
+        },
+        {
+            questionId: "soft_q3_speaking",
+            questionText: "Sample 3 — Interview-style question: 'Tell me about a technical problem you faced in a project and how you solved it.' Speak for 60–90 seconds articulating the challenge, your diagnostic process, and the verified outcome.",
+            type: "speaking",
+            difficultyLevel: "speaking",
+            concept: "Technical Storytelling & Problem Description",
+            speakingDurationSeconds: 90,
+            evaluationRubric: [
+                "How clearly they describe the problem",
+                "Whether their answer has a logical structure (STAR)",
+                "Technical vocabulary",
+                "Conciseness",
+                "Communication fluency"
+            ],
+            options: [
+                "STAR Framework: Clearly define the high-impact roadblock, explain systematic telemetry/debugging tools and metrics used, describe the engineered solution, and conclude with verified performance gains and regression tests.",
+                "Implementation Dive: Detail the low-level code mechanics, framework idiosyncrasies, and package configurations without framing the broader user or business problem.",
+                "Blame Attribution: State that an upstream dependency or former colleague wrote faulty code, and highlight how you rewrote their section.",
+                "Collaborative Retrospective: Describe how you paired with colleagues, reviewed logs, iterated on a fix together, and documented the root cause in a team knowledge base."
             ],
             optionDimensionWeights: [
                 { communication: 5, teamwork: 4, problemSolving: 5, leadership: 5 },
-                { communication: 2, teamwork: 2, problemSolving: 4, leadership: 3 },
-                { communication: 4, teamwork: 5, problemSolving: 4, leadership: 4 },
-                { communication: 1, teamwork: 1, problemSolving: 4, leadership: 1 }
+                { communication: 2, teamwork: 2, problemSolving: 4, leadership: 2 },
+                { communication: 1, teamwork: 1, problemSolving: 3, leadership: 1 },
+                { communication: 5, teamwork: 5, problemSolving: 4, leadership: 4 }
             ],
             correctOptionIndex: 0,
-            explanation: "Prioritizes service recovery and psychological safety, avoiding public finger-pointing while demonstrating decisive leadership and transparent communication.",
+            explanation: "Clear logical structure (Situation, Task, Action, Result) combined with precise technical vocabulary delivers concise, high-credibility communication.",
+            weight: 2
+        },
+        {
+            questionId: "soft_q4_speaking",
+            questionText: "Sample 4 — Presentation: You have 90 seconds to explain your project to an HR manager who has no technical background. Speak for up to 90 seconds explaining the user problem, the solution, and the real-world value.",
+            type: "speaking",
+            difficultyLevel: "speaking",
+            concept: "Non-Technical Project Presentation",
+            speakingDurationSeconds: 90,
+            evaluationRubric: [
+                "Presentation structure",
+                "Non-technical clarity",
+                "Value proposition delivery",
+                "Time management",
+                "Professional demeanor"
+            ],
+            options: [
+                "Value-Driven Narrative: Hook the audience with the real user pain point, describe the intuitive solution in accessible language, quantify the impact (e.g. hours saved, adoption rate), and highlight cross-functional teamwork.",
+                "Technical Architecture Walkthrough: List the technologies used (React, TypeScript, Node.js, PostgreSQL) and explain the database schemas and microservice topology.",
+                "Effort-Centric Description: Explain how many hours of coding, debugging, and testing went into building the application.",
+                "Interactive User Journey: Walk through a day-in-the-life scenario of a user interacting with the application and experiencing immediate benefits."
+            ],
+            optionDimensionWeights: [
+                { communication: 5, teamwork: 5, problemSolving: 4, leadership: 5 },
+                { communication: 1, teamwork: 2, problemSolving: 2, leadership: 1 },
+                { communication: 2, teamwork: 1, problemSolving: 2, leadership: 1 },
+                { communication: 5, teamwork: 4, problemSolving: 4, leadership: 4 }
+            ],
+            correctOptionIndex: 0,
+            explanation: "Tailoring technical narratives to non-technical stakeholders by focusing on measurable value, storytelling, and empathy demonstrates strategic executive maturity.",
             weight: 2
         },
         {
@@ -1226,8 +1346,13 @@ Strict requirements:
  */
 export async function generateSoftSkillAssessment(req: Request, res: Response) {
     try {
-        const { theme: explicitTheme } = req.body as { theme?: string };
-        const theme = explicitTheme?.trim() || "Workplace Collaboration & Incident Response";
+        const { theme: explicitTheme, targetSkill, skill } = req.body as {
+            theme?: string;
+            targetSkill?: string;
+            skill?: string;
+        };
+        const rawTheme = explicitTheme || targetSkill || skill || "Workplace Collaboration & Speaking Scenarios";
+        const theme = String(rawTheme).trim();
 
         // Fetch user profile context
         const profile = req.userId ? await profileModel.findOne({ userId: req.userId }) : null;
@@ -1244,9 +1369,10 @@ export async function generateSoftSkillAssessment(req: Request, res: Response) {
             ? aiAssessment.questions
             : buildDeterministicSoftSkillScenarios();
 
-        const title = aiAssessment?.title || `${theme} Behavioral Assessment`;
-        const description = aiAssessment?.description || "Scenario-based evaluation measuring communication, cross-functional teamwork, root-cause problem solving, and leadership.";
-        const badgeAwarded = aiAssessment?.badgeAwarded || "Certified Workplace Collaborator";
+        const isSpeaking = theme.toLowerCase().includes("speaking") || theme.toLowerCase().includes("communication");
+        const title = aiAssessment?.title || (isSpeaking ? `${theme} Competency & Behavioral Assessment` : `${theme} Behavioral Assessment`);
+        const description = aiAssessment?.description || "Authentic scenario-based evaluation measuring technical concept articulation, team conflict resolution, problem communication, and executive presentation.";
+        const badgeAwarded = aiAssessment?.badgeAwarded || (isSpeaking ? "Certified Effective Communicator & Speaker" : "Certified Workplace Collaborator");
 
         // Create persistent assessment record in DB
         const newAssessment = await assessmentModel.create({

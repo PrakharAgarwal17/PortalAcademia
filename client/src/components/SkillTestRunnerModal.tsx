@@ -18,19 +18,24 @@ import {
   Compass,
   TrendingUp,
   ShieldCheck,
+  Mic,
+  Square,
+  Volume2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface Question {
   questionId: string;
   questionText: string;
-  type?: "mcq" | "writing";
-  difficultyLevel?: "easy" | "medium" | "writing";
+  type?: "mcq" | "writing" | "speaking";
+  difficultyLevel?: "easy" | "medium" | "writing" | "speaking";
   concept?: string;
   options: string[];
   correctOptionIndex?: number;
   explanation?: string;
   weight?: number;
+  speakingDurationSeconds?: number;
+  evaluationRubric?: string[];
 }
 
 export interface DimensionalScore {
@@ -82,6 +87,13 @@ export default function SkillTestRunnerModal({
   const [timeTakenPerQuestion, setTimeTakenPerQuestion] = useState<Record<string, number>>({});
   const [aiFlaggedQuestions, setAiFlaggedQuestions] = useState<Record<string, boolean>>({});
 
+  const [audioUrlMap, setAudioUrlMap] = useState<Record<string, string>>({});
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [recordingSecondsLeft, setRecordingSecondsLeft] = useState<number>(60);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<any>(null);
+
   // Active question timer tracking
   const [currentQuestionElapsed, setCurrentQuestionElapsed] = useState<number>(0);
   const [writingTimeLeft, setWritingTimeLeft] = useState<number>(180);
@@ -90,6 +102,56 @@ export default function SkillTestRunnerModal({
 
   const currentQ = assessment.questions[currentIdx];
   const activeQuestionStartTimeRef = useRef<number>(Date.now());
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const url = URL.createObjectURL(audioBlob);
+        setAudioUrlMap((prev) => ({ ...prev, [currentQ.questionId]: url }));
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      recorder.start();
+      setIsRecording(true);
+      const targetSecs = currentQ.speakingDurationSeconds || 60;
+      setRecordingSecondsLeft(targetSecs);
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSecondsLeft((prev) => {
+          if (prev <= 1) {
+            stopRecording();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (err) {
+      console.warn("Microphone access unavailable:", err);
+      alert("Microphone access was denied or not supported by this browser. You can write your spoken response summary in the text box below.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+    }
+  };
 
   // 1-second interval live stopwatch & writing timer ticker
   useEffect(() => {
@@ -101,6 +163,9 @@ export default function SkillTestRunnerModal({
     if (currentQ?.type === "writing" || currentQ?.difficultyLevel === "writing") {
       setWritingTimeLeft(180);
     }
+    if (currentQ?.type === "speaking" || currentQ?.difficultyLevel === "speaking") {
+      setRecordingSecondsLeft(currentQ.speakingDurationSeconds || 60);
+    }
 
     const interval = setInterval(() => {
       // Ticking live stopwatch for active question
@@ -111,7 +176,10 @@ export default function SkillTestRunnerModal({
       setWritingTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    };
   }, [currentIdx, currentQ, testResult]);
 
   /**
@@ -120,6 +188,10 @@ export default function SkillTestRunnerModal({
   const handleNavigateToQuestion = (targetIdx: number) => {
     if (!currentQ || targetIdx === currentIdx || targetIdx < 0 || targetIdx >= assessment.questions.length) {
       return;
+    }
+
+    if (isRecording) {
+      stopRecording();
     }
 
     const secondsSpent = Math.max(1, Math.round((Date.now() - activeQuestionStartTimeRef.current) / 1000));
@@ -163,11 +235,12 @@ export default function SkillTestRunnerModal({
       const formattedAnswers = assessment.questions.map((q) => {
         const secondsTaken = updatedTimeMap[q.questionId] || 1;
         const isWriting = q.type === "writing" || q.difficultyLevel === "writing";
+        const isSpeaking = q.type === "speaking" || q.difficultyLevel === "speaking";
 
         return {
           questionId: q.questionId,
           selectedOptionIndex: isWriting ? -1 : mcqAnswers[q.questionId] ?? -1,
-          writtenAnswer: isWriting ? writingAnswers[q.questionId] || "" : undefined,
+          writtenAnswer: isWriting || isSpeaking ? writingAnswers[q.questionId] || "" : undefined,
           timeTakenSeconds: secondsTaken,
         };
       });
@@ -199,6 +272,8 @@ export default function SkillTestRunnerModal({
     assessment.assessmentType === "soft_skills" ||
     !!testResult?.softSkillsReport;
 
+  const isSpeakingQuestion =
+    currentQ?.type === "speaking" || currentQ?.difficultyLevel === "speaking";
   const isWritingQuestion = !isSoftSkills && (currentQ?.type === "writing" || currentQ?.difficultyLevel === "writing");
   const accumulatedTimeSpent = (timeTakenPerQuestion[currentQ?.questionId || ""] || 0) + currentQuestionElapsed;
   const currentWritingText = writingAnswers[currentQ?.questionId || ""] || "";
@@ -460,10 +535,14 @@ export default function SkillTestRunnerModal({
             {/* Question Section Stepper Tabs */}
             <div className="flex items-center justify-between gap-1 overflow-x-auto pb-2 border-b border-border">
               {assessment.questions.map((q, idx) => {
-                const isAnswered =
-                  q.type === "writing" || q.difficultyLevel === "writing"
-                    ? (writingAnswers[q.questionId] || "").trim().length >= 10
-                    : mcqAnswers[q.questionId] !== undefined;
+                const isWriting = q.type === "writing" || q.difficultyLevel === "writing";
+                const isSpeaking = q.type === "speaking" || q.difficultyLevel === "speaking";
+
+                const isAnswered = isWriting
+                  ? (writingAnswers[q.questionId] || "").trim().length >= 10
+                  : isSpeaking
+                  ? mcqAnswers[q.questionId] !== undefined || !!audioUrlMap[q.questionId] || (writingAnswers[q.questionId] || "").trim().length >= 10
+                  : mcqAnswers[q.questionId] !== undefined;
 
                 const isCurrent = idx === currentIdx;
                 const isFlagged = aiFlaggedQuestions[q.questionId];
@@ -498,7 +577,7 @@ export default function SkillTestRunnerModal({
                 </span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-card border border-border text-muted-foreground uppercase">
                   {isSoftSkills
-                    ? (currentQ?.concept || "Workplace Dilemma Scenario")
+                    ? (currentQ?.concept || (isSpeakingQuestion ? "Speaking & Verbal Articulation Scenario" : "Workplace Dilemma Scenario"))
                     : currentQ?.difficultyLevel === "easy"
                     ? "Easy MCQ (1 pt)"
                     : currentQ?.difficultyLevel === "medium"
@@ -509,7 +588,24 @@ export default function SkillTestRunnerModal({
 
               {/* Ticking Timer Display */}
               <div className="flex items-center gap-2 text-xs font-mono font-bold">
-                {isWritingQuestion ? (
+                {isSpeakingQuestion ? (
+                  <div className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1 rounded border",
+                    isRecording
+                      ? "text-rose-600 dark:text-rose-400 bg-rose-500/15 border-rose-500/30 animate-pulse"
+                      : "text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20"
+                  )}>
+                    <Mic className={cn("w-3.5 h-3.5", isRecording && "animate-bounce text-rose-500")} />
+                    <span>
+                      {isRecording
+                        ? `Recording: ${formatTimerString(recordingSecondsLeft)} left`
+                        : `Target: ${currentQ?.speakingDurationSeconds || 60}s Audio`}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground opacity-80 pl-1 font-normal">
+                      (Elapsed: {accumulatedTimeSpent}s)
+                    </span>
+                  </div>
+                ) : isWritingQuestion ? (
                   <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded border border-amber-500/20">
                     <Clock className="w-3.5 h-3.5 animate-pulse text-amber-500" />
                     <span>3 Min Timer: {formatTimerString(writingTimeLeft)}</span>
@@ -528,16 +624,113 @@ export default function SkillTestRunnerModal({
 
             {/* Question Text */}
             <div className="p-4 rounded-md bg-background border border-border space-y-3">
-              <div className="flex items-start gap-2">
-                {isWritingQuestion ? (
+              <div className="flex items-start gap-2.5">
+                {isSpeakingQuestion ? (
+                  <Mic className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                ) : isWritingQuestion ? (
                   <FileText className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
                 ) : (
                   <HelpCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                 )}
-                <h3 className="text-xs lg:text-sm font-bold text-foreground leading-relaxed">
-                  {currentQ.questionText}
-                </h3>
+                <div className="space-y-1">
+                  <h3 className="text-xs lg:text-sm font-bold text-foreground leading-relaxed">
+                    {currentQ.questionText}
+                  </h3>
+                  {isSpeakingQuestion && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Record a spoken response ({currentQ.speakingDurationSeconds || 60}s target) or take notes below, then select your primary strategic response approach.
+                    </p>
+                  )}
+                </div>
               </div>
+
+              {/* Rubric badges for speaking questions */}
+              {isSpeakingQuestion && currentQ.evaluationRubric && currentQ.evaluationRubric.length > 0 && (
+                <div className="p-2.5 rounded-md bg-secondary/40 border border-border space-y-1">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+                    Target Evaluation Criteria & Rubric:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {currentQ.evaluationRubric.map((item, idx) => (
+                      <span
+                        key={idx}
+                        className="text-[10px] font-medium px-2 py-0.5 rounded bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20"
+                      >
+                        ✓ {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Voice recording & written transcript widget for Speaking Questions */}
+              {isSpeakingQuestion && (
+                <div className="p-3.5 rounded-md border border-border bg-card space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <Volume2 className="w-3.5 h-3.5 text-primary" />
+                      Audio Response Recording ({currentQ.speakingDurationSeconds || 60}s Target)
+                    </span>
+                    {audioUrlMap[currentQ.questionId] && (
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Audio Recorded
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Audio Controls */}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {!isRecording ? (
+                      <button
+                        type="button"
+                        onClick={startRecording}
+                        className="px-3.5 py-1.5 rounded-md bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                      >
+                        <Mic className="w-3.5 h-3.5" />
+                        <span>{audioUrlMap[currentQ.questionId] ? "Re-record Audio Answer" : "Start Voice Recording"}</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={stopRecording}
+                        className="px-3.5 py-1.5 rounded-md bg-rose-600 hover:bg-rose-700 animate-pulse text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <Square className="w-3.5 h-3.5 fill-current" />
+                        <span>Stop Recording ({recordingSecondsLeft}s left)</span>
+                      </button>
+                    )}
+
+                    {audioUrlMap[currentQ.questionId] && !isRecording && (
+                      <div className="flex items-center gap-2">
+                        <audio
+                          controls
+                          src={audioUrlMap[currentQ.questionId]}
+                          className="h-8 max-w-[240px]"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Written Transcript/Notes */}
+                  <div className="space-y-1 pt-1">
+                    <label className="text-[11px] font-medium text-muted-foreground block">
+                      Spoken Transcript / Response Outline (Optional fallback if mic is blocked):
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={writingAnswers[currentQ.questionId] || ""}
+                      onChange={(e) =>
+                        setWritingAnswers((prev) => ({
+                          ...prev,
+                          [currentQ.questionId]: e.target.value,
+                        }))
+                      }
+                      placeholder="Outline your talking points or write your spoken response summary here..."
+                      className="w-full p-2.5 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-sans leading-relaxed"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* MCQ Options vs Writing Textarea */}
               {isWritingQuestion ? (
@@ -570,6 +763,11 @@ export default function SkillTestRunnerModal({
                 </div>
               ) : (
                 <div className="space-y-2 pt-1">
+                  {isSpeakingQuestion && (
+                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block pt-1">
+                      Choose Your Core Strategy / Approach:
+                    </span>
+                  )}
                   {currentQ.options.map((opt, oIdx) => (
                     <label
                       key={oIdx}
