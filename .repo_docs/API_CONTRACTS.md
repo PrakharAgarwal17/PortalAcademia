@@ -454,7 +454,8 @@
   }
   ```
 - **Evaluation:** Evaluates submitted answers against actual schema keys, computes percentage score, checks against `passPercentage`.
-- **Side Effect:** If `passed === true`, appends `verifiedSkillsAdded` to candidate's `Profile.skills` and awards digital badge.
+- **Retest & Average Calculation:** Retesting preserves all attempts on record; calculates cumulative average percentage across all attempts for this assessment.
+- **Side Effect:** If `passed === true`, appends `verifiedSkillsAdded` to candidate's `Profile.skills` and `Profile.verifiedSkills` and awards digital badge.
 - **Success Response:** `200 OK`
   ```json
   {
@@ -465,8 +466,53 @@
       "percentage": 90,
       "passed": true,
       "badgeAwarded": "Certified Python Practitioner",
-      "verifiedSkillsAdded": ["Python"]
+      "verifiedSkillsAdded": ["Python"],
+      "attemptNumber": 2,
+      "cumulativeAveragePercentage": 85,
+      "totalAttemptsOnRecord": 2,
+      "bestPercentageOnRecord": 90,
+      "skillAverages": [
+        { "skill": "Python", "averagePercentage": 85, "totalAttempts": 2, "bestPercentage": 90 }
+      ]
     }
+  }
+  ```
+
+---
+
+### `GET /api/assessments/my-results`
+- **Handler:** `getMyResults`
+- **Auth & Middleware:** `isloggedIn`
+- **Operation:** Returns all assessment attempts for the authenticated student, enriched with cumulative attempt counts, average percentages per assessment, and grouped `skillStats` aggregate summaries.
+- **Success Response:** `200 OK`
+  ```json
+  {
+    "success": true,
+    "count": 3,
+    "data": [
+      {
+        "_id": "65f0...",
+        "assessmentTitle": "Python Competency Exam",
+        "percentage": 90,
+        "passed": true,
+        "attemptNumber": 2,
+        "totalAttemptsOnRecord": 2,
+        "cumulativeAveragePercentage": 85
+      }
+    ],
+    "skillStats": [
+      {
+        "skill": "Python",
+        "totalAttempts": 2,
+        "averagePercentage": 85,
+        "bestPercentage": 90,
+        "latestPercentage": 90,
+        "isPassed": true,
+        "badgeAwarded": "Certified Python Practitioner",
+        "lastAttemptDate": "2026-09-16T12:00:00.000Z",
+        "attempts": [...]
+      }
+    ]
   }
   ```
 
@@ -521,6 +567,39 @@
   ```
 - **Operation:** Flips `isVerified: true`, stamps `verifiedBy: institutionId`, records `verifiedAt: new Date()`.
 - **Success Response:** `200 OK` (`{ "success": true, "message": "Credential verified" }`)
+
+---
+
+### `GET /api/verification/institution-students`
+- **Handler:** `getInstitutionStudents`
+- **Auth & Middleware:** `isloggedIn`, `isInstitution`
+- **Query Params:** `status=enrolled|alumni` (optional)
+- **Scoping & IDOR Defense:** Strictly scoped to the authenticated institution's profile name (`instName`). If unconfigured, returns an empty array immediately to prevent leaking cross-institution student records.
+- **Success Response:** `200 OK`
+  ```json
+  {
+    "success": true,
+    "count": 120,
+    "data": [
+      {
+        "_id": "65e0b...",
+        "name": "Priya Patel",
+        "email": "priya@univ.edu",
+        "isAlumni": false,
+        "academicYear": "3rd Year",
+        "verifiedSkillsCount": 4
+      }
+    ]
+  }
+  ```
+
+---
+
+### `GET /api/verification/institution-members/:id`
+- **Handler:** `getInstitutionMemberById`
+- **Auth & Middleware:** `isloggedIn`, `isInstitution`
+- **Security Check:** Strictly enforces resource-level authorization. Compares requested member's `institutionName` against caller's institution name. Returns `403 Forbidden` if mismatched, preventing cross-institution IDOR data leaks.
+- **Success Response:** `200 OK` (Full member profile payload with resolved `isAlumni` and `academicYear`).
 
 ---
 
@@ -598,3 +677,37 @@
     "publicId": "portal_academia/uploads/sample"
   }
   ```
+
+---
+
+### `POST /api/upload/resume-score`
+- **Auth & Middleware:** `isloggedIn`, Redis/Memory Rate Limiter (`10 uploads / 15m`), `multer.single("file")` (PDF / DOCX $\le 5\text{MB}$)
+- **Request:** `multipart/form-data` with:
+  - `file`: Resume document (PDF or DOCX)
+  - `opportunityId`: Target opportunity ObjectId (optional)
+  - `requiredSkills`: Fallback JSON array or comma-separated string of required skills (optional)
+- **Operation:**
+  1. Extracts text from buffer via `pdf-parse` (v2 `PDFParse`) or `mammoth.extractRawText`.
+  2. Fetches user profile, verified credentials, and passed assessment scores.
+  3. Reconciles candidate skills from document text + profile.
+  4. Runs authoritative unified ATS scoring engine (`calculateAtsScore`).
+  5. Uploads document buffer to Cloudinary (`portal_academia/resumes`).
+- **Success Response:** `200 OK`
+  ```json
+  {
+    "success": true,
+    "message": "Resume uploaded and scored successfully",
+    "url": "https://res.cloudinary.com/.../resume.pdf",
+    "publicId": "portal_academia/resumes/resume_12345",
+    "filename": "Aarav_Sharma_Resume.pdf",
+    "atsAnalysis": {
+      "score": 88,
+      "technicalScore": 85,
+      "completenessScore": 92,
+      "matchedSkills": ["React", "TypeScript"],
+      "missingSkills": ["GraphQL"],
+      "details": { ... }
+    }
+  }
+  ```
+- **Error Responses:** `400 Bad Request` (No file, unsupported file type), `429 Too Many Requests` (Rate limit exceeded: >10 in 15m).

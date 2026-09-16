@@ -107,3 +107,39 @@
 - `isIndustry`: Enforces `accountType === "industry"`
 - `isPublisher`: Allows `accountType` in `["industry", "institution"]`
 - `isAcademic`: Allows `accountType` in `["student", "faculty", "institution"]`
+
+---
+
+## 5. Pure Scoring & Alumni Resolvers
+
+### `calculateAtsScore`
+- **Signature:** `calculateAtsScore(candidate: CandidateAtsInput, job: JobAtsInput): AtsScoreBreakdown`
+- **Source Files:** [server/services/atsScoringService.ts](file:///server/services/atsScoringService.ts) and [client/src/utils/atsScoring.ts](file:///client/src/utils/atsScoring.ts)
+- **Operation:**
+  1. Computes Technical Skills Match (60% weight):
+     - Verified assessment score $\in [70\%, 100\%]$ scaled between $0.70$ and $1.00$.
+     - Unassessed verified institution credential fallback: $0.96$ weight.
+     - Unassessed verified profile skill: $0.96$ weight.
+     - Self-reported skill: $0.45$ weight.
+     - Proves statistical separation $\ge 30\%$ between verified and unverified profiles.
+  2. Computes Profile & Resume Completeness (40% weight):
+     - Contact details (email, phone, location): up to 8 points.
+     - Professional summary ($\ge 30$ chars): 6 points.
+     - Education entries with institutions: 8 points.
+     - Experience / Projects: 8 points.
+     - Certifications: 5 points.
+     - Skill inventory density: 5 points.
+  3. Total ATS Score bounded strictly in $[0, 100]$ with zero artificial floors (empty candidate naturally scores $\le 5\%$).
+- **Test Suite:** Automated parity & separation benchmark in `server/scripts/testAtsParity.ts`.
+
+---
+
+### `resolveAlumniStatus`
+- **Signature:** `resolveAlumniStatus(profile: { education?: any[]; isAlumni?: boolean; graduationYear?: number }): AlumniResolution`
+- **Source File:** [server/utils/alumniResolver.ts](file:///server/utils/alumniResolver.ts)
+- **Operation:** Single authoritative resolver reconciling timeline-derived academic year with explicit database flags.
+  - If `isAlumni === true`, returns `{ isAlumni: true, academicYear: "Alumni", graduationBatch }`.
+  - If timeline has elapsed (end year $\le$ current year), resolves to `isAlumni: true`.
+  - Otherwise resolves to active year (`1st Year`, `2nd Year`, etc.) and `isAlumni: false`.
+- **Test Suite:** Automated scoping & gating tests in `server/scripts/testInstitutionScoping.ts`.
+

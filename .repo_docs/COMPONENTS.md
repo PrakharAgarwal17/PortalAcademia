@@ -128,7 +128,7 @@ interface ProfileEditModalProps {
 
 ### 5. `ResumeBuilderModal`
 **Location:** [client/src/components/ResumeBuilderModal.tsx](file:///client/src/components/ResumeBuilderModal.tsx)  
-**Role:** In-browser ATS resume generator with real-time preview, ATS match score evaluation against target opportunity skills, and client-side PDF export via `jsPDF`.
+**Role:** Full-featured ATS resume generator and document parser. Features three interactive views: "Customize Fields", "Live PDF Preview & Download", and "Upload Resume (PDF / DOCX)". The upload tab parses PDF and Word DOCX files, computes the authoritative unified ATS score, displays skill match breakdowns, and saves the file directly to Cloudinary.
 
 #### Props Interface
 ```ts
@@ -158,19 +158,22 @@ interface ResumeBuilderModalProps {
 ```
 
 #### Internal State & Hooks
+- `activeTab: "customize" | "preview" | "upload"` — Active modal sub-view.
 - `resume: ResumeData` — Synchronized resume form state.
-- `atsScore: number` — Derived ATS compatibility score calculated via skill intersection.
+- `atsAnalysis: AtsScoreBreakdown` — Authoritative unified ATS analysis (technical match 60%, completeness 40%, matched/missing skills).
+- `uploadedResult: { url: string; filename: string; atsAnalysis: AtsScoreBreakdown } | null` — Document upload and scoring response.
+- `isUploading: boolean`, `uploadError: string | null`, `dragActive: boolean` — Drag-and-drop upload state.
 - `isGeneratingPdf: boolean` — Loading state during `jsPDF` render.
 
 #### Emitted Events
-- `onAttachResume(resumeData, pdfUrl, atsScore)` — Attaches generated resume to application flow.
+- `onAttachResume(resumeData, pdfUrl, atsScore)` — Attaches built or uploaded resume to application flow.
 - Triggers native browser print / PDF download.
 
 ---
 
 ### 6. `SkillTestRunnerModal`
 **Location:** [client/src/components/SkillTestRunnerModal.tsx](file:///client/src/components/SkillTestRunnerModal.tsx)  
-**Role:** Timed question-by-question MCQ examination runner. Tracks time per question, records selected option indexes, submits to `/api/assessments/:id/submit`, and renders pass/fail scorecard with badge awards.
+**Role:** Timed question-by-question MCQ examination runner. Tracks time per question, records selected option indexes, submits to `/api/assessments/:id/submit`, and renders pass/fail scorecard displaying the current attempt score alongside cumulative average percentage and total attempts on record with badge awards.
 
 #### Props Interface
 ```ts
