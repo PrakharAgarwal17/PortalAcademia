@@ -1622,6 +1622,45 @@ export default function IndustryDashboard() {
                       {selectedResumeViewer.resumeData.location && (
                         <span>• {selectedResumeViewer.resumeData.location}</span>
                       )}
+                      {selectedResumeViewer.resumeData.linkedin && (
+                        <span>
+                          •{" "}
+                          <a
+                            href={selectedResumeViewer.resumeData.linkedin}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary hover:underline font-semibold"
+                          >
+                            LinkedIn
+                          </a>
+                        </span>
+                      )}
+                      {selectedResumeViewer.resumeData.github && (
+                        <span>
+                          •{" "}
+                          <a
+                            href={selectedResumeViewer.resumeData.github}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary hover:underline font-semibold"
+                          >
+                            GitHub
+                          </a>
+                        </span>
+                      )}
+                      {selectedResumeViewer.resumeData.website && (
+                        <span>
+                          •{" "}
+                          <a
+                            href={selectedResumeViewer.resumeData.website}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary hover:underline font-semibold"
+                          >
+                            Portfolio Website
+                          </a>
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -1726,6 +1765,43 @@ export default function IndustryDashboard() {
                         </div>
                       </div>
                     )}
+
+                  {/* Projects & Open Source */}
+                  {selectedResumeViewer.resumeData.projects &&
+                    selectedResumeViewer.resumeData.projects.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 border-b border-gray-300 pb-1 mb-1.5 font-mono">
+                          Key Projects &amp; Open Source Contributions
+                        </h4>
+                        <div className="space-y-2.5">
+                          {selectedResumeViewer.resumeData.projects.map((proj: any, idx: number) => (
+                            <div key={idx} className="space-y-0.5 text-xs">
+                              <div className="flex justify-between items-baseline font-bold">
+                                <span className="text-gray-900">{proj.title}</span>
+                                {proj.link && (
+                                  <a
+                                    href={proj.link}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="font-mono text-[11px] text-primary hover:underline font-normal"
+                                  >
+                                    {proj.link.replace("https://", "")}
+                                  </a>
+                                )}
+                              </div>
+                              {proj.technologies && proj.technologies.length > 0 && (
+                                <p className="font-mono text-[11px] text-gray-600">
+                                  Tech Stack: {proj.technologies.join(" • ")}
+                                </p>
+                              )}
+                              {proj.description && (
+                                <p className="text-xs text-gray-600 leading-relaxed pt-0.5">{proj.description}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                 </div>
               ) : selectedResumeViewer.resumeUrl ? (
                 <div className="p-10 text-center space-y-3">
@@ -1781,6 +1857,33 @@ export default function IndustryDashboard() {
                           ${selectedResumeViewer.resumeData?.summary ? `<div class="section">Summary</div><p style="font-size:11px;">${selectedResumeViewer.resumeData.summary}</p>` : ""}
                           <div class="section">Skills</div>
                           <p style="font-size:11px;">${(selectedResumeViewer.resumeData?.skills || selectedResumeViewer.applicantSkills || []).join(", ")}</p>
+                          ${selectedResumeViewer.resumeData?.experience?.length ? `
+                            <div class="section">Experience</div>
+                            ${selectedResumeViewer.resumeData.experience.map((e: any) => `
+                              <div class="item">
+                                <div class="header"><span>${e.title} — ${e.organization || ""}</span><span>${e.timeline || ""}</span></div>
+                                <div class="sub">${e.description || ""}</div>
+                              </div>
+                            `).join("")}
+                          ` : ""}
+                          ${selectedResumeViewer.resumeData?.education?.length ? `
+                            <div class="section">Education</div>
+                            ${selectedResumeViewer.resumeData.education.map((e: any) => `
+                              <div class="item">
+                                <div class="header"><span>${e.education} (${e.course || ""})</span><span>${e.timeline || ""}</span></div>
+                                <div class="sub">${e.institution || ""} — Grade: ${e.grade || "N/A"}</div>
+                              </div>
+                            `).join("")}
+                          ` : ""}
+                          ${selectedResumeViewer.resumeData?.projects?.length ? `
+                            <div class="section">Projects</div>
+                            ${selectedResumeViewer.resumeData.projects.map((p: any) => `
+                              <div class="item">
+                                <div class="header"><span>${p.title}</span><span>${p.technologies?.join(", ") || ""}</span></div>
+                                <div class="sub">${p.description || ""}</div>
+                              </div>
+                            `).join("")}
+                          ` : ""}
                           <script>window.onload = function() { window.print(); };</script>
                         </body>
                       </html>

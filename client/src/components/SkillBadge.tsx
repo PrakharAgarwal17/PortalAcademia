@@ -1,5 +1,5 @@
 import { getSkillIcon } from "@/lib/skillIcons";
-import { Sparkles, X, CheckCircle2 } from "lucide-react";
+import { X, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SkillBadgeProps {
@@ -47,7 +47,7 @@ export default function SkillBadge({
         className
       )}
     >
-      {iconData ? (
+      {iconData && (
         <svg
           role="img"
           viewBox="0 0 24 24"
@@ -57,8 +57,6 @@ export default function SkillBadge({
         >
           <path d={iconData.path} />
         </svg>
-      ) : (
-        <Sparkles className={cn(iconSizes[size], "text-muted-foreground shrink-0")} />
       )}
       <span className="truncate max-w-[170px]">{skill}</span>
       {isTested && (

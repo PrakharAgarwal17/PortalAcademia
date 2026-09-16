@@ -11,6 +11,9 @@ export interface SkillIconData {
 // Map of common developer / technology aliases to simple-icons slugs or titles
 const SKILL_ALIASES: Record<string, string> = {
   // Languages & runtimes
+  c: "c",
+  "c language": "c",
+  cplusplus: "cplusplus",
   js: "javascript",
   ts: "typescript",
   py: "python",
@@ -26,6 +29,8 @@ const SKILL_ALIASES: Record<string, string> = {
   nodejs: "nodedotjs",
   "node.js": "nodedotjs",
 
+  rust: "rust",
+  go: "go",
   // Frontend frameworks & libs
   react: "react",
   reactjs: "react",
@@ -178,32 +183,18 @@ export function getSkillIcon(skillName: string): SkillIconData | null {
     return titleLowerMap.get(raw)!;
   }
 
-  // 4. Check clean alphanumeric match (e.g. "c++" -> "cplusplus", "node.js" -> "nodejs")
+  // 4. Check clean alphanumeric exact match (e.g. "c++" -> "cplusplus", "node.js" -> "nodejs")
   const clean = raw.replace(/[^a-z0-9]/g, "");
   if (clean && cleanMap.has(clean)) {
     return cleanMap.get(clean)!;
   }
 
-  // 5. Partial match in aliases
-  for (const [aliasKey, targetSlug] of Object.entries(SKILL_ALIASES)) {
-    if (raw.includes(aliasKey) || aliasKey.includes(raw)) {
-      if (slugMap.has(targetSlug)) {
-        return slugMap.get(targetSlug)!;
-      }
-    }
-  }
-
-  // 6. Substring match in allIconsList (first match where title starts with or contains query)
-  if (raw.length >= 3) {
-    const prefixMatch = allIconsList.find(
-      (i) => i.slug.startsWith(raw) || i.title.toLowerCase().startsWith(raw)
+  // 5. Check if multi-word raw input directly matches a title startsWith (length >= 4)
+  if (raw.length >= 4) {
+    const titleMatch = allIconsList.find(
+      (i) => i.title.toLowerCase() === raw || i.slug === raw
     );
-    if (prefixMatch) return prefixMatch;
-
-    const includeMatch = allIconsList.find(
-      (i) => i.slug.includes(raw) || i.title.toLowerCase().includes(raw)
-    );
-    if (includeMatch) return includeMatch;
+    if (titleMatch) return titleMatch;
   }
 
   return null;
@@ -215,19 +206,26 @@ export function getSkillIcon(skillName: string): SkillIconData | null {
 export function searchSkillSuggestions(query: string, limit = 8): SkillIconData[] {
   const q = normalizeSkill(query);
   if (!q) {
-    // Return top popular tech icons as default suggestions
-    const popularSlugs = [
-      "python",
-      "react",
-      "javascript",
-      "typescript",
-      "nodedotjs",
-      "docker",
-      "tailwindcss",
-      "mongodb",
+    // Return top popular programming languages & tech icons as default suggestions
+    const popularItems: Array<{ slug: string; title: string }> = [
+      { slug: "python", title: "Python" },
+      { slug: "openjdk", title: "Java" },
+      { slug: "cplusplus", title: "C++" },
+      { slug: "c", title: "C" },
+      { slug: "javascript", title: "JavaScript" },
+      { slug: "typescript", title: "TypeScript" },
+      { slug: "react", title: "React" },
+      { slug: "nodedotjs", title: "Node.js" },
+      { slug: "docker", title: "Docker" },
+      { slug: "rust", title: "Rust" },
+      { slug: "go", title: "Go" },
+      { slug: "mysql", title: "SQL" },
     ];
-    return popularSlugs
-      .map((slug) => slugMap.get(slug))
+    return popularItems
+      .map((item) => {
+        const icon = slugMap.get(item.slug);
+        return icon ? { ...icon, title: item.title } : null;
+      })
       .filter((i): i is SkillIconData => Boolean(i));
   }
 
@@ -239,7 +237,19 @@ export function searchSkillSuggestions(query: string, limit = 8): SkillIconData[
   if (aliasSlug && slugMap.has(aliasSlug)) {
     const icon = slugMap.get(aliasSlug)!;
     seenSlugs.add(icon.slug);
-    results.push(icon);
+    if (q === "java") {
+      results.push({ ...icon, title: "Java" });
+    } else if (q === "c#" || q === "csharp") {
+      results.push({ ...icon, title: "C#" });
+    } else if (q === "c++" || q === "cpp") {
+      results.push({ ...icon, title: "C++" });
+    } else if (q === "c" || q === "c language") {
+      results.push({ ...icon, title: "C" });
+    } else if (q === "sql") {
+      results.push({ ...icon, title: "SQL" });
+    } else {
+      results.push(icon);
+    }
   }
 
   // 1. Starts with title or slug

@@ -19,7 +19,6 @@ import {
   AlertTriangle,
   Briefcase,
   TrendingUp,
-  School,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -60,38 +59,6 @@ const SECTOR_HIRING_DEMAND = [
   { sector: "FinTech & Low-Latency Systems", sharePct: 18, growthYoY: "+35.1%", avgOfferLPA: "₹18.0 LPA", hiringPartners: "Tower Research, Zerodha, Razorpay" },
   { sector: "Semiconductor & VLSI Embedded", sharePct: 12, growthYoY: "+48.0%", avgOfferLPA: "₹12.8 LPA", hiringPartners: "Qualcomm, Texas Instruments, Intel" },
   { sector: "Gov-Tech & National Fellowships", sharePct: 8, growthYoY: "+22.0%", avgOfferLPA: "₹8.5 LPA", hiringPartners: "DRDO, ISRO, NIC, CDAC" },
-];
-
-// NAAC & NIRF Institutional Quality Parameters
-const NAAC_NIRF_AUDIT_METRICS = [
-  {
-    criterion: "NAAC 5.2.1 — Placement Velocity",
-    targetBenchmark: "75% Verified Placements",
-    institutionalStatus: "84.6% Projected",
-    accreditationScore: "3.9 / 4.0 (Grade A++)",
-    statusBadge: "Compliant",
-  },
-  {
-    criterion: "NAAC 5.1.3 — Capacity Building & Skills",
-    targetBenchmark: "5 Industry Skill Verticals",
-    institutionalStatus: "6 Active Verticals",
-    accreditationScore: "4.0 / 4.0",
-    statusBadge: "Exemplary",
-  },
-  {
-    criterion: "NIRF Metric — Median Graduate Package",
-    targetBenchmark: "₹7.50 LPA Threshold",
-    institutionalStatus: "₹9.40 LPA Median",
-    accreditationScore: "Top Decile",
-    statusBadge: "Compliant",
-  },
-  {
-    criterion: "Industry-Academia MOUs & Co-op Fellowships",
-    targetBenchmark: "10 Active Corporate Ties",
-    institutionalStatus: "14 Verified Alliances",
-    accreditationScore: "3.8 / 4.0",
-    statusBadge: "Compliant",
-  },
 ];
 
 // Curated curriculum modernization directives based on enterprise deficits
@@ -219,7 +186,7 @@ export default function InstitutionTrendsPage() {
               <span className="text-muted-foreground/50">•</span>
               <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-bold">
                 <Landmark className="w-3.5 h-3.5" />
-                University Placement & Accreditation Observatory
+                University Placement & Industry Market Observatory
               </span>
               {profile?.aisheCode && (
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-secondary text-muted-foreground border border-border">
@@ -232,7 +199,7 @@ export default function InstitutionTrendsPage() {
               <span>{institutionDisplayName} — Institutional Market Intelligence</span>
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5 max-w-3xl">
-              Real-time curriculum deficit analysis, national placement demand curves, and NAAC Criterion 5 compliance telemetry tailored to university leadership.
+              Real-time curriculum deficit analysis, national placement demand curves, and corporate hiring telemetry tailored to university leadership.
             </p>
           </div>
 
@@ -299,16 +266,18 @@ export default function InstitutionTrendsPage() {
 
           <div className="p-4 rounded-xl bg-card border border-border space-y-1.5 shadow-xs">
             <span className="text-[10px] font-mono text-primary font-bold uppercase tracking-wider block">
-              NAAC Accreditation Score
+              Verified Portfolio Rate
             </span>
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold font-mono text-foreground">3.88 / 4.0</span>
+              <span className="text-2xl font-bold font-mono text-foreground">
+                {telemetry?.verificationRate ?? 88.4}%
+              </span>
               <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold font-mono">
-                Grade A++
+                Audited & Approved
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Criterion 5 student progression telemetry validated with cryptographically verifiable records.
+              Percentage of submitted student credentials officially verified by the placement cell.
             </p>
           </div>
         </div>
@@ -460,54 +429,6 @@ export default function InstitutionTrendsPage() {
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-
-        {/* 4. NAAC Criterion 5 & NIRF Quality Audit Ledger */}
-        <div className="bg-card border border-border rounded-xl p-5 space-y-4 shadow-xs">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-                <School className="w-4 h-4 text-emerald-500" />
-                NAAC Criterion 5 & NIRF Accreditation Progression
-              </h2>
-              <p className="text-[11px] text-muted-foreground">
-                Statutory university audit metrics required for annual National Assessment and Accreditation Council filings.
-              </p>
-            </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
-              Audit Ready
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {NAAC_NIRF_AUDIT_METRICS.map((metric, idx) => (
-              <div key={idx} className="p-4 bg-secondary/20 rounded-xl border border-border/80 space-y-2 flex flex-col justify-between">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="font-bold text-foreground">{metric.criterion.split("—")[0]}</span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold">
-                      {metric.statusBadge}
-                    </span>
-                  </div>
-                  <p className="text-xs font-semibold text-foreground">{metric.criterion.split("—")[1]}</p>
-                  <p className="text-[11px] text-muted-foreground">Target: {metric.targetBenchmark}</p>
-                </div>
-
-                <div className="pt-2 border-t border-border/60">
-                  <div className="flex items-center justify-between font-mono text-xs">
-                    <span className="text-muted-foreground text-[10px]">CURRENT:</span>
-                    <span className="font-bold text-primary">{metric.institutionalStatus}</span>
-                  </div>
-                  <div className="flex items-center justify-between font-mono text-[10.5px] mt-0.5">
-                    <span className="text-muted-foreground text-[10px]">SCORE:</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                      {metric.accreditationScore}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
 

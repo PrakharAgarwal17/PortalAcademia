@@ -10,7 +10,6 @@ import {
   Award,
   Check,
   ArrowRight,
-  Landmark,
   CheckCheck,
   GraduationCap,
   Search,
@@ -125,8 +124,8 @@ export default function InstitutionDashboard() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Active Desk Tabs: "verification" | "students" | "cohort" | "endorsement" | "accreditation"
-  const [activeTab, setActiveTab] = useState<"verification" | "students" | "cohort" | "endorsement" | "accreditation">("verification");
+  // Active Desk Tabs: "verification" | "students" | "cohort" | "endorsement"
+  const [activeTab, setActiveTab] = useState<"verification" | "students" | "cohort" | "endorsement">("verification");
 
   // Enrolled Students Directory state
   const [enrolledStudents, setEnrolledStudents] = useState<EnrolledStudent[]>([]);
@@ -515,20 +514,6 @@ export default function InstitutionDashboard() {
               <TrendingUp className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
               <span>Macro Market Trends</span>
             </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab("endorsement")}
-              className={cn(
-                "inline-flex items-center gap-2 text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-2xs group",
-                activeTab === "endorsement"
-                  ? "bg-primary text-primary-foreground border border-primary shadow-xs"
-                  : "bg-card border border-border hover:border-primary/40 hover:bg-secondary/40 text-foreground"
-              )}
-            >
-              <Award className={cn("w-4 h-4 transition-transform group-hover:scale-110", activeTab === "endorsement" ? "text-primary-foreground" : "text-primary")} />
-              <span>Posted Opportunities ({opportunities.length})</span>
-            </button>
           </div>
         </div>
 
@@ -618,20 +603,6 @@ export default function InstitutionDashboard() {
             >
               {opportunities.length}
             </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("accreditation")}
-            className={cn(
-              "text-xs font-semibold px-3.5 py-2 rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
-              activeTab === "accreditation"
-                ? "bg-primary text-primary-foreground shadow-xs font-bold"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Landmark className="w-3.5 h-3.5" />
-            <span>NAAC & NIRF Telemetry</span>
           </button>
         </div>
 
@@ -1338,58 +1309,6 @@ export default function InstitutionDashboard() {
                 })}
               </div>
             )}
-          </section>
-        )}
-
-        {/* ========================================================================= */}
-        {/* DESK 4: NAAC & NIRF ACCREDITATION TELEMETRY */}
-        {/* ========================================================================= */}
-        {activeTab === "accreditation" && (
-          <section className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-border">
-              <div>
-                <h2 className="text-sm font-bold text-foreground tracking-tight flex items-center gap-2">
-                  <Landmark className="w-4 h-4 text-primary" />
-                  Statutory Accreditation Readiness (NAAC & NIRF Criteria)
-                </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Automated metric synthesis aligned with NAAC Criteria 3 (Research, Innovations & Extension) and Criteria 5 (Student Progression).
-                </p>
-              </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
-                AISHE Audited
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-              <div className="p-4 rounded-xl bg-secondary/30 border border-border space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono font-bold text-primary uppercase">
-                    NAAC Criterion 5.2 • Placement & Progression
-                  </span>
-                  <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                    {telemetry?.verificationRate ?? 0}% Metric Score
-                  </span>
-                </div>
-                <h3 className="text-sm font-bold text-foreground">Verified Graduate Portfolio Ledger</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Cryptographically audited skills, industry hackathon awards, and verified internships provide automated verifiable proof links required for peer-team inspection visits.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl bg-secondary/30 border border-border space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono font-bold text-primary uppercase">
-                    NAAC Criterion 3.5 • MoUs & Collaborations
-                  </span>
-                  <span className="text-xs font-mono font-bold text-primary">Active Industry Linkage</span>
-                </div>
-                <h3 className="text-sm font-bold text-foreground">Corporate Sabbaticals & Immersion Partnerships</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Institutional endorsements and faculty industrial residencies directly feed into mandatory NIRF Perception and Outreach research indicators.
-                </p>
-              </div>
-            </div>
           </section>
         )}
 
