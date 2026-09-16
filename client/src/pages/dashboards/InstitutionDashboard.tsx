@@ -60,6 +60,10 @@ export interface EnrolledStudent {
   }>;
   academicYear: string;
   graduationBatch: string;
+  graduationYear?: number;
+  isAlumni?: boolean;
+  currentCompany?: string;
+  currentRole?: string;
   primaryDegree: string;
   verifiedCertsCount: number;
   totalCertsCount: number;
@@ -232,15 +236,24 @@ export default function InstitutionDashboard() {
     setIsStudentsLoading(true);
     try {
       const params = new URLSearchParams();
-      if (year && year !== "all") params.append("year", year);
+      if (year && year === "Alumni") {
+        params.append("status", "alumni");
+      } else if (year && year === "enrolled") {
+        params.append("status", "enrolled");
+      } else if (year && year !== "all") {
+        params.append("year", year);
+      }
       if (search && search.trim()) params.append("search", search.trim());
       const res = await fetch(`${API_BASE}/api/verification/institution-students?${params.toString()}`, {
         method: "GET",
         credentials: "include",
       });
       const data = await res.json();
-      if (data.success && Array.isArray(data.students)) {
-        setEnrolledStudents(data.students);
+      if (data.success) {
+        const studentList = Array.isArray(data.students)
+          ? data.students
+          : (Array.isArray(data.data) ? data.data : []);
+        setEnrolledStudents(studentList);
       }
     } catch (err) {
       console.error("Failed to fetch enrolled students:", err);
@@ -726,12 +739,13 @@ export default function InstitutionDashboard() {
                   Academic Year:
                 </span>
                 {[
-                  { id: "all", label: "All Years" },
+                  { id: "all", label: "All Members" },
+                  { id: "enrolled", label: "Currently Enrolled" },
                   { id: "1st Year", label: "1st Year" },
                   { id: "2nd Year", label: "2nd Year" },
                   { id: "3rd Year", label: "3rd Year" },
                   { id: "4th Year", label: "4th Year" },
-                  { id: "Alumni", label: "Alumni / Postgrad" },
+                  { id: "Alumni", label: "Alumni Network" },
                 ].map((yr) => (
                   <button
                     key={yr.id}
@@ -875,6 +889,16 @@ export default function InstitutionDashboard() {
                             {student.primaryDegree}
                           </span>
                         </div>
+
+                        {/* Current Placement / Company for Alumni */}
+                        {student.isAlumni && (student.currentCompany || student.currentRole) && (
+                          <div className="text-[11px] font-mono text-primary font-semibold flex items-center gap-1.5 bg-primary/10 px-2 py-1 rounded-md border border-primary/20">
+                            <Briefcase className="w-3 h-3 text-primary shrink-0" />
+                            <span className="truncate">
+                              {[student.currentRole, student.currentCompany].filter(Boolean).join(" @ ")}
+                            </span>
+                          </div>
+                        )}
 
                         {/* Verification & Experience Stats */}
                         <div className="grid grid-cols-2 gap-2 py-2 border-y border-border/50 text-[11px] font-mono">
