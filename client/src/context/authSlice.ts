@@ -18,6 +18,7 @@ export interface AuthUser {
   role?: string;
   isVerified: boolean;
   isOnboarded: boolean;
+  isEmailVerified?: boolean;
 }
 
 interface AuthState {
@@ -38,6 +39,7 @@ interface CheckAuthResponse {
     role?: string;
     isVerified: boolean;
     isOnboarded: boolean;
+    isEmailVerified?: boolean;
   };
 }
 

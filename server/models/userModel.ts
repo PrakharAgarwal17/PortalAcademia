@@ -7,6 +7,7 @@ export interface UserSchema extends Document {
     providerID: string;
     isVerified: boolean;
     isOnboarded: boolean;
+    isEmailVerified?: boolean;
 }
 
 const userSchema: Schema<UserSchema> = new Schema(
@@ -38,6 +39,11 @@ const userSchema: Schema<UserSchema> = new Schema(
         },
 
         isOnboarded: {
+            type: Boolean,
+            default: false,
+        },
+
+        isEmailVerified: {
             type: Boolean,
             default: false,
         },

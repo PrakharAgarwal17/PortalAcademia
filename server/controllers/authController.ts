@@ -488,7 +488,7 @@ export async function checkAuth(
                 if (decoded && decoded.id && typeof decoded.id === "string") {
                     const user = await userModel
                         .findById(decoded.id)
-                        .select("_id email isVerified isOnboarded");
+                        .select("_id email isVerified isOnboarded isEmailVerified");
 
                     if (user) {
                         return res.status(200).json({
@@ -498,6 +498,7 @@ export async function checkAuth(
                                 email: user.email,
                                 isVerified: user.isVerified,
                                 isOnboarded: user.isOnboarded,
+                                isEmailVerified: Boolean(user.isEmailVerified),
                             },
                         });
                     }
@@ -518,7 +519,7 @@ export async function checkAuth(
                 if (decoded && decoded.id && typeof decoded.id === "string") {
                     const user = await userModel
                         .findById(decoded.id)
-                        .select("_id email isVerified isOnboarded");
+                        .select("_id email isVerified isOnboarded isEmailVerified");
 
                     if (user) {
                         // Re-issue both tokens
@@ -532,6 +533,7 @@ export async function checkAuth(
                                 email: user.email,
                                 isVerified: user.isVerified,
                                 isOnboarded: user.isOnboarded,
+                                isEmailVerified: Boolean(user.isEmailVerified),
                             },
                         });
                     }
@@ -631,21 +633,23 @@ export const googleSuccess = async (
     try {
         const user = req.user as GoogleUser;
 
-        const frontendUrl = (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/+$/, "");
-
         if (!user || !user._id) {
+            const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
             return res.redirect(`${frontendUrl}/auth?error=google_auth_failed`);
         }
 
         const email = user.email;
 
         if (!email) {
+            const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
             return res.redirect(`${frontendUrl}/auth?error=email_not_found`);
         }
 
         // Generate JWT tokens and set httpOnly cookies
         const { accesstoken, refreshtoken } = generateTokens(String(user._id), true);
         setAuthCookies(res, accesstoken, refreshtoken, true);
+
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
         // Append ?auth=google so the frontend knows this is a fresh OAuth redirect
         // and re-verifies the session before deciding where to navigate
@@ -655,7 +659,7 @@ export const googleSuccess = async (
 
     } catch (error) {
         console.error("Google Auth error:", error);
-        const frontendUrl = (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/+$/, "");
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
         return res.redirect(`${frontendUrl}/auth?error=server_error`);
     }
 };
