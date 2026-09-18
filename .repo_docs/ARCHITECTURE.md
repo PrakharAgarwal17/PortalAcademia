@@ -93,6 +93,7 @@ PortalAcademia/
 │   ├── ARCHITECTURE.md           # High-level architecture, stack, directory tree, workflows
 │   ├── ROUTES_AND_PAGES.md       # Client routes, views, role guards, user flows
 │   ├── STATE_AND_DATA.md         # Redux slices, Context APIs, Mongoose schemas, storage keys
+│   ├── SYSTEM_DATA_MAP.md        # Entity-relationship diagrams, schema specs, storage topologies
 │   ├── API_CONTRACTS.md          # Backend REST contracts, payloads, responses, errors
 │   ├── COMPONENTS.md             # UI component library, props interfaces, event bindings
 │   └── UTILS_AND_SERVICES.md     # Pure utilities, helper functions, vector engine, configs
