@@ -13,6 +13,8 @@ import {
   Sun,
   Moon,
   ShieldCheck,
+  ShieldAlert,
+  Clock,
   Award,
   Briefcase,
   Camera,
@@ -422,7 +424,7 @@ export default function OnboardingIndividual() {
       }
 
       setIsOtpSent(true);
-      setOtpMessage(data.message || `Verification code sent to ${institutionEmail}`);
+      setOtpMessage(`OTP code dispatched to ${institutionEmail.trim()}. Enter the 6-digit code below to verify.`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to dispatch verification code";
       setOtpError(msg);
@@ -873,10 +875,20 @@ export default function OnboardingIndividual() {
                     (if verified we add a tick just like linkedin)
                   </span>
                 </div>
-                {isEmailVerified && (
+                {isEmailVerified ? (
                   <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full font-semibold">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     Verified
+                  </span>
+                ) : isOtpSent ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-mono text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full font-medium">
+                    <Clock className="w-3.5 h-3.5" />
+                    Verification Pending
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-mono text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
+                    <ShieldAlert className="w-3.5 h-3.5" />
+                    Unverified
                   </span>
                 )}
               </div>
@@ -1011,7 +1023,14 @@ export default function OnboardingIndividual() {
                   )}
 
                   {otpMessage && (
-                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
+                    <p
+                      className={cn(
+                        "text-[11px] font-mono",
+                        isEmailVerified
+                          ? "text-emerald-600 dark:text-emerald-400 font-semibold"
+                          : "text-amber-600 dark:text-amber-400 font-medium"
+                      )}
+                    >
                       {otpMessage}
                     </p>
                   )}
