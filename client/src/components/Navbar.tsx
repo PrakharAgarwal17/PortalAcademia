@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -9,11 +10,25 @@ import {
   Moon,
   LogOut,
   User as UserIcon,
+  Crown,
+  Bell,
+  CheckCircle2,
 } from "lucide-react";
 import { useTheme } from "@/context/theme";
 import { useAppDispatch } from "@/context/store";
 import { signOutThunk } from "@/context/authSlice";
 import { cn } from "@/lib/utils";
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
+
+interface NotificationItem {
+  _id: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
 
 interface NavbarProps {
   userName?: string;
@@ -25,6 +40,12 @@ export default function Navbar({ profileId, userName, userRole }: NavbarProps) {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const dispatch = useAppDispatch();
+
+  // Notification state
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   const isFaculty =
     userRole === "faculty" ||
@@ -72,6 +93,57 @@ export default function Navbar({ profileId, userName, userRole }: NavbarProps) {
       isActive: location.pathname === "/applications",
     },
   ];
+
+  // Fetch notifications
+  useEffect(() => {
+    let isMounted = true;
+    const fetchNotifs = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/notifications?limit=8`, {
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data.success) {
+            setNotifications(data.notifications || []);
+            setUnreadCount(data.unreadCount || 0);
+          }
+        }
+      } catch (err) {
+        // silent catch
+      }
+    };
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 30000); // 30s poll
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Close notifications dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setIsNotifOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const markAllRead = async () => {
+    try {
+      await fetch(`${API_BASE}/api/notifications/read-all`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      setUnreadCount(0);
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    } catch (e) {
+      // silent
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-card border-b border-border px-4 lg:px-8 py-2.5 flex items-center justify-between shadow-xs">
@@ -133,7 +205,7 @@ export default function Navbar({ profileId, userName, userRole }: NavbarProps) {
           })}
         </div>
 
-        {/* AI HelpBOT Button (Left-most of Toolbar Action Icons) */}
+        {/* AI HelpBOT Button */}
         <Link
           to="/ai-guide"
           className={cn(
@@ -145,6 +217,83 @@ export default function Navbar({ profileId, userName, userRole }: NavbarProps) {
           title="AI HelpBOT"
         >
           <Bot className="w-4 h-4" />
+        </Link>
+
+        {/* Notification Bell Dropdown */}
+        <div className="relative" ref={notifRef}>
+          <button
+            type="button"
+            onClick={() => setIsNotifOpen((prev) => !prev)}
+            className="relative p-1.5 rounded-md border border-border bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer flex items-center justify-center"
+            title="Notifications"
+          >
+            <Bell className="w-4 h-4 text-muted-foreground" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white font-mono">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </button>
+
+          {isNotifOpen && (
+            <div className="absolute right-0 mt-2 w-80 rounded-xl border border-border bg-card shadow-xl z-50 p-3 space-y-2 animate-in fade-in-50">
+              <div className="flex items-center justify-between border-b border-border pb-2">
+                <span className="text-xs font-bold text-foreground">Notifications</span>
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={markAllRead}
+                    className="text-[10px] text-primary hover:underline font-semibold"
+                  >
+                    Mark all read
+                  </button>
+                )}
+              </div>
+              <div className="max-h-72 overflow-y-auto space-y-1.5">
+                {notifications.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">No notifications yet</p>
+                ) : (
+                  notifications.map((n) => (
+                    <div
+                      key={n._id}
+                      className={cn(
+                        "p-2 rounded-lg border border-border text-left text-xs transition-colors",
+                        n.isRead ? "bg-background/40 opacity-75" : "bg-secondary/40 font-medium"
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-[11px] text-foreground">
+                        {n.type === "certificate_issued" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+                        {n.title}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{n.message}</p>
+                      <span className="text-[9px] text-muted-foreground/60 font-mono mt-1 block">
+                        {new Date(n.createdAt).toLocaleDateString("en-IN", {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Premium Link */}
+        <Link
+          to="/premium"
+          className={cn(
+            "p-1.5 rounded-md border transition-all cursor-pointer flex items-center justify-center shadow-xs",
+            location.pathname.startsWith("/premium")
+              ? "bg-amber-400 text-amber-950 border-amber-400"
+              : "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800"
+          )}
+          title="Premium Dashboard"
+        >
+          <Crown className="w-4 h-4" />
         </Link>
 
         {/* Profile Link (Icon Only) */}
