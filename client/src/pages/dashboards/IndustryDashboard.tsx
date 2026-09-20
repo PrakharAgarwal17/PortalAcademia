@@ -21,6 +21,10 @@ import {
   FileText,
   Printer,
   Download,
+  GitMerge,
+  Code2,
+  Copy,
+  Check,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppDispatch } from "@/context/store";
@@ -100,8 +104,8 @@ export default function IndustryDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingApplicants, setIsLoadingApplicants] = useState(false);
 
-  // Navigation state: "dashboard" | "opportunities" | "review"
-  const [activeNavTab, setActiveNavTab] = useState<"dashboard" | "opportunities" | "review">("dashboard");
+  // Navigation state: "dashboard" | "opportunities" | "review" | "opensource"
+  const [activeNavTab, setActiveNavTab] = useState<"dashboard" | "opportunities" | "review" | "opensource">("dashboard");
 
   // Applicant Filtering & Sorting State
   const [applicantSearch, setApplicantSearch] = useState("");
@@ -202,6 +206,105 @@ export default function IndustryDashboard() {
   });
   const [isSavingManage, setIsSavingManage] = useState(false);
   const [manageFeedback, setManageFeedback] = useState<string | null>(null);
+
+  // Open Source State
+  const [ossProjects, setOssProjects] = useState<any[]>([]);
+  const [isOssModalOpen, setIsOssModalOpen] = useState(false);
+  const [isPostingOss, setIsPostingOss] = useState(false);
+  const [ossForm, setOssForm] = useState({
+    title: "",
+    description: "",
+    repoUrl: "",
+    techStack: "React, TypeScript, Node.js",
+    difficulty: "intermediate",
+  });
+  const [createdOssSetup, setCreatedOssSetup] = useState<any | null>(null);
+  const [selectedOssProject, setSelectedOssProject] = useState<any | null>(null);
+  const [ossContributors, setOssContributors] = useState<any[]>([]);
+  const [isLoadingContributors, setIsLoadingContributors] = useState(false);
+  const [issuingCertId, setIssuingCertId] = useState<string | null>(null);
+  const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
+  const [copiedSecret, setCopiedSecret] = useState(false);
+
+  const fetchOssProjects = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/opensource/projects/mine`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setOssProjects(data.projects || []);
+        }
+      }
+    } catch (err) {
+      // silent
+    }
+  }, []);
+
+  const handlePostOssProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsPostingOss(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/opensource/projects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          ...ossForm,
+          techStack: ossForm.techStack.split(",").map((s) => s.trim()).filter(Boolean),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCreatedOssSetup(data.webhookSetup);
+        fetchOssProjects();
+      }
+    } catch (err) {
+      // silent
+    } finally {
+      setIsPostingOss(false);
+    }
+  };
+
+  const fetchProjectContributions = async (projId: string) => {
+    setIsLoadingContributors(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/opensource/projects/${projId}/contributions`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setOssContributors(data.contributions || []);
+        }
+      }
+    } catch (err) {
+      // silent
+    } finally {
+      setIsLoadingContributors(false);
+    }
+  };
+
+  const handleIssueCertificate = async (contributionId: string) => {
+    setIssuingCertId(contributionId);
+    try {
+      const res = await fetch(`${API_BASE}/api/opensource/certificate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ contributionId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setOssContributors((prev) =>
+            prev.map((c) => (c._id === contributionId ? { ...c, certificateIssued: true } : c))
+          );
+        }
+      }
+    } catch (err) {
+      // silent
+    } finally {
+      setIssuingCertId(null);
+    }
+  };
 
   // Close filter dropdown on outside click
   useEffect(() => {
@@ -621,6 +724,23 @@ export default function IndustryDashboard() {
             )}
           </button>
 
+          <button
+            type="button"
+            onClick={() => {
+              setActiveNavTab("opensource");
+              fetchOssProjects();
+            }}
+            className={cn(
+              "px-3.5 py-2 rounded-lg font-semibold transition-all flex items-center gap-1.5",
+              activeNavTab === "opensource"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+            )}
+          >
+            <GitMerge className="w-3.5 h-3.5" />
+            <span>Open Source</span>
+          </button>
+
           {/* AI HelpBOT Button */}
           <button
             type="button"
@@ -791,8 +911,8 @@ export default function IndustryDashboard() {
           </div>
         </section>
 
-        {/* 4. Tab Views: Opportunities Feed vs Candidate Review Pipeline */}
-        {activeNavTab !== "review" ? (
+        {/* 4. Tab Views: Opportunities Feed vs Candidate Review Pipeline vs Open Source */}
+        {activeNavTab === "dashboard" || activeNavTab === "opportunities" ? (
           /* Main Opportunities Feed Grid (Spacious 2-column cards) */
           <section className="space-y-5">
             <div className="flex items-center justify-between">
@@ -927,7 +1047,7 @@ export default function IndustryDashboard() {
               )}
             </div>
           </section>
-        ) : (
+        ) : activeNavTab === "review" ? (
           /* Review Candidate Pipeline View */
           <section className="bg-card border border-border rounded-xl p-6 lg:p-8 space-y-6 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-border">
@@ -1171,6 +1291,92 @@ export default function IndustryDashboard() {
                         ))}
                       </div>
                     )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        ) : (
+          /* Open Source Projects Manager View */
+          <section className="bg-card border border-border rounded-xl p-6 lg:p-8 space-y-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-border">
+              <div>
+                <h2 className="text-base font-bold text-foreground tracking-tight flex items-center gap-2">
+                  <GitMerge className="w-5 h-5 text-primary" />
+                  Open Source Projects &amp; Webhook Hub
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Post GitHub repositories for students to contribute. Merged PRs auto-register via webhooks.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCreatedOssSetup(null);
+                  setIsOssModalOpen(true);
+                }}
+                className="flex items-center gap-2 text-xs font-bold px-4 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-md self-start sm:self-auto"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Post Open Source Project</span>
+              </button>
+            </div>
+
+            {ossProjects.length === 0 ? (
+              <div className="text-center py-12 border border-dashed border-border rounded-xl bg-secondary/20 space-y-3">
+                <Code2 className="w-10 h-10 text-muted-foreground mx-auto" />
+                <p className="text-sm font-semibold text-foreground">No open source projects posted yet</p>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  Click &quot;Post Open Source Project&quot; above to link your GitHub repository and start accepting student contributions.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {ossProjects.map((p) => (
+                  <div key={p._id} className="border border-border bg-card rounded-xl p-5 space-y-4 hover:border-primary/40 transition-colors shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="text-sm font-bold text-foreground">{p.title}</h3>
+                        <a
+                          href={p.repoUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-primary font-mono hover:underline flex items-center gap-1 mt-0.5"
+                        >
+                          {p.repoFullName}
+                        </a>
+                      </div>
+                      <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-secondary border border-border text-foreground/80 font-mono">
+                        {p.difficulty}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{p.description}</p>
+
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {p.techStack?.map((t: string) => (
+                        <span key={t} className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-secondary text-foreground/80 border border-border">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="pt-3 border-t border-border flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground font-mono">
+                        <strong>{p.contributionCount || 0}</strong> merged contributions
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedOssProject(p);
+                          fetchProjectContributions(p._id);
+                        }}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-secondary hover:bg-secondary/80 text-foreground border border-border"
+                      >
+                        View Contributors
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1913,6 +2119,257 @@ export default function IndustryDashboard() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Post Open Source Project Modal */}
+      {isOssModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl w-full max-w-lg p-6 space-y-5 max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between pb-4 border-b border-border">
+              <div>
+                <h3 className="text-sm font-bold text-foreground">Post Open Source Project</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Link a GitHub repo for student contributions</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOssModalOpen(false);
+                  setCreatedOssSetup(null);
+                }}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground border border-border"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {createdOssSetup ? (
+              <div className="space-y-4 bg-secondary/30 p-4 rounded-xl border border-border">
+                <div className="flex items-center gap-2 text-emerald-500 font-bold text-xs">
+                  <Check className="w-4 h-4" />
+                  <span>Project Created Successfully!</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  To auto-track merged pull requests, add this webhook in your GitHub repo settings:
+                </p>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground block">Payload URL</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={createdOssSetup.webhookUrl}
+                      className="flex-1 text-xs p-2 rounded-lg bg-background border border-border text-foreground font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(createdOssSetup.webhookUrl);
+                        setCopiedWebhookUrl(true);
+                        setTimeout(() => setCopiedWebhookUrl(false), 2000);
+                      }}
+                      className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-foreground"
+                    >
+                      {copiedWebhookUrl ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground block">Webhook Secret</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={createdOssSetup.webhookSecret}
+                      className="flex-1 text-xs p-2 rounded-lg bg-background border border-border text-foreground font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(createdOssSetup.webhookSecret);
+                        setCopiedSecret(true);
+                        setTimeout(() => setCopiedSecret(false), 2000);
+                      }}
+                      className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-foreground"
+                    >
+                      {copiedSecret ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <p className="text-[11px] font-mono text-amber-500 bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
+                  Select Content type: application/json and choose &quot;Pull requests&quot; under events.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOssModalOpen(false);
+                    setCreatedOssSetup(null);
+                  }}
+                  className="w-full text-xs font-semibold py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handlePostOssProject} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1.5">Project Title</label>
+                  <input
+                    type="text"
+                    required
+                    value={ossForm.title}
+                    onChange={(e) => setOssForm((f) => ({ ...f, title: e.target.value }))}
+                    placeholder="e.g. Distributed Cache Engine"
+                    className="w-full text-xs p-2.5 rounded-lg bg-background border border-border text-foreground focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1.5">GitHub Repository URL</label>
+                  <input
+                    type="url"
+                    required
+                    value={ossForm.repoUrl}
+                    onChange={(e) => setOssForm((f) => ({ ...f, repoUrl: e.target.value }))}
+                    placeholder="https://github.com/organization/repository"
+                    className="w-full text-xs p-2.5 rounded-lg bg-background border border-border text-foreground focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1.5">Difficulty</label>
+                    <select
+                      value={ossForm.difficulty}
+                      onChange={(e) => setOssForm((f) => ({ ...f, difficulty: e.target.value }))}
+                      className="w-full text-xs p-2.5 rounded-lg bg-background border border-border text-foreground focus:outline-none"
+                    >
+                      <option value="beginner">Beginner (Good First Issue)</option>
+                      <option value="intermediate">Intermediate</option>
+                      <option value="advanced">Advanced</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1.5">Tech Stack (comma-sep)</label>
+                    <input
+                      type="text"
+                      value={ossForm.techStack}
+                      onChange={(e) => setOssForm((f) => ({ ...f, techStack: e.target.value }))}
+                      placeholder="React, TypeScript, Go"
+                      className="w-full text-xs p-2.5 rounded-lg bg-background border border-border text-foreground focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1.5">Description &amp; Guidelines</label>
+                  <textarea
+                    required
+                    rows={3}
+                    value={ossForm.description}
+                    onChange={(e) => setOssForm((f) => ({ ...f, description: e.target.value }))}
+                    placeholder="Brief description of the repo, contribution guidelines, or target issues..."
+                    className="w-full text-xs p-2.5 rounded-lg bg-background border border-border text-foreground focus:outline-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+                  <button
+                    type="button"
+                    onClick={() => setIsOssModalOpen(false)}
+                    disabled={isPostingOss}
+                    className="text-xs font-semibold px-4 py-2 rounded-lg bg-secondary text-secondary-foreground border border-border hover:bg-secondary/80"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isPostingOss}
+                    className="text-xs font-semibold px-5 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 shadow-sm"
+                  >
+                    {isPostingOss && <Loader2 className="w-4 h-4 animate-spin" />}
+                    <span>Generate Webhook &amp; Post</span>
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Contributors Modal */}
+      {selectedOssProject && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl w-full max-w-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between pb-4 border-b border-border">
+              <div>
+                <h3 className="text-sm font-bold text-foreground">{selectedOssProject.title} — Merged PR Contributors</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Students whose PRs were verified merged by GitHub</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedOssProject(null)}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground border border-border"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {isLoadingContributors ? (
+              <div className="py-12 text-center">
+                <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto" />
+              </div>
+            ) : ossContributors.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-8">
+                No merged contributions received yet for this project.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {ossContributors.map((c) => (
+                  <div key={c._id} className="p-4 rounded-xl border border-border bg-secondary/20 flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-foreground">{c.studentName}</p>
+                      <a
+                        href={c.prUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] text-primary hover:underline font-mono block"
+                      >
+                        PR #{c.prNumber}: {c.prTitle}
+                      </a>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        Merged: {new Date(c.mergedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    <div>
+                      {c.certificateIssued ? (
+                        <span className="text-xs font-bold text-emerald-500 flex items-center gap-1">
+                          <Check className="w-4 h-4" />
+                          Certificate Issued
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleIssueCertificate(c._id)}
+                          disabled={issuingCertId === c._id}
+                          className="text-xs font-bold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1.5 shadow-sm"
+                        >
+                          {issuingCertId === c._id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                          <span>Generate Certificate</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

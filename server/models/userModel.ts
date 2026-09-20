@@ -8,6 +8,11 @@ export interface UserSchema extends Document {
     isVerified: boolean;
     isOnboarded: boolean;
     isEmailVerified?: boolean;
+    isPremium?: boolean;
+    planTier?: "free" | "trial" | "paid";
+    hasUsedTrial?: boolean;
+    trialEndsAt?: Date | null;
+    premiumExpiresAt?: Date | null;
 }
 
 const userSchema: Schema<UserSchema> = new Schema(
@@ -46,6 +51,16 @@ const userSchema: Schema<UserSchema> = new Schema(
         isEmailVerified: {
             type: Boolean,
             default: false,
+        },
+
+        isPremium: {
+            type: Boolean,
+            default: false,
+        },
+
+        premiumExpiresAt: {
+            type: Date,
+            default: null,
         },
     },
     {

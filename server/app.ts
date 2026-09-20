@@ -22,6 +22,9 @@ import assessmentRoute from "./routes/assessmentRoute.js"
 import verificationRoute from "./routes/verificationRoute.js"
 import analyticsRoute from "./routes/analyticsRoute.js"
 import aiRoute from "./routes/aiRoute.js"
+import paymentRoute from "./routes/paymentRoute.js"
+import openSourceRoute from "./routes/openSourceRoute.js"
+import notificationRoute from "./routes/notificationRoute.js"
 
 const app=express()
 // Connect to PortalAcademia Database
@@ -101,6 +104,9 @@ app.use("/api/assessments",assessmentRoute)
 app.use("/api/verification",verificationRoute)
 app.use("/api/analytics",analyticsRoute)
 app.use("/api/ai",aiRoute)
+app.use("/api/payment",paymentRoute)
+app.use("/api/opensource",openSourceRoute)
+app.use("/api/notifications",notificationRoute)
 
 app.listen(3000,()=>{
     console.log("Server is working")
