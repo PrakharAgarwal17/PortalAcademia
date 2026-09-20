@@ -20,6 +20,17 @@
 
 </div>
 
+## 📑 Core Documentation
+
+PortalAcademia follows a consolidated, production-grade documentation structure:
+
+| Document | Scope |
+|:---|:---|
+| 📖 **[`README.md`](README.md)** | High-level project overview, tech stack, local setup, and repository layout |
+| 🏗️ **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** | System overview, client-server data flow, Mongoose schemas, auth flow, and deployment |
+| 📡 **[`docs/API.md`](docs/API.md)** | Complete REST endpoint contracts, payloads, query parameters, and error shapes |
+| 🤝 **[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md)** | Branch naming conventions, PR guidelines, verification standards, and Git workflow |
+
 ---
 
 ## 📑 Table of Contents
@@ -38,7 +49,7 @@
 6. [Market Trends & Skill Gap Diagnostics](#6-market-trends--skill-gap-diagnostics)
 7. [Security, RBAC & Role Protection](#7-security-rbac--role-protection)
 8. [Database Schema & Data Models](#8-database-schema--data-models)
-9. [Complete API Reference](#9-complete-api-reference)
+9. [Complete API Reference (See API.md)](#9-complete-api-reference)
 10. [Repository Directory Structure](#10-repository-directory-structure)
 11. [Setup, Installation & Local Development](#11-setup-installation--local-development)
     - [Prerequisites](#prerequisites)
@@ -410,8 +421,12 @@ PortalAcademia/
 │   ├── package.json
 │   └── tsconfig.json
 │
-├── docker-compose.yml                # Containerized local MongoDB configuration
-└── README.md                         # Project documentation
+├── docs/                             # Consolidated documentation folder
+│   ├── ARCHITECTURE.md               # System design, data flow, schemas, auth, and deployment
+│   ├── API.md                        # Comprehensive REST API endpoint reference
+│   └── CONTRIBUTING.md               # Git workflow, branch conventions, and PR guidelines
+├── docker-compose.yml                # Containerized local MongoDB & Redis configuration
+└── README.md                         # Project overview, tech stack, and setup instructions
 ```
 
 ---
