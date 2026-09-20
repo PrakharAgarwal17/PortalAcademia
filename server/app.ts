@@ -1,6 +1,5 @@
+import "dotenv/config";
 import express from 'express'
-import dotenv from 'dotenv'
-dotenv.config()
 
 import connectDB from './config/connectDB.js'
 import "./config/redisClient.js"
@@ -74,7 +73,11 @@ app.use(passport.initialize())
 app.use(passport.session())
 
 app.use(cookieParser())
-app.use(express.json())
+app.use(express.json({
+    verify: (req: any, _res, buf) => {
+        req.rawBody = buf;
+    }
+}))
 app.use(express.urlencoded({extended:true}))
 
 app.get('/',(req,res)=>{

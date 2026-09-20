@@ -108,11 +108,14 @@ POST /api/applications
 
 | Method | Endpoint | Access | Description |
 |:---|:---|:---|:---|
-| `GET` | `/api/opensource` | Authenticated | Browse registered open-source repositories and contribution opportunities. |
-| `POST` | `/api/opensource` | Industry | Register an enterprise repository with auto-generated webhook secret. |
-| `POST` | `/api/opensource/webhook/:repoId` | GitHub (Public) | Ingests merged PR events via HMAC SHA256 signature verification. |
-| `GET` | `/api/opensource/my-contributions` | Student | View verified merged PR contributions credited to profile. |
-| `POST` | `/api/opensource/issue-certificate/:id` | Industry | Issue verified certificate of achievement for merged contributions. |
+| `GET` | `/api/opensource/projects` | Premium Student | Browse active open-source projects with optional filters (`tech`, `difficulty`, `company`). |
+| `POST` | `/api/opensource/projects` | Industry | Register an enterprise repository with auto-generated webhook secret. |
+| `GET` | `/api/opensource/projects/mine` | Industry | View company's registered repositories and contribution counts. |
+| `GET` | `/api/opensource/projects/:id/contributions` | Industry | List merged PR contributions for a specific company project. |
+| `POST` | `/api/opensource/webhook/:projectId` | GitHub (Public) | Ingests merged PR events via HMAC SHA256 signature verification. |
+| `GET` | `/api/opensource/contributions/me` | Student | View student's verified merged PR contributions and certificate status. |
+| `POST` | `/api/opensource/certificate` | Industry | Issue verified certificate of achievement for a student contribution. |
+| `GET` | `/api/opensource/student/:studentId/contributions` | Industry | View student contributions relevant to company projects. |
 
 ---
 
@@ -120,14 +123,23 @@ POST /api/applications
 
 | Method | Endpoint | Access | Description |
 |:---|:---|:---|:---|
-| `POST` | `/api/payment/create-order` | Authenticated | Creates Razorpay order for ₹199 monthly subscription tier. |
-| `POST` | `/api/payment/verify` | Authenticated | Verifies Razorpay HMAC signature and upgrades account to Premium. |
-| `POST` | `/api/payment/free-trial` | Authenticated | Activates 7-day full access free trial for eligible students. |
-| `GET` | `/api/payment/status` | Authenticated | Returns current subscription status and expiration timestamp. |
+| `POST` | `/api/payment/create-order` | Authenticated | Creates Razorpay order for ₹200 / 30 days (`planType: "premium"`) or activates free trial (`planType: "trial"`). |
+| `POST` | `/api/payment/verify` | Authenticated | Verifies Razorpay HMAC signature, activates 30-day membership, and upgrades account to Premium. |
+| `GET` | `/api/payment/status` | Authenticated | Returns current subscription status, plan tier, trial usage, and expiration timestamp. |
 
 ---
 
-## 9. Telemetry & Analytics (`/api/analytics`)
+## 9. Real-Time Notifications (`/api/notifications`)
+
+| Method | Endpoint | Access | Description |
+|:---|:---|:---|:---|
+| `GET` | `/api/notifications` | Authenticated | Paginated feed of notifications for the authenticated user, plus unread count. |
+| `PATCH` | `/api/notifications/:id/read` | Authenticated | Marks a specific notification as read. |
+| `PATCH` | `/api/notifications/read-all` | Authenticated | Marks all unread notifications as read. |
+
+---
+
+## 10. Telemetry & Analytics (`/api/analytics`)
 
 | Method | Endpoint | Access | Description |
 |:---|:---|:---|:---|
@@ -136,7 +148,7 @@ POST /api/applications
 
 ---
 
-## 10. AI Career & Academic Guide (`/api/ai`)
+## 11. AI Career & Academic Guide (`/api/ai`)
 
 | Method | Endpoint | Access | Description |
 |:---|:---|:---|:---|
@@ -156,7 +168,7 @@ POST /api/ai/chat
 
 ---
 
-## 11. Uploads & Document OCR (`/api/upload`)
+## 12. Uploads & Document OCR (`/api/upload`)
 
 | Method | Endpoint | Access | Description |
 |:---|:---|:---|:---|
@@ -165,7 +177,7 @@ POST /api/ai/chat
 
 ---
 
-## 12. Onboarding (`/api/onboarding`)
+## 13. Onboarding (`/api/onboarding`)
 
 | Method | Endpoint | Access | Description |
 |:---|:---|:---|:---|

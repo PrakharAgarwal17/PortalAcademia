@@ -58,6 +58,22 @@ const userSchema: Schema<UserSchema> = new Schema(
             default: false,
         },
 
+        planTier: {
+            type: String,
+            enum: ["free", "trial", "paid"],
+            default: "free",
+        },
+
+        hasUsedTrial: {
+            type: Boolean,
+            default: false,
+        },
+
+        trialEndsAt: {
+            type: Date,
+            default: null,
+        },
+
         premiumExpiresAt: {
             type: Date,
             default: null,

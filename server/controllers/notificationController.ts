@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import mongoose from "mongoose";
 import notificationModel from "../models/notificationModel.js";
 
 export async function getNotifications(req: Request, res: Response) {
@@ -29,6 +30,10 @@ export async function markAsRead(req: Request, res: Response) {
     try {
         const userId = req.userId;
         const { id } = req.params;
+
+        if (!id || typeof id !== "string" || !mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: "Invalid notification ID." });
+        }
 
         await notificationModel.findOneAndUpdate(
             { _id: id, userId: userId as any } as any,
