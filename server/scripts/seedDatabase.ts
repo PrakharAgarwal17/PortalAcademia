@@ -320,7 +320,7 @@ async function seed() {
             status: "active",
             targetAudience: "student",
             recommendedToStudentsBy: [institutionUser._id],
-            applicantCount: 3,
+            applicantCount: 1, // 1 sample application from Priya Sharma
         });
 
         const opp2 = await opportunityModel.create({
@@ -340,7 +340,7 @@ async function seed() {
             status: "active",
             targetAudience: "student",
             recommendedToStudentsBy: [institutionUser._id],
-            applicantCount: 14,
+            applicantCount: 0,
         });
 
         const opp3 = await opportunityModel.create({
@@ -361,7 +361,7 @@ async function seed() {
             targetAudience: "both",
             recommendedToStudentsBy: [institutionUser._id],
             recommendedToFacultyBy: [institutionUser._id],
-            applicantCount: 28,
+            applicantCount: 0,
         });
 
         const opp4 = await opportunityModel.create({
@@ -381,7 +381,7 @@ async function seed() {
             status: "active",
             targetAudience: "faculty",
             recommendedToFacultyBy: [institutionUser._id],
-            applicantCount: 9,
+            applicantCount: 0,
         });
 
         const opp5 = await opportunityModel.create({
@@ -401,7 +401,7 @@ async function seed() {
             status: "active",
             targetAudience: "faculty",
             recommendedToFacultyBy: [institutionUser._id],
-            applicantCount: 4,
+            applicantCount: 0,
         });
 
         const opp6 = await opportunityModel.create({
@@ -421,7 +421,7 @@ async function seed() {
             status: "active",
             targetAudience: "faculty",
             recommendedToFacultyBy: [institutionUser._id],
-            applicantCount: 6,
+            applicantCount: 0,
         });
 
         // 5. Seed Initial Sample Application
