@@ -476,10 +476,21 @@ export default function IndustryDashboard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ prompt: query }),
+        body: JSON.stringify({
+          query,
+          prompt: query,
+          history: aiChatHistory.map((h) => ({
+            role: h.sender === "user" ? "user" : "assistant",
+            content: h.text,
+          })),
+        }),
       });
       const data = await res.json();
-      const reply = data.reply || data.message || "I am currently processing corporate metrics. How else can I assist your talent sourcing?";
+      const reply =
+        data.data?.response ||
+        data.reply ||
+        (data.success ? data.message : null) ||
+        "I am currently processing corporate metrics. How else can I assist your talent sourcing?";
       setAiChatHistory((prev) => [...prev, { sender: "bot", text: reply }]);
     } catch (err) {
       setAiChatHistory((prev) => [
@@ -775,9 +786,6 @@ export default function IndustryDashboard() {
                 <span className="text-3xl lg:text-4xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums tracking-tight">
                   {applicants.filter((a) => a.status === "Shortlisted").length}
                 </span>
-                <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
-                  Qualified Vector Match
-                </span>
               </div>
             </div>
           </div>
@@ -929,7 +937,7 @@ export default function IndustryDashboard() {
                   Candidate Review Pipeline
                 </h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Evaluate and shortlist applicants based on verified skill benchmarks & vector match scores.
+                  Evaluate and shortlist applicants based on verified skill benchmarks & ATS match scores.
                 </p>
               </div>
 
@@ -1058,7 +1066,7 @@ export default function IndustryDashboard() {
             {isLoadingApplicants ? (
               <div className="py-20 flex flex-col items-center justify-center gap-4">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-xs font-mono text-muted-foreground">Computing candidate vector match &amp; ATS scores…</p>
+                <p className="text-xs font-mono text-muted-foreground">Computing candidate ATS &amp; competency scores…</p>
               </div>
             ) : applicants.length === 0 ? (
               <div className="py-20 text-center border border-dashed border-border rounded-xl space-y-3">

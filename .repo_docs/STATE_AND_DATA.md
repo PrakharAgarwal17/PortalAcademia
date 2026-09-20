@@ -1,6 +1,7 @@
 # State Management & Data Schemas — PortalAcademia
 
-> Documents client Redux slices, React contexts, browser storage contracts, and backend Mongoose database schemas.
+> Documents client Redux slices, React contexts, browser storage contracts, and backend Mongoose database schemas.  
+> For complete Entity-Relationship diagrams (ERD), storage layer topology, and cross-cutting lifecycle flows, see [.repo_docs/SYSTEM_DATA_MAP.md](file:///.repo_docs/SYSTEM_DATA_MAP.md).
 
 ---
 
@@ -31,7 +32,7 @@ export const store = configureStore({
 #### State Shape (`AuthState`)
 | Field | Type | Initial Value | Description |
 | :--- | :--- | :--- | :--- |
-| `user` | `AuthUser \| null` | `null` | Active user record (`{ email, isVerified, isOnboarded, role? }`) |
+| `user` | `AuthUser \| null` | `null` | Active user record (`{ email, isVerified, isOnboarded, isEmailVerified?, role? }`) |
 | `token` | `null` | `null` | Always null; authentication lives in server HttpOnly cookies |
 | `isAuthenticated` | `boolean` | `false` | True when authenticated and verified |
 | `isLoading` | `boolean` | `true` | True while session check is in flight on boot |
@@ -110,8 +111,9 @@ interface UserSchema extends Document {
     password?: string;    // Bcrypt hashed password (optional for OAuth)
     provider: string;     // Default: "local" (or "google")
     providerID?: string;  // Google OAuth profile ID
-    isVerified: boolean;  // Default: false (email OTP verified status)
-    isOnboarded: boolean; // Default: false (true once persona onboarding submitted)
+    isVerified: boolean;        // Default: false (email OTP verified status)
+    isOnboarded: boolean;       // Default: false (true once persona onboarding submitted)
+    isEmailVerified?: boolean;  // Default: false (college/institutional email OTP verified status)
     createdAt: Date;
     updatedAt: Date;
 }

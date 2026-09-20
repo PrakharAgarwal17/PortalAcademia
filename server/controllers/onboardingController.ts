@@ -1,6 +1,9 @@
 import type { Request, Response } from "express";
+import mongoose from "mongoose";
 import nodemailer from "nodemailer";
 import { getCache, setCache } from "../config/redisClient.js";
+import userModel from "../models/userModel.js";
+import profileModel from "../models/profileModel.js";
 
 // In-memory store for Onboarding verification OTPs
 interface OnboardingOtpData {
@@ -10,6 +13,9 @@ interface OnboardingOtpData {
 }
 
 const OnboardingOtpMap = new Map<string, OnboardingOtpData>();
+
+// In-memory cache of verified emails mapped by userId
+export const VerifiedEmailCache = new Map<string, { email: string; timestamp: number }>();
 
 function getEmailCredentials(): {
     email: string;
@@ -503,7 +509,7 @@ export async function sendVerificationOtp(req: Request, res: Response): Promise<
 
         return res.status(200).json({
             success: true,
-            message: `Verification OTP dispatched to ${normalizedEmail}`,
+            message: `Verification code sent to ${normalizedEmail}. Enter code to verify.`,
         });
     } catch (error: any) {
         console.error("Send verification OTP error:", error);
@@ -551,9 +557,34 @@ export async function verifyOnboardingOtp(req: Request, res: Response): Promise<
         // Clean up OTP on success
         OnboardingOtpMap.delete(normalizedEmail);
 
+        const userId = req.userId;
+        if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+            // Record in temporary verified cache for immediate profile persistence
+            VerifiedEmailCache.set(String(userId), {
+                email: normalizedEmail,
+                timestamp: Date.now(),
+            });
+
+            // Update User model: isEmailVerified = true
+            await userModel.findByIdAndUpdate(userId, {
+                isEmailVerified: true,
+            });
+
+            // If a profile exists, update its isEmailVerified and institutionEmail
+            await profileModel.findOneAndUpdate(
+                { userId: new mongoose.Types.ObjectId(userId) },
+                {
+                    $set: {
+                        isEmailVerified: true,
+                        institutionEmail: normalizedEmail,
+                    },
+                }
+            );
+        }
+
         return res.status(200).json({
             verified: true,
-            message: "Email verified successfully!",
+            message: "Email verified successfully! Verified badge unlocked.",
         });
     } catch (error: any) {
         console.error("Verify OTP error:", error);

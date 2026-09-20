@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Coins,
   ShieldCheck,
+  ShieldAlert,
   Zap,
   FileText,
   Check,
@@ -812,8 +813,10 @@ export default function StudentDashboard() {
       {/* Main Viewport Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 space-y-6">
         {/* 2. Profile & Verified Portfolio Strip */}
-        <section className="relative overflow-hidden bg-card border border-border/80 rounded-2xl p-5 sm:p-6 shadow-sm">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+        <section className="relative bg-card border border-border/80 rounded-2xl p-5 sm:p-6 shadow-sm z-20">
+          <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -mr-20 -mt-20" />
+          </div>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
             <div className="flex items-start gap-4">
               <div 
@@ -828,7 +831,10 @@ export default function StudentDashboard() {
                     {profile?.name ? profile.name.slice(0, 2).toUpperCase() : "ST"}
                   </span>
                 )}
-                <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-card" />
+                <span className={cn(
+                  "absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full ring-2 ring-card",
+                  Boolean(profile?.isEmailVerified && profile?.institutionEmail) ? "bg-emerald-500" : "bg-amber-500"
+                )} />
               </div>
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -839,10 +845,17 @@ export default function StudentDashboard() {
                   >
                     {profile?.name || "Student Scholar"}
                   </h1>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1 text-[11px] font-bold" title="Verified Learner">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                    Verified Scholar
-                  </span>
+                  {Boolean(profile?.isEmailVerified && profile?.institutionEmail) ? (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1 text-[11px] font-bold" title="Verified Scholar">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                      Verified Scholar
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 inline-flex items-center gap-1 text-[11px] font-medium" title="Institutional Email Not Verified">
+                      <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+                      Unverified Scholar
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => navigate(`/profile/${profile?._id || "me"}`)}
@@ -853,7 +866,7 @@ export default function StudentDashboard() {
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground font-medium">
-                  {profile?.headline || `${profile?.institution || profile?.institutionName || "Affiliated Institution Pending"} • ${profile?.institutionEmail || "Email not verified"}`}
+                  {profile?.headline || `${profile?.institution || profile?.institutionName || "Affiliated Institution Pending"} • ${profile?.institutionEmail ? (profile?.isEmailVerified ? profile.institutionEmail : `${profile.institutionEmail} (Unverified)`) : "Email not verified"}`}
                 </p>
               </div>
             </div>
@@ -981,7 +994,7 @@ export default function StudentDashboard() {
 
               {/* Autocomplete / Recommended Options Dropdown */}
               {isSkillDropdownOpen && (
-                <div className="absolute z-50 right-0 mt-1 w-72 max-h-72 overflow-y-auto rounded-md border border-border bg-popover p-1.5 shadow-xl text-popover-foreground">
+                <div className="absolute z-50 right-0 mt-1 w-72 sm:w-80 max-h-72 overflow-y-auto rounded-md border border-border bg-popover p-1.5 shadow-2xl text-popover-foreground">
                   {/* If input is empty, show Recommended Options / Popular Languages */}
                   {!newSkillInput.trim() ? (
                     <div className="space-y-2 p-1">

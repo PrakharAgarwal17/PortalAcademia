@@ -10,6 +10,8 @@ import {
   Sun,
   Moon,
   ShieldCheck,
+  ShieldAlert,
+  Clock,
   Camera,
   Globe,
   Users,
@@ -430,7 +432,7 @@ export default function OnboardingOrganization() {
       }
 
       setIsOtpSent(true);
-      setOtpMessage(data.message || `Verification code sent to ${targetEmail}`);
+      setOtpMessage(`OTP code dispatched to ${targetEmail}. Enter the 6-digit code below to verify.`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to send verification code";
       setOtpError(msg);
@@ -871,10 +873,20 @@ export default function OnboardingOrganization() {
                         </span>
                       )}
                     </div>
-                    {isEmailVerified && (
+                    {isEmailVerified ? (
                       <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-semibold">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         Verified Domain
+                      </span>
+                    ) : isOtpSent ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-mono text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-medium">
+                        <Clock className="w-3.5 h-3.5" />
+                        Verification Pending
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-mono text-muted-foreground bg-muted border border-border px-2.5 py-0.5 rounded-full">
+                        <ShieldAlert className="w-3.5 h-3.5" />
+                        Unverified
                       </span>
                     )}
                   </div>
@@ -1007,8 +1019,15 @@ export default function OnboardingOrganization() {
                   )}
 
                   {otpMessage && (
-                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono font-medium">
-                      ✓ {otpMessage}
+                    <p
+                      className={cn(
+                        "text-[11px] font-mono font-medium",
+                        isEmailVerified
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-amber-600 dark:text-amber-400"
+                      )}
+                    >
+                      {isEmailVerified ? `✓ ${otpMessage}` : `ℹ ${otpMessage}`}
                     </p>
                   )}
                   {otpError && (
@@ -1154,10 +1173,20 @@ export default function OnboardingOrganization() {
                     <span className="text-xs font-bold text-foreground uppercase tracking-wider">
                       Work Email Verification
                     </span>
-                    {isEmailVerified && (
+                    {isEmailVerified ? (
                       <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-semibold">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         Verified
+                      </span>
+                    ) : isOtpSent ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-mono text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-medium">
+                        <Clock className="w-3.5 h-3.5" />
+                        Verification Pending
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-mono text-muted-foreground bg-muted border border-border px-2.5 py-0.5 rounded-full">
+                        <ShieldAlert className="w-3.5 h-3.5" />
+                        Unverified
                       </span>
                     )}
                   </div>
@@ -1234,8 +1263,15 @@ export default function OnboardingOrganization() {
                   )}
 
                   {otpMessage && (
-                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono font-medium">
-                      ✓ {otpMessage}
+                    <p
+                      className={cn(
+                        "text-[11px] font-mono font-medium",
+                        isEmailVerified
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-amber-600 dark:text-amber-400"
+                      )}
+                    >
+                      {isEmailVerified ? `✓ ${otpMessage}` : `ℹ ${otpMessage}`}
                     </p>
                   )}
                   {otpError && (

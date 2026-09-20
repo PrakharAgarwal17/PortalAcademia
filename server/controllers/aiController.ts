@@ -145,17 +145,17 @@ export async function chatWithAI(req: Request, res: Response) {
             return res.status(401).json({ success: false, message: "Unauthorized" });
         }
 
-        const { query, history = [] } = req.body as {
-            query: string;
-            history?: ChatMessage[];
-        };
+        const rawQuery = ((req.body && (req.body.query || req.body.prompt)) || "") as string;
 
-        if (!query || typeof query !== "string" || !query.trim()) {
+        if (!rawQuery || typeof rawQuery !== "string" || !rawQuery.trim()) {
             return res.status(400).json({
                 success: false,
                 message: "Query parameter is required",
             });
         }
+
+        const query = rawQuery.trim();
+        const history = ((req.body && req.body.history) || []) as ChatMessage[];
 
         // Fetch deep profile and telemetry context
         const [profile, assessments, applications, trendingOpportunities] = await Promise.all([
@@ -297,6 +297,7 @@ Give a minimal, direct, and concise response to "${query}". Do NOT generate code
 
         return res.status(200).json({
             success: true,
+            reply: assistantResponse,
             data: {
                 response: assistantResponse,
                 modelUsed,

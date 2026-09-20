@@ -15,6 +15,7 @@ import {
   Loader2,
   Edit3,
   ShieldCheck,
+  ShieldAlert,
   Check,
   Camera,
   GraduationCap,
@@ -423,10 +424,15 @@ export default function UserProfileModal({
                 <span className="text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full bg-secondary text-secondary-foreground border border-border font-bold">
                   {role}
                 </span>
-                {formData.isEmailVerified && (
+                {formData.isEmailVerified ? (
                   <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 font-semibold">
                     <CheckCircle2 className="w-3 h-3" />
                     Verified
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1 font-medium">
+                    <ShieldAlert className="w-3 h-3 text-amber-500" />
+                    Unverified
                   </span>
                 )}
               </div>

@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import profileModel, { type IProfile } from "../models/profileModel.js";
 import userModel from "../models/userModel.js";
 import { uploadToCloudinary } from "../config/cloudinary.js";
+import { VerifiedEmailCache } from "./onboardingController.js";
 
 /**
  * POST /api/profile/avatar
@@ -168,10 +169,30 @@ export async function createOrUpdateProfile(req: Request, res: Response): Promis
         if (location !== undefined) updateData.location = location;
         if (website !== undefined) updateData.website = website;
 
+        // Retrieve existing profile to verify email continuity
+        const existingProfile = await profileModel.findOne({ userId: new mongoose.Types.ObjectId(userId) });
+
+        // Calculate authenticated college email verification state:
+        // A user's institutional email is ONLY marked verified if:
+        // 1) The user just completed OTP verification for this exact email (in VerifiedEmailCache), OR
+        // 2) The profile was already verified for this exact same institutional email.
+        const targetEmail = (institutionEmail !== undefined ? institutionEmail : existingProfile?.institutionEmail || "").trim().toLowerCase();
+
+        let verifiedStatus = false;
+        if (targetEmail) {
+            const verifiedCacheEntry = VerifiedEmailCache.get(String(userId));
+            const wasJustVerifiedByOtp = Boolean(verifiedCacheEntry && verifiedCacheEntry.email.toLowerCase() === targetEmail);
+            const wasPreviouslyVerified = Boolean(existingProfile?.isEmailVerified && existingProfile?.institutionEmail?.toLowerCase() === targetEmail);
+
+            if (wasJustVerifiedByOtp || wasPreviouslyVerified) {
+                verifiedStatus = true;
+            }
+        }
+
         // Individual fields
         if (institution !== undefined) updateData.institution = institution;
-        if (institutionEmail !== undefined) updateData.institutionEmail = institutionEmail;
-        if (isEmailVerified !== undefined) updateData.isEmailVerified = isEmailVerified;
+        if (institutionEmail !== undefined) updateData.institutionEmail = institutionEmail.trim();
+        updateData.isEmailVerified = verifiedStatus;
         if (education !== undefined && Array.isArray(education)) updateData.education = education;
         if (certifications !== undefined && Array.isArray(certifications)) updateData.certifications = certifications;
         if (pastExperience !== undefined && Array.isArray(pastExperience)) updateData.pastExperience = pastExperience;
@@ -207,9 +228,10 @@ export async function createOrUpdateProfile(req: Request, res: Response): Promis
             { new: true, upsert: true, runValidators: true }
         );
 
-        // Mark user as onboarded in User collection
+        // Mark user as onboarded and sync isEmailVerified in User collection
         await userModel.findByIdAndUpdate(userId, {
             isOnboarded: true,
+            isEmailVerified: verifiedStatus,
         });
 
         return res.status(200).json({
