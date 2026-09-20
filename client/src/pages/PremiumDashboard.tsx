@@ -3,8 +3,6 @@ import { useNavigate } from "react-router-dom";
 import {
   Crown,
   Sparkles,
-  Users,
-  Code2,
   Mail,
   Star,
   ArrowRight,
@@ -13,11 +11,8 @@ import {
   Loader2,
   ChevronRight,
   Zap,
-  BookOpen,
   Building2,
   GitMerge,
-  Bell,
-  TrendingUp,
   Shield,
   GraduationCap,
   Calendar,
@@ -62,71 +57,6 @@ function formatDate(dateStr: string) {
     month: "short",
     year: "numeric",
   });
-}
-
-// ─── Plan Upgrade Modal ────────────────────────────────────────────────────────
-
-interface PlanCardProps {
-  planType: "monthly" | "annual";
-  price: number;
-  period: string;
-  badge?: string;
-  features: string[];
-  onSelect: (plan: "monthly" | "annual") => void;
-  isLoading: boolean;
-}
-
-function PlanCard({ planType, price, period, badge, features, onSelect, isLoading }: PlanCardProps) {
-  const isAnnual = planType === "annual";
-  return (
-    <div
-      className={cn(
-        "relative rounded-lg border-2 p-6 flex flex-col gap-4 transition-all",
-        isAnnual
-          ? "border-amber-400 bg-amber-50 dark:bg-amber-950/20"
-          : "border-border bg-card"
-      )}
-    >
-      {badge && (
-        <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-400 text-amber-950 text-[10px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wide">
-          {badge}
-        </span>
-      )}
-      <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1">
-          {planType === "monthly" ? "Monthly" : "Annual"}
-        </p>
-        <div className="flex items-baseline gap-1">
-          <span className="text-3xl font-bold text-foreground">₹{price}</span>
-          <span className="text-sm text-muted-foreground">/{period}</span>
-        </div>
-        {isAnnual && (
-          <p className="text-xs text-amber-600 font-semibold mt-1">Save ₹1,989 vs monthly</p>
-        )}
-      </div>
-      <ul className="flex flex-col gap-2 flex-1">
-        {features.map((f) => (
-          <li key={f} className="flex items-start gap-2 text-xs text-foreground/80">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
-            {f}
-          </li>
-        ))}
-      </ul>
-      <button
-        onClick={() => onSelect(planType)}
-        disabled={isLoading}
-        className={cn(
-          "w-full py-2.5 rounded-md text-sm font-semibold flex items-center justify-center gap-2 transition-all",
-          isAnnual
-            ? "bg-amber-400 hover:bg-amber-500 text-amber-950"
-            : "bg-primary hover:bg-primary/90 text-primary-foreground"
-        )}
-      >
-        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-        Get {planType === "monthly" ? "Monthly" : "Annual"} Plan
-      </button>
-    </div>
-  );
 }
 
 // ─── Feature Card ──────────────────────────────────────────────────────────────
@@ -640,7 +570,7 @@ export default function PremiumDashboard() {
                     {[
                       {
                         label: "Active Plan",
-                        value: membership.membership.planType === "monthly" ? "Monthly" : "Annual",
+                        value: membership.membership.planType === "premium" ? "Premium" : "Trial",
                         sub: `₹${membership.membership.amount} • ${formatDate(membership.membership.expiresAt)}`,
                         icon: Crown,
                         color: "text-amber-500",
