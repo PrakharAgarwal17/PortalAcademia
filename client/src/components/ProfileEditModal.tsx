@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Check, Loader2, Edit3 } from "lucide-react";
+import { X, Check, Loader2, Edit3, ShieldCheck, ShieldAlert, Mail } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/context/store";
 import { closeEditModal } from "@/context/profileSlice";
 import SkillInput from "@/components/SkillInput";
@@ -67,6 +67,100 @@ export default function ProfileEditModal({ profileData, onSaveSuccess }: Profile
     contact: "",
   });
   const [newResearchInput, setNewResearchInput] = useState("");
+
+  // OTP Verification state for roleParams
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [showOtpWidget, setShowOtpWidget] = useState(false);
+  const [otpValue, setOtpValue] = useState("");
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpMessage, setOtpMessage] = useState<string | null>(null);
+  const [otpCountdown, setOtpCountdown] = useState<number>(0);
+  const [isEmailVerified, setIsEmailVerified] = useState(Boolean(profileData.isEmailVerified));
+
+  useEffect(() => {
+    setIsEmailVerified(Boolean(profileData.isEmailVerified));
+  }, [profileData.isEmailVerified]);
+
+  useEffect(() => {
+    if (otpCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setOtpCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpCountdown]);
+
+  const handleSendModalOtp = async (emailToVerify: string) => {
+    const trimmed = emailToVerify.trim();
+    if (!trimmed) {
+      setOtpError("Please enter your college email address first.");
+      return;
+    }
+
+    try {
+      setIsSendingOtp(true);
+      setOtpError(null);
+      setOtpMessage(null);
+
+      const res = await fetch(`${API_BASE}/api/onboarding/send-verification-otp`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed, purpose: role }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to dispatch verification code");
+      }
+
+      setShowOtpWidget(true);
+      setOtpCountdown(60);
+      setOtpMessage(`Verification OTP sent to ${trimmed}. Enter code below.`);
+    } catch (err: any) {
+      setOtpError(err.message || "Failed to send verification code");
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyModalOtp = async (emailToVerify: string) => {
+    const trimmed = emailToVerify.trim();
+    if (!otpValue.trim() || otpValue.trim().length !== 6) {
+      setOtpError("Please enter the 6-digit OTP code sent to your email.");
+      return;
+    }
+
+    try {
+      setIsVerifyingOtp(true);
+      setOtpError(null);
+
+      const res = await fetch(`${API_BASE}/api/onboarding/verify-otp`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: trimmed,
+          otp: Number(otpValue.trim()),
+          purpose: role,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.verified) {
+        throw new Error(data.message || "Invalid OTP entered");
+      }
+
+      setIsEmailVerified(true);
+      setShowOtpWidget(false);
+      setOtpValue("");
+      setOtpMessage("Institutional email successfully verified with OTP!");
+    } catch (err: any) {
+      setOtpError(err.message || "Failed to verify OTP code");
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
 
   // Visuals state
   const [bannerImage, setBannerImage] = useState("");
@@ -226,6 +320,7 @@ export default function ProfileEditModal({ profileData, onSaveSuccess }: Profile
       payload.institutionName = roleParams.institutionName;
       payload.institution = roleParams.institutionName;
       payload.institutionEmail = roleParams.institutionEmail;
+      payload.isEmailVerified = isEmailVerified;
       payload.designation = roleParams.designation;
       payload.department = roleParams.department;
       payload.expertise = roleParams.expertise;
@@ -539,20 +634,198 @@ export default function ProfileEditModal({ profileData, onSaveSuccess }: Profile
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground">Institutional Student Email</label>
-                    <input
-                      type="email"
-                      value={roleParams.institutionEmail}
-                      onChange={(e) => setRoleParams((p) => ({ ...p, institutionEmail: e.target.value }))}
-                      placeholder="student@iitd.ac.in"
-                      className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs font-mono"
-                    />
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-foreground">Institutional Student Email</label>
+                      {roleParams.institutionEmail && (
+                        isEmailVerified ? (
+                          <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold inline-flex items-center gap-1">
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            Verified
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium inline-flex items-center gap-1">
+                            <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+                            Unverified
+                          </span>
+                        )
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={roleParams.institutionEmail}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setRoleParams((p) => ({ ...p, institutionEmail: val }));
+                          setIsEmailVerified(Boolean(profileData.isEmailVerified && profileData.institutionEmail?.toLowerCase() === val.trim().toLowerCase()));
+                          setShowOtpWidget(false);
+                          setOtpError(null);
+                          setOtpMessage(null);
+                        }}
+                        placeholder="student@iitd.ac.in"
+                        className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-xs font-mono"
+                      />
+                      {!isEmailVerified && roleParams.institutionEmail?.trim() && (
+                        <button
+                          type="button"
+                          onClick={() => handleSendModalOtp(roleParams.institutionEmail)}
+                          disabled={isSendingOtp}
+                          className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50 shrink-0 cursor-pointer"
+                        >
+                          {isSendingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                          <span>{showOtpWidget ? "Resend" : "Verify OTP"}</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {showOtpWidget && (
+                      <div className="mt-2 p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 space-y-2">
+                        <p className="text-[11px] text-muted-foreground">
+                          Enter 6-digit OTP sent to <span className="font-mono text-foreground font-semibold">{roleParams.institutionEmail}</span>
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            maxLength={6}
+                            value={otpValue}
+                            onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                            placeholder="6-digit OTP"
+                            className="w-32 px-3 py-1.5 text-xs font-mono tracking-widest text-center rounded-lg border border-border bg-background focus:ring-1 focus:ring-primary focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleVerifyModalOtp(roleParams.institutionEmail)}
+                            disabled={isVerifyingOtp || otpValue.trim().length !== 6}
+                            className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                          >
+                            {isVerifyingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                            <span>Verify Code</span>
+                          </button>
+                          {otpCountdown > 0 ? (
+                            <span className="text-[11px] text-muted-foreground font-mono ml-auto">
+                              Resend in {otpCountdown}s
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleSendModalOtp(roleParams.institutionEmail)}
+                              disabled={isSendingOtp}
+                              className="text-[11px] text-primary hover:underline ml-auto font-medium cursor-pointer"
+                            >
+                              Resend OTP
+                            </button>
+                          )}
+                        </div>
+                        {otpError && <p className="text-[11px] text-rose-500 font-medium">{otpError}</p>}
+                        {otpMessage && <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">{otpMessage}</p>}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
               {role === "faculty" && (
                 <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">Institution / University Name</label>
+                    <input
+                      type="text"
+                      value={roleParams.institutionName}
+                      onChange={(e) => setRoleParams((p) => ({ ...p, institutionName: e.target.value }))}
+                      placeholder="e.g. Indian Institute of Science"
+                      className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-foreground">Faculty Official Email</label>
+                      {roleParams.institutionEmail && (
+                        isEmailVerified ? (
+                          <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold inline-flex items-center gap-1">
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            Verified
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium inline-flex items-center gap-1">
+                            <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+                            Unverified
+                          </span>
+                        )
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={roleParams.institutionEmail}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setRoleParams((p) => ({ ...p, institutionEmail: val }));
+                          setIsEmailVerified(Boolean(profileData.isEmailVerified && profileData.institutionEmail?.toLowerCase() === val.trim().toLowerCase()));
+                          setShowOtpWidget(false);
+                          setOtpError(null);
+                          setOtpMessage(null);
+                        }}
+                        placeholder="professor@iisc.ac.in"
+                        className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-xs font-mono"
+                      />
+                      {!isEmailVerified && roleParams.institutionEmail?.trim() && (
+                        <button
+                          type="button"
+                          onClick={() => handleSendModalOtp(roleParams.institutionEmail)}
+                          disabled={isSendingOtp}
+                          className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50 shrink-0 cursor-pointer"
+                        >
+                          {isSendingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                          <span>{showOtpWidget ? "Resend" : "Verify OTP"}</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {showOtpWidget && (
+                      <div className="mt-2 p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 space-y-2">
+                        <p className="text-[11px] text-muted-foreground">
+                          Enter 6-digit OTP sent to <span className="font-mono text-foreground font-semibold">{roleParams.institutionEmail}</span>
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            maxLength={6}
+                            value={otpValue}
+                            onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                            placeholder="6-digit OTP"
+                            className="w-32 px-3 py-1.5 text-xs font-mono tracking-widest text-center rounded-lg border border-border bg-background focus:ring-1 focus:ring-primary focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleVerifyModalOtp(roleParams.institutionEmail)}
+                            disabled={isVerifyingOtp || otpValue.trim().length !== 6}
+                            className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                          >
+                            {isVerifyingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                            <span>Verify Code</span>
+                          </button>
+                          {otpCountdown > 0 ? (
+                            <span className="text-[11px] text-muted-foreground font-mono ml-auto">
+                              Resend in {otpCountdown}s
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleSendModalOtp(roleParams.institutionEmail)}
+                              disabled={isSendingOtp}
+                              className="text-[11px] text-primary hover:underline ml-auto font-medium cursor-pointer"
+                            >
+                              Resend OTP
+                            </button>
+                          )}
+                        </div>
+                        {otpError && <p className="text-[11px] text-rose-500 font-medium">{otpError}</p>}
+                        {otpMessage && <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">{otpMessage}</p>}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-foreground">Designation</label>

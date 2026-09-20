@@ -24,6 +24,7 @@ import {
   RefreshCw,
   Palette,
   ShieldCheck,
+  ShieldAlert,
   X,
 } from "lucide-react";
 import SkillBadge from "@/components/SkillBadge";
@@ -188,6 +189,102 @@ export default function ProfilePage() {
   const [showAddCert, setShowAddCert] = useState(false);
 
   const [newResearchInput, setNewResearchInput] = useState("");
+
+  // College Email OTP Verification state
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [showOtpWidget, setShowOtpWidget] = useState(false);
+  const [otpValue, setOtpValue] = useState("");
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpMessage, setOtpMessage] = useState<string | null>(null);
+  const [otpCountdown, setOtpCountdown] = useState<number>(0);
+
+  useEffect(() => {
+    if (otpCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setOtpCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpCountdown]);
+
+  const handleSendCollegeEmailOtp = async (targetEmail?: string) => {
+    const emailToVerify = (targetEmail || formData.institutionEmail || "").trim();
+    if (!emailToVerify) {
+      setOtpError("Please enter your college email address first.");
+      return;
+    }
+
+    try {
+      setIsSendingOtp(true);
+      setOtpError(null);
+      setOtpMessage(null);
+
+      const res = await fetch(`${API_BASE}/api/onboarding/send-verification-otp`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailToVerify, purpose: role }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to dispatch verification code");
+      }
+
+      setShowOtpWidget(true);
+      setOtpCountdown(60);
+      setOtpMessage(`Verification OTP sent to ${emailToVerify}. Enter code to verify.`);
+    } catch (err: any) {
+      setOtpError(err.message || "Failed to send verification code");
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyCollegeEmailOtp = async (targetEmail?: string) => {
+    const emailToVerify = (targetEmail || formData.institutionEmail || "").trim();
+    if (!otpValue.trim() || otpValue.trim().length !== 6) {
+      setOtpError("Please enter the 6-digit OTP code sent to your email.");
+      return;
+    }
+
+    try {
+      setIsVerifyingOtp(true);
+      setOtpError(null);
+
+      const res = await fetch(`${API_BASE}/api/onboarding/verify-otp`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: emailToVerify,
+          otp: Number(otpValue.trim()),
+          purpose: role,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.verified) {
+        throw new Error(data.message || "Invalid OTP entered");
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        institutionEmail: emailToVerify,
+        isEmailVerified: true,
+      }));
+      setProfile((prev) => (prev ? { ...prev, institutionEmail: emailToVerify, isEmailVerified: true } : prev));
+      setShowOtpWidget(false);
+      setOtpValue("");
+      setOtpMessage("Institutional email verified successfully! Verified badge unlocked.");
+      setSaveFeedback({ type: "success", text: "College email verified! Profile updated with verified badge." });
+      setTimeout(() => setSaveFeedback(null), 4000);
+    } catch (err: any) {
+      setOtpError(err.message || "Failed to verify OTP code");
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
 
   // Avatar file upload state & ref (Multer -> Cloudinary -> DB)
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -442,8 +539,10 @@ export default function ProfilePage() {
     {
       id: "email_verified",
       label: "Domain Verification",
-      isFilled: Boolean(formData.isEmailVerified),
-      helper: formData.isEmailVerified ? "Verified with OTP" : "Pending institutional OTP",
+      isFilled: Boolean(formData.isEmailVerified && (formData.institutionEmail || formData.officialEmail || formData.workEmail)),
+      helper: formData.isEmailVerified && (formData.institutionEmail || formData.officialEmail || formData.workEmail)
+        ? "Verified with OTP"
+        : "Pending institutional OTP",
     },
     {
       id: "bio",
@@ -943,7 +1042,7 @@ export default function ProfilePage() {
                   </>
                 ) : (
                   <div className="text-xs font-mono px-3 py-1 rounded-full bg-secondary text-muted-foreground border border-border">
-                    Public Verified Profile
+                    {Boolean(formData.isEmailVerified && (formData.institutionEmail || formData.officialEmail || formData.workEmail)) ? "Public Verified Profile" : "Public Profile"}
                   </div>
                 )}
               </div>
@@ -971,10 +1070,15 @@ export default function ProfilePage() {
                 <span className="text-[11px] font-mono uppercase px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-bold">
                   {role}
                 </span>
-                {formData.isEmailVerified && (
+                {Boolean(formData.isEmailVerified && (formData.institutionEmail || formData.officialEmail || formData.workEmail)) ? (
                   <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 font-semibold">
                     <ShieldCheck className="w-3.5 h-3.5" />
                     Verified
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1 font-medium">
+                    <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+                    Unverified
                   </span>
                 )}
               </div>
@@ -1110,6 +1214,25 @@ export default function ProfilePage() {
                       formData.officialEmail ||
                       "Institutional email unrecorded"}
                   </span>
+                  {(formData.institutionEmail || formData.workEmail || formData.officialEmail) && (
+                    Boolean(formData.isEmailVerified) ? (
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20">
+                        Verified
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab("edit");
+                          setShowOtpWidget(true);
+                        }}
+                        className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold border border-amber-500/20 hover:underline cursor-pointer"
+                        title="Verify Institutional Email via OTP"
+                      >
+                        Unverified • Verify OTP
+                      </button>
+                    )
+                  )}
                 </div>
 
                 {formData.linkedin && (
@@ -2073,14 +2196,96 @@ export default function ProfilePage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">Student Institutional Email</label>
-                      <input
-                        type="email"
-                        value={formData.institutionEmail || ""}
-                        onChange={(e) => setFormData((p) => ({ ...p, institutionEmail: e.target.value }))}
-                        placeholder="e.g. student@iitd.ac.in"
-                        className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
-                      />
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-foreground">Student Institutional Email</label>
+                        {formData.institutionEmail && (
+                          Boolean(formData.isEmailVerified) ? (
+                            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold inline-flex items-center gap-1">
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                              Verified
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium inline-flex items-center gap-1">
+                              <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+                              Unverified
+                            </span>
+                          )
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="email"
+                          value={formData.institutionEmail || ""}
+                          onChange={(e) => {
+                            const newEmail = e.target.value;
+                            setFormData((p) => ({
+                              ...p,
+                              institutionEmail: newEmail,
+                              isEmailVerified: Boolean(profile?.isEmailVerified && profile?.institutionEmail?.toLowerCase() === newEmail.trim().toLowerCase()),
+                            }));
+                            setShowOtpWidget(false);
+                            setOtpError(null);
+                            setOtpMessage(null);
+                          }}
+                          placeholder="e.g. student@iitd.ac.in"
+                          className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                        />
+                        {!formData.isEmailVerified && formData.institutionEmail?.trim() && (
+                          <button
+                            type="button"
+                            onClick={() => handleSendCollegeEmailOtp(formData.institutionEmail)}
+                            disabled={isSendingOtp}
+                            className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50 shrink-0 cursor-pointer"
+                          >
+                            {isSendingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                            <span>{showOtpWidget ? "Resend OTP" : "Verify OTP"}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* OTP Input and confirmation section */}
+                      {showOtpWidget && (
+                        <div className="mt-2 p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 space-y-2">
+                          <p className="text-[11px] text-muted-foreground">
+                            Enter the 6-digit OTP code sent to <span className="font-mono text-foreground font-semibold">{formData.institutionEmail}</span>
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              maxLength={6}
+                              value={otpValue}
+                              onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                              placeholder="6-digit OTP"
+                              className="w-32 px-3 py-1.5 text-xs font-mono tracking-widest text-center rounded-lg border border-border bg-background focus:ring-1 focus:ring-primary focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleVerifyCollegeEmailOtp(formData.institutionEmail)}
+                              disabled={isVerifyingOtp || otpValue.trim().length !== 6}
+                              className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                            >
+                              {isVerifyingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                              <span>Verify Code</span>
+                            </button>
+                            {otpCountdown > 0 ? (
+                              <span className="text-[11px] text-muted-foreground font-mono ml-auto">
+                                Resend in {otpCountdown}s
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSendCollegeEmailOtp(formData.institutionEmail)}
+                                disabled={isSendingOtp}
+                                className="text-[11px] text-primary hover:underline ml-auto font-medium cursor-pointer"
+                              >
+                                Resend OTP
+                              </button>
+                            )}
+                          </div>
+                          {otpError && <p className="text-[11px] text-rose-500 font-medium">{otpError}</p>}
+                          {otpMessage && <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">{otpMessage}</p>}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -2122,14 +2327,96 @@ export default function ProfilePage() {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-foreground">Faculty Official Email</label>
-                        <input
-                          type="email"
-                          value={formData.institutionEmail || ""}
-                          onChange={(e) => setFormData((p) => ({ ...p, institutionEmail: e.target.value }))}
-                          placeholder="e.g. professor@iisc.ac.in"
-                          className="w-full px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
-                        />
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-semibold text-foreground">Faculty Official Email</label>
+                          {formData.institutionEmail && (
+                            Boolean(formData.isEmailVerified) ? (
+                              <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold inline-flex items-center gap-1">
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                                Verified
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium inline-flex items-center gap-1">
+                                <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+                                Unverified
+                              </span>
+                            )
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="email"
+                            value={formData.institutionEmail || ""}
+                            onChange={(e) => {
+                              const newEmail = e.target.value;
+                              setFormData((p) => ({
+                                ...p,
+                                institutionEmail: newEmail,
+                                isEmailVerified: Boolean(profile?.isEmailVerified && profile?.institutionEmail?.toLowerCase() === newEmail.trim().toLowerCase()),
+                              }));
+                              setShowOtpWidget(false);
+                              setOtpError(null);
+                              setOtpMessage(null);
+                            }}
+                            placeholder="e.g. professor@iisc.ac.in"
+                            className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                          />
+                          {!formData.isEmailVerified && formData.institutionEmail?.trim() && (
+                            <button
+                              type="button"
+                              onClick={() => handleSendCollegeEmailOtp(formData.institutionEmail)}
+                              disabled={isSendingOtp}
+                              className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50 shrink-0 cursor-pointer"
+                            >
+                              {isSendingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                              <span>{showOtpWidget ? "Resend OTP" : "Verify OTP"}</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* OTP Input and confirmation section */}
+                        {showOtpWidget && (
+                          <div className="mt-2 p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 space-y-2">
+                            <p className="text-[11px] text-muted-foreground">
+                              Enter the 6-digit OTP code sent to <span className="font-mono text-foreground font-semibold">{formData.institutionEmail}</span>
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                maxLength={6}
+                                value={otpValue}
+                                onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                                placeholder="6-digit OTP"
+                                className="w-32 px-3 py-1.5 text-xs font-mono tracking-widest text-center rounded-lg border border-border bg-background focus:ring-1 focus:ring-primary focus:outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleVerifyCollegeEmailOtp(formData.institutionEmail)}
+                                disabled={isVerifyingOtp || otpValue.trim().length !== 6}
+                                className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                              >
+                                {isVerifyingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                                <span>Verify Code</span>
+                              </button>
+                              {otpCountdown > 0 ? (
+                                <span className="text-[11px] text-muted-foreground font-mono ml-auto">
+                                  Resend in {otpCountdown}s
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSendCollegeEmailOtp(formData.institutionEmail)}
+                                  disabled={isSendingOtp}
+                                  className="text-[11px] text-primary hover:underline ml-auto font-medium cursor-pointer"
+                                >
+                                  Resend OTP
+                                </button>
+                              )}
+                            </div>
+                            {otpError && <p className="text-[11px] text-rose-500 font-medium">{otpError}</p>}
+                            {otpMessage && <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">{otpMessage}</p>}
+                          </div>
+                        )}
                       </div>
                     </div>
 
