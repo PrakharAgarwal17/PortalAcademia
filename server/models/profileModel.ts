@@ -44,6 +44,8 @@ export interface IProfile extends Document {
     userId: mongoose.Types.ObjectId;
     category?: CategoryType;
     accountType: AccountType;
+    isPremium?: boolean;
+    premiumExpiresAt?: Date | null;
 
     name: string;
     headline?: string;
@@ -360,6 +362,16 @@ const profileSchema = new Schema<IProfile>(
             type: String,
             trim: true,
             default: "",
+        },
+
+        isPremium: {
+            type: Boolean,
+            default: false,
+        },
+
+        premiumExpiresAt: {
+            type: Date,
+            default: null,
         },
     },
     {

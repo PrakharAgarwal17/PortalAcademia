@@ -30,6 +30,7 @@ import InstitutionDirectoryPage from "@/pages/institution/InstitutionDirectoryPa
 import InstitutionMemberProfilePage from "@/pages/institution/InstitutionMemberProfilePage";
 import SkillAssessmentsPage from "@/pages/SkillAssessmentsPage";
 import ApplicationsTrackerPage from "@/pages/ApplicationsTrackerPage";
+import PremiumDashboard from "@/pages/PremiumDashboard";
 
 import { useState } from "react";
 
@@ -340,6 +341,14 @@ function AppShell() {
         element={
           <ProtectedRoute>
             <ApplicationsTrackerPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/premium"
+        element={
+          <ProtectedRoute>
+            <PremiumDashboard />
           </ProtectedRoute>
         }
       />
