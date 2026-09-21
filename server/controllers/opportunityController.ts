@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import opportunityModel, { type OpportunityCategory, type OpportunityMode } from "../models/opportunityModel.js";
 import profileModel from "../models/profileModel.js";
 import { getCache, setCache, deleteCache } from "../config/redisClient.js";
+import { sendOpportunitySkillMatchAlerts } from "../services/emailAlertService.js";
 
 /**
  * @description Fetch active opportunities with filtering by category, mode, domain, and recommendation
@@ -235,6 +236,9 @@ export async function createOpportunity(req: Request, res: Response) {
             deleteCache("cache:opportunities:*"),
             deleteCache("cache:analytics:market-trends"),
         ]);
+
+        // Asynchronously dispatch skill-matched opportunity alerts in the background
+        void sendOpportunitySkillMatchAlerts(newOpportunity);
 
         return res.status(201).json({
             success: true,

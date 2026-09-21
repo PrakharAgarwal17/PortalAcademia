@@ -21,9 +21,17 @@ import {
   X,
   Printer,
   Check,
+  Video,
+  PhoneCall,
+  AlertTriangle,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Navbar from "@/components/Navbar";
+import MentorshipVideoCallModal from "@/components/MentorshipVideoCallModal";
+import MentorshipRatingModal from "@/components/MentorshipRatingModal";
+import MentorApplicationModal from "@/components/MentorApplicationModal";
+import CommunityChatView from "@/components/CommunityChatView";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
 
@@ -42,10 +50,85 @@ interface MembershipStatus {
 
 interface UserProfile {
   _id?: string;
+  userId?: string;
   name: string;
   profileImage?: string;
   accountType: string;
   graduationYear?: number;
+  bio?: string;
+  skills?: string[];
+  isMentor?: boolean;
+  isMentorVerified?: boolean;
+  mentorBio?: string;
+  mentorTopics?: string[];
+  atsBoostPoints?: number;
+}
+
+interface MentorProfile {
+  userId: string;
+  name: string;
+  headline?: string;
+  bio?: string;
+  profileImage?: string;
+  image?: string;
+  institution?: string;
+  graduationYear?: number;
+  skills?: string[];
+  mentorBio?: string;
+  mentorTopics?: string[];
+  atsBoostPoints?: number;
+  rating: number;
+  reviewCount: number;
+}
+
+interface MentorshipPairing {
+  _id: string;
+  mentorId: string;
+  menteeId: string;
+  status: "pending" | "active" | "completed" | "cancelled" | "declined";
+  startDate: string;
+  targetEndDate: string;
+  completedAt?: string;
+  notes?: string;
+  topics: string[];
+  callSessions: Array<{
+    callRoomId: string;
+    startedAt: string;
+    endedAt?: string;
+    durationMinutes: number;
+  }>;
+  totalCallDurationMinutes: number;
+  menteeRating?: number | null;
+  menteeFeedback?: string;
+  ratedAt?: string | null;
+  certificateIssued: boolean;
+  certificateId?: string | null;
+  mentor?: {
+    userId: string;
+    name: string;
+    headline?: string;
+    profileImage?: string;
+    institution?: string;
+  };
+  mentee?: {
+    userId: string;
+    name: string;
+    headline?: string;
+    profileImage?: string;
+    institution?: string;
+  };
+  isUserMentor: boolean;
+  requiresReview: boolean;
+}
+
+interface CommunitySpace {
+  _id: string;
+  name: string;
+  description: string;
+  industry: string;
+  focus?: string;
+  memberCount: number;
+  isJoined?: boolean;
 }
 
 interface OpenSourceProject {
@@ -532,9 +615,22 @@ export default function PremiumDashboard() {
   const [ossSearchQuery, setOssSearchQuery] = useState("");
   const [selectedCert, setSelectedCert] = useState<StudentContribution | null>(null);
 
-  // Mentor booking modal mock
-  const [selectedMentor, setSelectedMentor] = useState<string | null>(null);
-  const [mentorSessionBooked, setMentorSessionBooked] = useState(false);
+  // Mentorship state
+  const [mentors, setMentors] = useState<MentorProfile[]>([]);
+  const [myPairings, setMyPairings] = useState<MentorshipPairing[]>([]);
+  const [isLoadingMentors, setIsLoadingMentors] = useState(false);
+  const [mentorSearchQuery, setMentorSearchQuery] = useState("");
+  const [activeCallPairing, setActiveCallPairing] = useState<MentorshipPairing | null>(null);
+  const [activeRatingPairing, setActiveRatingPairing] = useState<MentorshipPairing | null>(null);
+  const [showMentorApplyModal, setShowMentorApplyModal] = useState(false);
+  const [bookingLoadingId, setBookingLoadingId] = useState<string | null>(null);
+  const [mentorshipAlert, setMentorshipAlert] = useState<string | null>(null);
+
+  // Community state
+  const [communitySpaces, setCommunitySpaces] = useState<CommunitySpace[]>([]);
+  const [isLoadingSpaces, setIsLoadingSpaces] = useState(false);
+  const [activeChatSpace, setActiveChatSpace] = useState<CommunitySpace | null>(null);
+  const [joiningSpaceId, setJoiningSpaceId] = useState<string | null>(null);
 
   const isPremium = membership?.isPremium === true;
 
@@ -556,9 +652,42 @@ export default function PremiumDashboard() {
     }
   }, []);
 
+  const fetchMentorshipData = useCallback(async () => {
+    setIsLoadingMentors(true);
+    try {
+      const [mentorsRes, pairingsRes] = await Promise.all([
+        fetch(`${API_BASE}/api/mentorship/mentors`, { credentials: "include" }),
+        fetch(`${API_BASE}/api/mentorship/my-pairings`, { credentials: "include" }),
+      ]);
+      const mentorsData = await mentorsRes.json();
+      const pairingsData = await pairingsRes.json();
+      if (mentorsData.success) setMentors(mentorsData.mentors || []);
+      if (pairingsData.success) setMyPairings(pairingsData.pairings || []);
+    } catch (err) {
+      console.error("fetchMentorshipData error:", err);
+    } finally {
+      setIsLoadingMentors(false);
+    }
+  }, []);
+
+  const fetchCommunitySpaces = useCallback(async () => {
+    setIsLoadingSpaces(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/community/spaces`, { credentials: "include" });
+      const data = await res.json();
+      if (data.success) setCommunitySpaces(data.spaces || []);
+    } catch (err) {
+      console.error("fetchCommunitySpaces error:", err);
+    } finally {
+      setIsLoadingSpaces(false);
+    }
+  }, []);
+
   useEffect(() => {
     void fetchData();
-  }, [fetchData]);
+    void fetchMentorshipData();
+    void fetchCommunitySpaces();
+  }, [fetchData, fetchMentorshipData, fetchCommunitySpaces]);
 
   // Fetch Open Source data if premium
   const fetchOpenSourceData = useCallback(async () => {
@@ -584,7 +713,13 @@ export default function PremiumDashboard() {
     if (activeTab === "opensource" && isPremium) {
       void fetchOpenSourceData();
     }
-  }, [activeTab, isPremium, fetchOpenSourceData]);
+    if (activeTab === "mentors") {
+      void fetchMentorshipData();
+    }
+    if (activeTab === "communities") {
+      void fetchCommunitySpaces();
+    }
+  }, [activeTab, isPremium, fetchOpenSourceData, fetchMentorshipData, fetchCommunitySpaces]);
 
   // Razorpay script loader
   useEffect(() => {
@@ -737,6 +872,27 @@ export default function PremiumDashboard() {
           )}
 
           <div className="max-w-5xl mx-auto px-4 lg:px-8 py-6 flex flex-col gap-6">
+            {/* Resilient Pending Review Alert */}
+            {myPairings.some((p) => p.requiresReview) && (
+              <div className="p-3.5 rounded-md bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs animate-in fade-in-50">
+                <div className="flex items-center gap-2.5 text-amber-600 dark:text-amber-400">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>
+                    <strong>Pending Advisory Review:</strong> You completed a 1-on-1 mentorship call. Please submit your evaluation to certify hours and unlock mentor rewards.
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    const unreviewed = myPairings.find((p) => p.requiresReview);
+                    if (unreviewed) setActiveRatingPairing(unreviewed);
+                  }}
+                  className="px-3.5 py-1.5 bg-amber-500 text-zinc-950 font-semibold text-xs rounded-sm hover:bg-amber-400 transition-colors shrink-0 cursor-pointer"
+                >
+                  Review Session Now
+                </button>
+              </div>
+            )}
+
             {/* ── OVERVIEW TAB ─────────────────────────────────────── */}
             {activeTab === "overview" && (
               <>
@@ -809,7 +965,7 @@ export default function PremiumDashboard() {
                         <GraduationCap className="w-3.5 h-3.5 text-foreground" />
                       </div>
                       <p className="text-lg font-bold font-mono text-foreground">
-                        {mentorSessionBooked ? "1 Booked" : "Available"}
+                        {myPairings.length > 0 ? `${myPairings.length} Active` : "Available"}
                       </p>
                       <p className="text-[10px] text-muted-foreground">Senior 1-on-1 slots</p>
                     </div>
@@ -1094,104 +1250,287 @@ export default function PremiumDashboard() {
             {/* ── MENTORS TAB ──────────────────────────────────────── */}
             {activeTab === "mentors" && (
               <div className="space-y-6">
-                <div>
-                  <h1 className="text-sm font-bold tracking-tight text-foreground uppercase">
-                    Senior Scholar &amp; Industry Advising
-                  </h1>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Schedule 1-on-1 advising sessions for code architecture reviews, research direction, and interview readiness.
-                  </p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-4">
+                  <div>
+                    <h1 className="text-sm font-bold tracking-tight text-foreground uppercase">
+                      Senior Scholar &amp; Industry Advising
+                    </h1>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Direct WebRTC 1-on-1 audio/video calling, architecture critiques, and interview readiness.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {profile?.isMentor ? (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Registered Mentor · +{profile.atsBoostPoints || 0} ATS Boost</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowMentorApplyModal(true)}
+                        className="px-3 py-1.5 rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <GraduationCap className="w-3.5 h-3.5 text-primary" />
+                        <span>Apply as Senior Mentor (Free)</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                {!isPremium ? (
-                  <PremiumLockedBanner onUpgrade={() => setShowPaymentModal(true)} />
-                ) : (
-                  <div className="space-y-4">
-                    {mentorSessionBooked && (
-                      <div className="p-3.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-xs flex items-center justify-between text-emerald-700 dark:text-emerald-400">
-                        <span className="font-semibold">
-                          Session Request Confirmed with {selectedMentor}! Telemetry dispatch sent to mentor.
-                        </span>
-                        <button
-                          onClick={() => setMentorSessionBooked(false)}
-                          className="text-[10px] underline cursor-pointer"
-                        >
-                          Dismiss
-                        </button>
-                      </div>
-                    )}
+                {mentorshipAlert && (
+                  <div className="p-3 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-xs flex items-center justify-between text-emerald-700 dark:text-emerald-400">
+                    <span className="font-semibold">{mentorshipAlert}</span>
+                    <button
+                      onClick={() => setMentorshipAlert(null)}
+                      className="text-[10px] underline cursor-pointer"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {[
-                        {
-                          name: "Dr. A. K. Sundaram",
-                          role: "Distinguished Faculty · Distributed Systems",
-                          institution: "IIT Bombay",
-                          rating: 4.9,
-                          topics: ["Distributed Systems", "Consensus", "Go"],
-                        },
-                        {
-                          name: "Priya Venkatesh",
-                          role: "Senior Engineering Lead",
-                          institution: "Alumni · Flipkart",
-                          rating: 4.8,
-                          topics: ["React 19", "Node.js", "System Design"],
-                        },
-                        {
-                          name: "Rohan Mukherjee",
-                          role: "AI/ML Research Fellow",
-                          institution: "IISc Bangalore",
-                          rating: 4.9,
-                          topics: ["Transformers", "PyTorch", "NLP"],
-                        },
-                      ].map((mentor) => (
-                        <div
-                          key={mentor.name}
-                          className="p-4 rounded-md border border-border bg-card flex flex-col justify-between gap-3"
-                        >
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-mono uppercase text-muted-foreground">
-                                Verified Mentor
-                              </span>
-                              <div className="flex items-center gap-1 text-[11px] font-mono text-amber-500">
-                                <Star className="w-3 h-3 fill-amber-500" />
-                                <span>{mentor.rating}</span>
-                              </div>
-                            </div>
-                            <div>
-                              <h3 className="text-xs font-bold text-foreground">{mentor.name}</h3>
-                              <p className="text-[11px] text-muted-foreground">{mentor.role}</p>
-                              <span className="text-[10px] font-mono text-muted-foreground block">
-                                {mentor.institution}
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {mentor.topics.map((t) => (
+                {/* My Active Pairings Section */}
+                {myPairings.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-mono">
+                        My Mentorship Sessions ({myPairings.length})
+                      </h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {myPairings.map((pairing) => {
+                        const otherPerson = pairing.isUserMentor ? pairing.mentee : pairing.mentor;
+                        const roleLabel = pairing.isUserMentor ? "Your Mentee" : "Your Mentor";
+                        return (
+                          <div
+                            key={pairing._id}
+                            className="p-4 rounded-md border border-border bg-card space-y-3 flex flex-col justify-between"
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <span className="text-[10px] font-mono text-muted-foreground uppercase">
+                                    {roleLabel}
+                                  </span>
+                                  <h3 className="text-xs font-bold text-foreground">
+                                    {otherPerson?.name || "Participant"}
+                                  </h3>
+                                  <p className="text-[11px] text-muted-foreground">
+                                    {otherPerson?.headline || otherPerson?.institution || "PortalAcademia Scholar"}
+                                  </p>
+                                </div>
                                 <span
-                                  key={t}
-                                  className="text-[9px] font-mono bg-secondary px-1.5 py-0.5 rounded-sm border border-border text-muted-foreground"
+                                  className={cn(
+                                    "text-[10px] font-mono uppercase font-semibold px-2 py-0.5 rounded-sm border",
+                                    pairing.status === "active"
+                                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                                      : pairing.status === "completed"
+                                      ? "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20"
+                                      : "bg-muted text-muted-foreground border-border"
+                                  )}
                                 >
-                                  {t}
+                                  {pairing.status}
                                 </span>
-                              ))}
+                              </div>
+
+                              <div className="flex items-center gap-3 text-[11px] text-muted-foreground font-mono pt-1">
+                                <span className="flex items-center gap-1">
+                                  <Video className="w-3 h-3 text-primary" />
+                                  <span>{pairing.totalCallDurationMinutes} mins logged</span>
+                                </span>
+                                {pairing.menteeRating && (
+                                  <span className="flex items-center gap-1 text-amber-500">
+                                    <Star className="w-3 h-3 fill-amber-500" />
+                                    <span>{pairing.menteeRating}★ rated</span>
+                                  </span>
+                                )}
+                              </div>
+
+                              {pairing.topics && pairing.topics.length > 0 && (
+                                <div className="flex flex-wrap gap-1 pt-1">
+                                  {pairing.topics.map((t) => (
+                                    <span
+                                      key={t}
+                                      className="text-[9px] font-mono bg-secondary px-1.5 py-0.5 rounded-sm border border-border text-muted-foreground"
+                                    >
+                                      {t}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="pt-2 border-t border-border flex items-center justify-between gap-2">
+                              <button
+                                onClick={() => setActiveCallPairing(pairing)}
+                                className="flex-1 text-xs font-semibold py-2 rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                              >
+                                <Video className="w-3.5 h-3.5" />
+                                <span>Start Video Call</span>
+                              </button>
+
+                              {!pairing.isUserMentor && !pairing.menteeRating && (
+                                <button
+                                  onClick={() => setActiveRatingPairing(pairing)}
+                                  className="px-3 py-2 text-xs font-semibold rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors cursor-pointer"
+                                >
+                                  Review
+                                </button>
+                              )}
                             </div>
                           </div>
-
-                          <button
-                            onClick={() => {
-                              setSelectedMentor(mentor.name);
-                              setMentorSessionBooked(true);
-                            }}
-                            className="w-full text-xs font-semibold py-1.5 rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors cursor-pointer"
-                          >
-                            Request 1-on-1 Advising
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
+
+                {/* Browse Mentors */}
+                <div className="space-y-4 pt-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-mono">
+                      Browse Verified Scholars &amp; Mentors
+                    </h2>
+                    <div className="relative w-full sm:w-64">
+                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder="Filter by skill, name, or topic..."
+                        value={mentorSearchQuery}
+                        onChange={(e) => setMentorSearchQuery(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 text-xs bg-background border border-border rounded-sm text-foreground focus:outline-none focus:border-foreground/40"
+                      />
+                    </div>
+                  </div>
+
+                  {isLoadingMentors ? (
+                    <div className="p-12 flex items-center justify-center">
+                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : mentors.length === 0 ? (
+                    <div className="p-8 rounded-md border border-dashed border-border text-center space-y-2">
+                      <p className="text-xs font-semibold text-foreground">No active mentors found</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Be the first senior scholar to apply and mentor junior peers!
+                      </p>
+                      <button
+                        onClick={() => setShowMentorApplyModal(true)}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer inline-flex items-center gap-1.5 mt-2"
+                      >
+                        <GraduationCap className="w-3.5 h-3.5" />
+                        <span>Register as Mentor</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {mentors
+                        .filter(
+                          (m) =>
+                            !mentorSearchQuery ||
+                            m.name.toLowerCase().includes(mentorSearchQuery.toLowerCase()) ||
+                            (m.institution &&
+                              m.institution.toLowerCase().includes(mentorSearchQuery.toLowerCase())) ||
+                            (m.mentorTopics &&
+                              m.mentorTopics.some((t) =>
+                                t.toLowerCase().includes(mentorSearchQuery.toLowerCase())
+                              )) ||
+                            (m.skills &&
+                              m.skills.some((s) =>
+                                s.toLowerCase().includes(mentorSearchQuery.toLowerCase())
+                              ))
+                        )
+                        .map((m) => (
+                          <div
+                            key={m.userId}
+                            className="p-4 rounded-md border border-border bg-card flex flex-col justify-between gap-3 shadow-xs"
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                                  Verified Mentor
+                                </span>
+                                <div className="flex items-center gap-1 text-[11px] font-mono text-amber-500">
+                                  <Star className="w-3 h-3 fill-amber-500" />
+                                  <span>{m.rating || 5.0}</span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    ({m.reviewCount || 0})
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div>
+                                <h3 className="text-xs font-bold text-foreground">{m.name}</h3>
+                                <p className="text-[11px] text-muted-foreground line-clamp-1">
+                                  {m.headline || m.institution || "Scholar"}
+                                </p>
+                                {m.mentorBio && (
+                                  <p className="text-[11px] text-muted-foreground/80 mt-1 line-clamp-2 leading-relaxed">
+                                    {m.mentorBio}
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="flex flex-wrap gap-1 pt-1">
+                                {(m.mentorTopics || m.skills || []).slice(0, 4).map((t) => (
+                                  <span
+                                    key={t}
+                                    className="text-[9px] font-mono bg-secondary px-1.5 py-0.5 rounded-sm border border-border text-muted-foreground"
+                                  >
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={async () => {
+                                if (!isPremium) {
+                                  setShowPaymentModal(true);
+                                  return;
+                                }
+                                setBookingLoadingId(m.userId);
+                                try {
+                                  const res = await fetch(`${API_BASE}/api/mentorship/request`, {
+                                    method: "POST",
+                                    credentials: "include",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      mentorUserId: m.userId,
+                                      notes: "Scheduled 1-on-1 technical advisory session",
+                                      topics: m.mentorTopics || m.skills || [],
+                                    }),
+                                  });
+                                  const data = await res.json();
+                                  if (data.success) {
+                                    setMentorshipAlert(
+                                      `Session confirmed with ${m.name}! Direct WebRTC video calling is now active.`
+                                    );
+                                    void fetchMentorshipData();
+                                  } else {
+                                    alert(data.message || "Failed to schedule session.");
+                                  }
+                                } catch {
+                                  alert("Network error while booking mentorship.");
+                                } finally {
+                                  setBookingLoadingId(null);
+                                }
+                              }}
+                              disabled={bookingLoadingId === m.userId}
+                              className="w-full text-xs font-semibold py-2 rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                            >
+                              {bookingLoadingId === m.userId ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <PhoneCall className="w-3.5 h-3.5" />
+                              )}
+                              <span>Request 1-on-1 Advising</span>
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1207,49 +1546,83 @@ export default function PremiumDashboard() {
                   </p>
                 </div>
 
-                {!isPremium ? (
+                {!isPremium && profile?.accountType === "student" ? (
                   <PremiumLockedBanner onUpgrade={() => setShowPaymentModal(true)} />
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {[
-                      {
-                        name: "Google Cloud Student Developer Forum",
-                        focus: "Distributed Cloud Architecture, K8s, Golang",
-                        members: 412,
-                      },
-                      {
-                        name: "Microsoft Open Source Ecosystem",
-                        focus: "TypeScript, Azure Functions, Semantic Kernel",
-                        members: 389,
-                      },
-                      {
-                        name: "Razorpay Financial Engineering Hub",
-                        focus: "Payment Rails, High-Throughput Microservices",
-                        members: 275,
-                      },
-                      {
-                        name: "AI & Neural Modeling Consortium",
-                        focus: "Transformers, Model Optimization, LLM Tooling",
-                        members: 512,
-                      },
-                    ].map((space) => (
-                      <div
-                        key={space.name}
-                        className="p-4 rounded-md border border-border bg-card flex flex-col justify-between gap-3"
-                      >
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
-                            <span>Enterprise Space</span>
-                            <span>{space.members} scholars</span>
-                          </div>
-                          <h3 className="text-xs font-bold text-foreground">{space.name}</h3>
-                          <p className="text-[11px] text-muted-foreground">{space.focus}</p>
-                        </div>
-                        <button className="text-xs font-semibold px-3 py-1.5 rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors self-start cursor-pointer">
-                          Join Discussion Channel
-                        </button>
+                  <div className="space-y-4">
+                    {isLoadingSpaces ? (
+                      <div className="p-12 flex items-center justify-center">
+                        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                       </div>
-                    ))}
+                    ) : communitySpaces.length === 0 ? (
+                      <div className="p-8 rounded-md border border-dashed border-border text-center space-y-1">
+                        <p className="text-xs font-semibold text-foreground">No enterprise spaces found</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Technical discussion forums will appear here as industry partners initiate channels.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {communitySpaces.map((space) => (
+                          <div
+                            key={space._id}
+                            className="p-4 rounded-md border border-border bg-card flex flex-col justify-between gap-3"
+                          >
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
+                                <span className="uppercase">{space.industry}</span>
+                                <span className="flex items-center gap-1">
+                                  <Users className="w-3 h-3" />
+                                  <span>{space.memberCount || 0} scholars</span>
+                                </span>
+                              </div>
+                              <h3 className="text-xs font-bold text-foreground">{space.name}</h3>
+                              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                {space.description}
+                              </p>
+                              {space.focus && (
+                                <span className="inline-block text-[10px] font-mono text-primary bg-primary/5 px-2 py-0.5 rounded-sm border border-primary/20">
+                                  {space.focus}
+                                </span>
+                              )}
+                            </div>
+
+                            <button
+                              onClick={async () => {
+                                setJoiningSpaceId(space._id);
+                                try {
+                                  const res = await fetch(
+                                    `${API_BASE}/api/community/spaces/${space._id}/join`,
+                                    {
+                                      method: "POST",
+                                      credentials: "include",
+                                    }
+                                  );
+                                  const data = await res.json();
+                                  if (data.success) {
+                                    setActiveChatSpace(space);
+                                    void fetchCommunitySpaces();
+                                  } else {
+                                    alert(data.message || "Failed to join space.");
+                                  }
+                                } catch {
+                                  alert("Network error while connecting to space.");
+                                } finally {
+                                  setJoiningSpaceId(null);
+                                }
+                              }}
+                              disabled={joiningSpaceId === space._id}
+                              className="text-xs font-semibold px-3 py-1.5 rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors self-start cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                            >
+                              {joiningSpaceId === space._id && (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              )}
+                              <span>Open Discussion Channel →</span>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1345,6 +1718,59 @@ export default function PremiumDashboard() {
           contribution={selectedCert}
           studentName={profile?.name || "Student Scholar"}
           onClose={() => setSelectedCert(null)}
+        />
+      )}
+
+      {/* WebRTC 1-on-1 Video Call Modal */}
+      {activeCallPairing && (
+        <MentorshipVideoCallModal
+          pairingId={activeCallPairing._id}
+          mentorName={activeCallPairing.mentor?.name || "Mentor"}
+          menteeName={activeCallPairing.mentee?.name || "Mentee"}
+          currentUserId={profile?._id || profile?.userId}
+          onClose={() => setActiveCallPairing(null)}
+          onCallEnded={(_durationMins) => {
+            void fetchMentorshipData();
+            if (!activeCallPairing.isUserMentor) {
+              setActiveRatingPairing(activeCallPairing);
+            }
+          }}
+        />
+      )}
+
+      {/* Mentorship Session Rating Modal */}
+      {activeRatingPairing && (
+        <MentorshipRatingModal
+          pairingId={activeRatingPairing._id}
+          mentorName={activeRatingPairing.mentor?.name || "Mentor"}
+          onClose={() => setActiveRatingPairing(null)}
+          onRatingSubmitted={() => {
+            void fetchMentorshipData();
+          }}
+        />
+      )}
+
+      {/* Senior Mentor Registration Modal */}
+      {showMentorApplyModal && (
+        <MentorApplicationModal
+          defaultBio={profile?.mentorBio || profile?.bio || ""}
+          defaultTopics={profile?.mentorTopics || profile?.skills || []}
+          onClose={() => setShowMentorApplyModal(false)}
+          onApplicationSuccess={() => {
+            void fetchData();
+            void fetchMentorshipData();
+          }}
+        />
+      )}
+
+      {/* Community Real-Time Chat Modal */}
+      {activeChatSpace && (
+        <CommunityChatView
+          spaceId={activeChatSpace._id}
+          spaceName={activeChatSpace.name}
+          focus={activeChatSpace.focus}
+          currentUserId={profile?._id || profile?.userId}
+          onClose={() => setActiveChatSpace(null)}
         />
       )}
     </div>
