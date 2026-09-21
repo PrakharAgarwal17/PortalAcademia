@@ -5,14 +5,17 @@ import communityMessageModel from "../models/communityMessageModel.js";
 import profileModel from "../models/profileModel.js";
 
 export function registerCommunitySocket(io: Server, socket: Socket) {
-    const userId = socket.data?.userId as string | undefined;
-
     /**
      * Join an Industry/Enterprise Community Space
      */
-    socket.on("join_community_space", async (data: { spaceId: string }) => {
+    socket.on("join_community_space", async (data: { spaceId: string; userId?: string }) => {
         try {
-            if (!userId) {
+            const effectiveUserId =
+                (socket.data?.userId as string | undefined) ||
+                data?.userId ||
+                (socket.handshake?.auth?.userId as string | undefined);
+
+            if (!effectiveUserId) {
                 return socket.emit("community_error", { message: "Unauthorized: Session credentials missing." });
             }
 
@@ -27,7 +30,7 @@ export function registerCommunitySocket(io: Server, socket: Socket) {
             }
 
             // Socket-level authorization: check role and premium entitlement
-            const profile = await profileModel.findOne({ userId });
+            const profile = await profileModel.findOne({ userId: effectiveUserId });
             if (!profile) {
                 return socket.emit("community_error", { message: "User profile not found." });
             }
@@ -41,9 +44,12 @@ export function registerCommunitySocket(io: Server, socket: Socket) {
                 });
             }
 
+            // Bind authorized identity to socket instance
+            socket.data.userId = effectiveUserId;
+
             // Ensure member of space
-            const userObjId = new mongoose.Types.ObjectId(userId);
-            const isMember = space.members.some((m) => m.toString() === userId);
+            const userObjId = new mongoose.Types.ObjectId(effectiveUserId);
+            const isMember = space.members.some((m) => m.toString() === effectiveUserId);
             if (!isMember) {
                 space.members.push(userObjId);
                 space.memberCount = space.members.length;
@@ -69,12 +75,13 @@ export function registerCommunitySocket(io: Server, socket: Socket) {
      */
     socket.on("send_community_message", async (data: { spaceId: string; content: string }) => {
         try {
-            if (!userId || !data?.spaceId || !data?.content?.trim()) return;
+            const uid = socket.data?.userId as string | undefined;
+            if (!uid || !data?.spaceId || !data?.content?.trim()) return;
 
             const { spaceId, content } = data;
             if (!mongoose.Types.ObjectId.isValid(spaceId)) return;
 
-            const profile = await profileModel.findOne({ userId });
+            const profile = await profileModel.findOne({ userId: uid });
             if (!profile) return;
 
             const isStaffOrIndustry = ["faculty", "industry"].includes(profile.accountType);
@@ -88,7 +95,7 @@ export function registerCommunitySocket(io: Server, socket: Socket) {
 
             const message = await communityMessageModel.create({
                 spaceId: new mongoose.Types.ObjectId(spaceId),
-                senderId: new mongoose.Types.ObjectId(userId),
+                senderId: new mongoose.Types.ObjectId(uid),
                 senderName: profile.name,
                 senderAvatar: profile.profileImage || profile.image || "",
                 senderRole: profile.accountType,

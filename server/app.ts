@@ -152,12 +152,13 @@ const io = new SocketIOServer(httpServer, {
     },
 });
 
-// Socket.IO authentication middleware via handshake cookies
+// Socket.IO authentication middleware via handshake cookies and auth payloads
 io.use((socket, next) => {
     try {
         const cookieHeader = socket.handshake.headers.cookie;
         const cookies = parseCookies(cookieHeader);
-        const token = cookies.accesstoken || cookies.refreshtoken;
+        const authToken = socket.handshake.auth?.token as string | undefined;
+        const token = cookies.accesstoken || cookies.refreshtoken || authToken;
 
         if (token) {
             const accessSecret = process.env.SECRET_ACCESS_TOKEN || process.env.JWT_PASS_KEY || "access_token_secret_key";
@@ -174,6 +175,12 @@ io.use((socket, next) => {
                 }
             }
         }
+
+        // Also accept client-provided userId from auth handshake for cross-origin websocket sessions
+        if (!socket.data.userId && socket.handshake.auth?.userId) {
+            socket.data.userId = String(socket.handshake.auth.userId);
+        }
+
         return next();
     } catch {
         return next();

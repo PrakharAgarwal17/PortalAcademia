@@ -32,8 +32,7 @@ import MentorshipVideoCallModal from "@/components/MentorshipVideoCallModal";
 import MentorshipRatingModal from "@/components/MentorshipRatingModal";
 import MentorApplicationModal from "@/components/MentorApplicationModal";
 import CommunityChatView from "@/components/CommunityChatView";
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
+import { API_BASE } from "@/lib/api";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -1727,7 +1726,7 @@ export default function PremiumDashboard() {
           pairingId={activeCallPairing._id}
           mentorName={activeCallPairing.mentor?.name || "Mentor"}
           menteeName={activeCallPairing.mentee?.name || "Mentee"}
-          currentUserId={profile?._id || profile?.userId}
+          currentUserId={profile?.userId || profile?._id}
           onClose={() => setActiveCallPairing(null)}
           onCallEnded={(_durationMins) => {
             void fetchMentorshipData();
@@ -1769,7 +1768,7 @@ export default function PremiumDashboard() {
           spaceId={activeChatSpace._id}
           spaceName={activeChatSpace.name}
           focus={activeChatSpace.focus}
-          currentUserId={profile?._id || profile?.userId}
+          currentUserId={profile?.userId || profile?._id}
           onClose={() => setActiveChatSpace(null)}
         />
       )}

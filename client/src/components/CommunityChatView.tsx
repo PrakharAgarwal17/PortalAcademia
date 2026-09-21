@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { Send, Users, X, Loader2, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { API_BASE } from "@/lib/api";
 
 interface CommunityChatViewProps {
   spaceId: string;
@@ -37,8 +38,6 @@ export default function CommunityChatView({
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
-
   // Scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -68,17 +67,20 @@ export default function CommunityChatView({
     return () => {
       isMounted = false;
     };
-  }, [API_BASE, spaceId]);
+  }, [spaceId]);
 
   // Socket setup
   useEffect(() => {
     const s = io(API_BASE, {
       withCredentials: true,
-      transports: ["websocket", "polling"],
+      transports: ["polling", "websocket"],
+      auth: {
+        userId: currentUserId,
+      },
     });
     setSocket(s);
 
-    s.emit("join_community_space", { spaceId });
+    s.emit("join_community_space", { spaceId, userId: currentUserId });
 
     s.on("community_space_joined", (data: { memberCount: number }) => {
       setMemberCount(data.memberCount);
@@ -96,7 +98,7 @@ export default function CommunityChatView({
       s.emit("leave_community_space", { spaceId });
       s.disconnect();
     };
-  }, [API_BASE, spaceId]);
+  }, [currentUserId, spaceId]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();

@@ -7,14 +7,17 @@ import profileModel from "../models/profileModel.js";
 const activeSessions = new Map<string, { startedAt: Date; participants: Set<string> }>();
 
 export function registerMentorshipSocket(io: Server, socket: Socket) {
-    const userId = socket.data?.userId as string | undefined;
-
     /**
      * Join WebRTC video call room for an authorized mentorship pairing
      */
-    socket.on("join_call_room", async (data: { pairingId: string }) => {
+    socket.on("join_call_room", async (data: { pairingId: string; userId?: string }) => {
         try {
-            if (!userId) {
+            const effectiveUserId =
+                (socket.data?.userId as string | undefined) ||
+                data?.userId ||
+                (socket.handshake?.auth?.userId as string | undefined);
+
+            if (!effectiveUserId) {
                 return socket.emit("call_error", { message: "Unauthorized: Session credentials missing." });
             }
 
@@ -29,8 +32,8 @@ export function registerMentorshipSocket(io: Server, socket: Socket) {
             }
 
             // Strict socket-level authorization: caller MUST be mentor or mentee
-            const isMentor = mentorship.mentorId.toString() === userId;
-            const isMentee = mentorship.menteeId.toString() === userId;
+            const isMentor = mentorship.mentorId.toString() === effectiveUserId;
+            const isMentee = mentorship.menteeId.toString() === effectiveUserId;
 
             if (!isMentor && !isMentee) {
                 return socket.emit("call_error", {
@@ -44,6 +47,9 @@ export function registerMentorshipSocket(io: Server, socket: Socket) {
                 });
             }
 
+            // Bind authorized identity to socket instance
+            socket.data.userId = effectiveUserId;
+
             const roomName = `mentorship_${pairingId}`;
             await socket.join(roomName);
 
@@ -51,10 +57,10 @@ export function registerMentorshipSocket(io: Server, socket: Socket) {
             if (!activeSessions.has(pairingId)) {
                 activeSessions.set(pairingId, {
                     startedAt: new Date(),
-                    participants: new Set([userId]),
+                    participants: new Set([effectiveUserId]),
                 });
             } else {
-                activeSessions.get(pairingId)!.participants.add(userId);
+                activeSessions.get(pairingId)!.participants.add(effectiveUserId);
             }
 
             const room = io.sockets.adapter.rooms.get(roomName);
@@ -70,7 +76,7 @@ export function registerMentorshipSocket(io: Server, socket: Socket) {
             // If another participant is already present, trigger WebRTC offer exchange
             if (numClients > 1) {
                 socket.to(roomName).emit("peer_joined", {
-                    userId,
+                    userId: effectiveUserId,
                     role: isMentor ? "mentor" : "mentee",
                 });
             }
@@ -84,11 +90,12 @@ export function registerMentorshipSocket(io: Server, socket: Socket) {
      * WebRTC SDP Offer relay
      */
     socket.on("webrtc_offer", (data: { pairingId: string; sdp: any }) => {
-        if (!userId || !data?.pairingId) return;
+        const uid = socket.data?.userId as string | undefined;
+        if (!uid || !data?.pairingId) return;
         const roomName = `mentorship_${data.pairingId}`;
         socket.to(roomName).emit("webrtc_offer", {
             sdp: data.sdp,
-            senderId: userId,
+            senderId: uid,
         });
     });
 
@@ -96,11 +103,12 @@ export function registerMentorshipSocket(io: Server, socket: Socket) {
      * WebRTC SDP Answer relay
      */
     socket.on("webrtc_answer", (data: { pairingId: string; sdp: any }) => {
-        if (!userId || !data?.pairingId) return;
+        const uid = socket.data?.userId as string | undefined;
+        if (!uid || !data?.pairingId) return;
         const roomName = `mentorship_${data.pairingId}`;
         socket.to(roomName).emit("webrtc_answer", {
             sdp: data.sdp,
-            senderId: userId,
+            senderId: uid,
         });
     });
 
@@ -108,11 +116,12 @@ export function registerMentorshipSocket(io: Server, socket: Socket) {
      * WebRTC ICE Candidate relay
      */
     socket.on("webrtc_ice_candidate", (data: { pairingId: string; candidate: any }) => {
-        if (!userId || !data?.pairingId) return;
+        const uid = socket.data?.userId as string | undefined;
+        if (!uid || !data?.pairingId) return;
         const roomName = `mentorship_${data.pairingId}`;
         socket.to(roomName).emit("webrtc_ice_candidate", {
             candidate: data.candidate,
-            senderId: userId,
+            senderId: uid,
         });
     });
 
@@ -121,15 +130,16 @@ export function registerMentorshipSocket(io: Server, socket: Socket) {
      */
     socket.on("call_message", async (data: { pairingId: string; text: string }) => {
         try {
-            if (!userId || !data?.pairingId || !data?.text?.trim()) return;
+            const uid = socket.data?.userId as string | undefined;
+            if (!uid || !data?.pairingId || !data?.text?.trim()) return;
 
             const roomName = `mentorship_${data.pairingId}`;
-            const profile = await profileModel.findOne({ userId });
+            const profile = await profileModel.findOne({ userId: uid });
             const senderName = profile?.name || "Participant";
 
             io.to(roomName).emit("call_message", {
                 id: new mongoose.Types.ObjectId().toString(),
-                senderId: userId,
+                senderId: uid,
                 senderName,
                 text: data.text.trim(),
                 timestamp: new Date().toISOString(),
