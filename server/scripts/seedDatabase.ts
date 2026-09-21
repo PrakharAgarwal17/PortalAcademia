@@ -6,6 +6,12 @@ import profileModel from "../models/profileModel.js";
 import opportunityModel from "../models/opportunityModel.js";
 import assessmentModel from "../models/assessmentModel.js";
 import applicationModel from "../models/applicationModel.js";
+import membershipModel from "../models/membershipModel.js";
+import mentorshipModel from "../models/mentorshipModel.js";
+import communitySpaceModel from "../models/communitySpaceModel.js";
+import communityMessageModel from "../models/communityMessageModel.js";
+import openSourceProjectModel from "../models/openSourceProjectModel.js";
+import contributionModel from "../models/contributionModel.js";
 
 dotenv.config();
 
@@ -24,9 +30,22 @@ const MONGO_URI = getMongoUri();
 
 async function seed() {
     try {
-        console.log("Connecting to MongoDB for database seeding...");
-        await mongoose.connect(MONGO_URI, { dbName: "PortalAcademia" });
-        console.log("Connected to MongoDB successfully.");
+        const atlasUri = getMongoUri();
+        try {
+            console.log("Connecting to MongoDB Atlas cluster...");
+            await mongoose.connect(atlasUri, { dbName: "PortalAcademia", serverSelectionTimeoutMS: 5000 });
+            console.log("Connected to MongoDB Atlas successfully.");
+        } catch (atlasErr: any) {
+            console.warn("Notice: MongoDB Atlas connection unreachable (IP whitelist or network):", atlasErr?.message);
+            console.log("Falling back to authenticated local MongoDB instance (root:rootpassword@localhost:27017)...");
+            try {
+                await mongoose.connect("mongodb://root:rootpassword@localhost:27017/PortalAcademia?authSource=admin", { serverSelectionTimeoutMS: 5000 });
+                console.log("Connected to authenticated local MongoDB instance successfully.");
+            } catch (authErr) {
+                await mongoose.connect("mongodb://localhost:27017/PortalAcademia", { serverSelectionTimeoutMS: 5000 });
+                console.log("Connected to local MongoDB instance successfully.");
+            }
+        }
 
         const hashedPassword = await bcrypt.hash("Password123!", 10);
 
@@ -37,6 +56,10 @@ async function seed() {
             { email: "iitb.admin@portalacademia.ac.in", isOnboarded: true },
             { email: "faculty.test@portalacademia.ac.in", isOnboarded: true },
             { email: "new.student@portalacademia.ac.in", isOnboarded: false },
+            // Senior Scholar Peer Mentors (Free Registration)
+            { email: "arjun.mentor@portalacademia.ac.in", isOnboarded: true },
+            { email: "meera.mentor@portalacademia.ac.in", isOnboarded: true },
+            { email: "kabir.mentor@portalacademia.ac.in", isOnboarded: true },
         ];
 
         const seededUserDocs: Record<string, any> = {};
@@ -63,8 +86,30 @@ async function seed() {
         const industryUser = seededUserDocs["industry.test@company.com"];
         const institutionUser = seededUserDocs["iitb.admin@portalacademia.ac.in"];
         const facultyUser = seededUserDocs["faculty.test@portalacademia.ac.in"];
+        const mentor1 = seededUserDocs["arjun.mentor@portalacademia.ac.in"];
+        const mentor2 = seededUserDocs["meera.mentor@portalacademia.ac.in"];
+        const mentor3 = seededUserDocs["kabir.mentor@portalacademia.ac.in"];
 
-        // 2. Ensure Profiles exist
+        // 2. Configure Student as Active Premium User
+        const premiumExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        await userModel.findByIdAndUpdate(studentUser._id, {
+            isPremium: true,
+            planTier: "paid",
+            premiumExpiresAt: premiumExpiry,
+        });
+
+        await membershipModel.deleteMany({ userId: studentUser._id });
+        await membershipModel.create({
+            userId: studentUser._id,
+            planType: "premium",
+            amount: 200,
+            currency: "INR",
+            status: "active",
+            startDate: new Date(),
+            expiresAt: premiumExpiry,
+        });
+
+        // 3. Ensure Core Profiles exist
         await profileModel.findOneAndUpdate(
             { userId: studentUser._id },
             {
@@ -77,6 +122,8 @@ async function seed() {
                 institution: "Indian Institute of Technology Bombay",
                 institutionEmail: "priya.sharma@iitb.ac.in",
                 isEmailVerified: true,
+                isPremium: true,
+                premiumExpiresAt: premiumExpiry,
                 skills: ["React", "TypeScript", "Node.js", "Python", "Docker"],
                 certifications: [
                     {
@@ -90,23 +137,7 @@ async function seed() {
                         title: "AWS Certified Solutions Architect Associate",
                         issuer: "Amazon Web Services",
                         credentialUrl: "https://aws.amazon.com/verification/SAA-987654",
-                        isVerified: false, // Pending Institution Verification Gate
-                    },
-                    {
-                        title: "NPTEL Ayurvedic Informatics & Data Analytics",
-                        issuer: "Ministry of Ayush / NPTEL",
-                        credentialUrl: "https://nptel.ac.in/verify/ayush-345",
-                        isVerified: false, // Pending Institution Verification Gate
-                    },
-                ],
-                pastExperience: [
-                    {
-                        title: "Full-Stack Engineering Intern",
-                        organization: "Zerodha",
-                        timeline: "May 2025 - July 2025",
-                        description: "Optimized WebSocket market feed processing pipeline reducing rendering latency by 38%.",
-                        isVerified: true,
-                        verifiedAt: new Date(),
+                        isVerified: false,
                     },
                 ],
             },
@@ -119,14 +150,14 @@ async function seed() {
                 userId: industryUser._id,
                 category: "organization",
                 accountType: "industry",
-                name: "Tata Consultancy Services Recruiter",
-                companyName: "Tata Consultancy Services",
-                industryType: "IT & Digital Transformation",
-                officialWebsite: "https://www.tcs.com",
-                workEmail: "industry.test@company.com",
+                name: "Razorpay Engineering",
+                companyName: "Razorpay Software Pvt. Ltd.",
+                industryType: "FinTech & Payment Rails",
+                officialWebsite: "https://razorpay.com",
+                workEmail: "tech@razorpay.com",
                 employees: "1000+",
-                location: "Mumbai, Maharashtra",
-                bio: "Leading global IT services and consulting enterprise partnering with premier academic institutions across India.",
+                location: "Bengaluru, Karnataka",
+                bio: "Building developer-friendly payment rails and financial infrastructure for Indian and global commerce.",
             },
             { upsert: true, new: true }
         );
@@ -137,13 +168,13 @@ async function seed() {
                 userId: institutionUser._id,
                 category: "organization",
                 accountType: "institution",
-                name: "IIT Bombay Training & Placement Cell",
+                name: "IIT Bombay Academic Administration",
                 institutionName: "Indian Institute of Technology Bombay",
                 aisheCode: "U-0306",
-                officialEmail: "iitb.admin@portalacademia.ac.in",
-                contact: "+91 22 2576 7000",
-                location: "Powai, Mumbai",
-                bio: "Official Training & Placement Office managing undergraduate, postgraduate, and faculty industry immersion pipelines.",
+                officialEmail: "admin@iitb.ac.in",
+                contact: "+91-22-2576-7000",
+                location: "Powai, Mumbai, Maharashtra",
+                bio: "Premier engineering institute in India committed to excellence in scientific education and technological innovation.",
             },
             { upsert: true, new: true }
         );
@@ -154,277 +185,333 @@ async function seed() {
                 userId: facultyUser._id,
                 category: "individual",
                 accountType: "faculty",
-                name: "Dr. Rajesh Kulkarni",
-                designation: "Associate Professor",
-                department: "Computer Science & Engineering",
+                name: "Dr. A. K. Sundaram",
                 institution: "Indian Institute of Technology Bombay",
-                institutionEmail: "faculty.test@portalacademia.ac.in",
-                isEmailVerified: true,
-                expertise: ["Distributed Systems", "Cloud Security", "Applied ML"],
-                researchInterests: ["High-Throughput Consensus", "Ayurvedic Medical Informatics"],
-                bio: "14+ years of academic research and consulting in distributed cloud architectures.",
+                designation: "Professor & Department Head",
+                department: "Computer Science & Engineering",
+                expertise: ["Distributed Systems", "Consensus Protocols", "Cloud Infrastructure"],
+                researchInterests: ["Fault-Tolerant State Machines", "Ayurvedic Medical Informatics"],
+                location: "Mumbai, Maharashtra",
+                bio: "20+ years of research and teaching in distributed algorithms, consensus mechanisms, and high-availability database architectures.",
             },
             { upsert: true, new: true }
         );
 
-        // 3. Seed Standardized Skill Assessments
+        // 4. Seed Senior Scholar Peer Mentors (Free Registration, Accepted Terms)
+        await profileModel.findOneAndUpdate(
+            { userId: mentor1._id },
+            {
+                userId: mentor1._id,
+                category: "individual",
+                accountType: "student",
+                name: "Arjun Venkatraman",
+                headline: "4th Year CS Scholar · Distributed Systems Specialist",
+                institution: "IIT Madras",
+                graduationYear: new Date().getFullYear() + 1,
+                isMentor: true,
+                isMentorVerified: true,
+                mentorBio: "Final-year undergrad focusing on Golang, consensus engines, and Kubernetes internals. Open for system design and architecture reviews.",
+                mentorTopics: ["Distributed Systems", "Go", "Docker", "Consensus Algorithms", "Resume Review"],
+                mentorTermsAccepted: true,
+                mentorTermsAcceptedAt: new Date(),
+                atsBoostPoints: 0,
+                skills: ["Go", "Kubernetes", "Distributed Systems", "Docker"],
+            },
+            { upsert: true, new: true }
+        );
+
+        await profileModel.findOneAndUpdate(
+            { userId: mentor2._id },
+            {
+                userId: mentor2._id,
+                category: "individual",
+                accountType: "student",
+                name: "Meera Krishnan",
+                headline: "Senior Engineering Fellow · Full-Stack Lead",
+                institution: "BITS Pilani",
+                graduationYear: new Date().getFullYear(),
+                isMentor: true,
+                isMentorVerified: true,
+                mentorBio: "Passionate about modern React 19, TypeScript compiler tools, and high-performance WebRTC applications. 5+ completed terms.",
+                mentorTopics: ["React 19", "Full-Stack System Design", "TypeScript", "Performance Tuning"],
+                mentorTermsAccepted: true,
+                mentorTermsAcceptedAt: new Date(),
+                atsBoostPoints: 20, // Received from verified 5★ completed mentorship
+                skills: ["React", "TypeScript", "Node.js", "WebRTC", "System Design"],
+            },
+            { upsert: true, new: true }
+        );
+
+        await profileModel.findOneAndUpdate(
+            { userId: mentor3._id },
+            {
+                userId: mentor3._id,
+                category: "individual",
+                accountType: "student",
+                name: "Kabir Sen",
+                headline: "AI/ML Research Fellow",
+                institution: "IIIT Hyderabad",
+                graduationYear: new Date().getFullYear() + 1,
+                isMentor: true,
+                isMentorVerified: true,
+                mentorBio: "Researching Transformer model quantization and lightweight inference pipelines with PyTorch and ONNX.",
+                mentorTopics: ["Machine Learning", "Transformers", "PyTorch", "NLP", "Model Quantization"],
+                mentorTermsAccepted: true,
+                mentorTermsAcceptedAt: new Date(),
+                atsBoostPoints: 0,
+                skills: ["Python", "PyTorch", "Machine Learning", "Transformers"],
+            },
+            { upsert: true, new: true }
+        );
+
+        // 5. Seed Mentorship Pairings (Active & Completed with Certificate)
+        await mentorshipModel.deleteMany({});
+
+        // Pairing 1: Active Pairing (Priya Sharma + Arjun Venkatraman)
+        const activePairing = await mentorshipModel.create({
+            mentorId: mentor1._id,
+            menteeId: studentUser._id,
+            status: "active",
+            startDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+            targetEndDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000),
+            topics: ["Distributed Systems", "Go", "Docker"],
+            notes: "Bi-weekly architecture check-ins for distributed cache thesis implementation.",
+            callSessions: [
+                {
+                    callRoomId: "session-call-101",
+                    startedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+                    endedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 25 * 60 * 1000),
+                    durationMinutes: 25,
+                },
+            ],
+            totalCallDurationMinutes: 25,
+        });
+
+        // Pairing 2: Completed Pairing (Priya Sharma + Meera Krishnan) with 5★ Rating & Certificate
+        await mentorshipModel.create({
+            mentorId: mentor2._id,
+            menteeId: studentUser._id,
+            status: "completed",
+            startDate: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000),
+            targetEndDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+            completedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+            topics: ["React 19", "System Design"],
+            notes: "Frontend performance optimization and WebSocket state handling.",
+            callSessions: [
+                {
+                    callRoomId: "session-call-201",
+                    startedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+                    endedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000 + 20 * 60 * 1000),
+                    durationMinutes: 20,
+                },
+                {
+                    callRoomId: "session-call-202",
+                    startedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000),
+                    endedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000 + 25 * 60 * 1000),
+                    durationMinutes: 25,
+                },
+            ],
+            totalCallDurationMinutes: 45,
+            menteeRating: 5,
+            menteeFeedback: "Exceptional architecture review. Directly assisted with our thesis microservice topology and WebRTC signaling.",
+            ratedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+            certificateIssued: true,
+            certificateIssuedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+            certificateId: "CERT-MENTOR-M8K2X1",
+        });
+
+        // 6. Seed Community Spaces & Real-time Messages
+        await communitySpaceModel.deleteMany({});
+        await communityMessageModel.deleteMany({});
+
+        const space1 = await communitySpaceModel.create({
+            name: "Google Cloud Student Developer Forum",
+            description: "High-throughput cloud architecture, Kubernetes clusters, and Go microservices discussions.",
+            industry: "Cloud Computing",
+            focus: "Distributed Cloud Architecture, K8s, Golang",
+            creatorId: industryUser._id,
+            members: [studentUser._id, facultyUser._id, industryUser._id],
+            memberCount: 412,
+        });
+
+        const space2 = await communitySpaceModel.create({
+            name: "Microsoft Open Source Ecosystem",
+            description: "Collaborative repository discussions, TypeScript tooling, and Azure SDK contributions.",
+            industry: "Software Engineering",
+            focus: "TypeScript, Azure Functions, Semantic Kernel",
+            creatorId: industryUser._id,
+            members: [studentUser._id, mentor2._id],
+            memberCount: 389,
+        });
+
+        const space3 = await communitySpaceModel.create({
+            name: "Razorpay Financial Engineering Hub",
+            description: "Payment infrastructure, low-latency transaction processing, and circuit-breaker patterns.",
+            industry: "FinTech",
+            focus: "Payment Rails, High-Throughput Microservices",
+            creatorId: industryUser._id,
+            members: [studentUser._id, facultyUser._id, industryUser._id],
+            memberCount: 275,
+        });
+
+        const space4 = await communitySpaceModel.create({
+            name: "AI & Neural Modeling Consortium",
+            description: "Research community focusing on large language models, model compression, and inference pipelines.",
+            industry: "Artificial Intelligence",
+            focus: "Transformers, Model Optimization, LLM Tooling",
+            creatorId: facultyUser._id,
+            members: [studentUser._id, mentor3._id, facultyUser._id],
+            memberCount: 512,
+        });
+
+        // Initial discussion entries
+        await communityMessageModel.create([
+            {
+                spaceId: space1._id,
+                senderId: industryUser._id,
+                senderName: "Razorpay Engineering",
+                senderRole: "industry",
+                content: "Welcome scholars! We're discussing distributed consensus edge cases this week. Check out the Raft consensus benchmarks in the repo.",
+            },
+            {
+                spaceId: space1._id,
+                senderId: facultyUser._id,
+                senderName: "Dr. A. K. Sundaram",
+                senderRole: "faculty",
+                content: "IIT Bombay research scholars are actively benchmarking leader-election latency on heterogenous networks. Happy to collaborate.",
+            },
+            {
+                spaceId: space3._id,
+                senderId: industryUser._id,
+                senderName: "Razorpay Engineering",
+                senderRole: "industry",
+                content: "New circuit breaker patterns for IndiaStack UPI payment callbacks just published. Open-source PRs welcome!",
+            },
+        ]);
+
+        // 7. Seed Open Source Repositories & Verified Contribution
+        await openSourceProjectModel.deleteMany({});
+        await contributionModel.deleteMany({});
+
+        const ossProject1 = await openSourceProjectModel.create({
+            postedBy: industryUser._id,
+            companyName: "Razorpay Engineering",
+            title: "Razorpay High-Performance Circuit Breaker",
+            description: "Ultra-low-latency resilience and failover library built in Go for distributed transaction rails. Handles millions of concurrent payment invocations.",
+            repoUrl: "https://github.com/razorpay/circuit-breaker-core",
+            repoFullName: "razorpay/circuit-breaker-core",
+            techStack: ["Go", "Distributed Systems", "gRPC", "Docker"],
+            difficulty: "intermediate",
+            openIssuesCount: 14,
+            webhookSecret: "portalacademia_wh_secret_razorpay_2026",
+            isActive: true,
+        });
+
+        const ossProject2 = await openSourceProjectModel.create({
+            postedBy: industryUser._id,
+            companyName: "Google Open Source",
+            title: "TensorFlow Rust Bindings & WASM Inference",
+            description: "High-performance WebAssembly runtime bindings for executing optimized neural graph inferences directly in browser sandboxes.",
+            repoUrl: "https://github.com/tensorflow/tf-rust-wasm",
+            repoFullName: "tensorflow/tf-rust-wasm",
+            techStack: ["Rust", "WASM", "WebAssembly", "AI/ML"],
+            difficulty: "advanced",
+            openIssuesCount: 8,
+            webhookSecret: "portalacademia_wh_secret_google_2026",
+            isActive: true,
+        });
+
+        // Verified contribution for Priya Sharma
+        await contributionModel.create({
+            projectId: ossProject1._id,
+            companyId: industryUser._id,
+            studentId: studentUser._id,
+            studentName: "Priya Sharma",
+            githubUsername: "priyasharma-dev",
+            prUrl: "https://github.com/razorpay/circuit-breaker-core/pull/42",
+            prTitle: "fix(telemetry): eliminate memory allocation leak during exponential backoff state transitions",
+            prNumber: 42,
+            mergedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+            certificateIssued: true,
+            certificateIssuedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+        });
+
+        // 8. Standardized Assessments
         await assessmentModel.deleteMany({});
-        console.log("Seeding standardized skill assessments...");
+        await assessmentModel.create([
+            {
+                title: "Standardized Python & Distributed Systems Diagnostic",
+                category: "Technical",
+                assessmentType: "technical",
+                skillVectors: ["Python", "Distributed Systems"],
+                description: "National benchmark assessment evaluating mastery of Python memory model, concurrent processing, and distributed network RPCs.",
+                durationMinutes: 45,
+                passPercentage: 70,
+                difficulty: "Intermediate",
+                badgeAwarded: "Certified Python Practitioner",
+                questions: [
+                    {
+                        questionId: "q1",
+                        questionText: "What is the primary operational distinction between threading and multiprocessing in standard CPython?",
+                        options: [
+                            "Threading is CPU-bound while multiprocessing is strictly for I/O operations.",
+                            "Threading is subject to the Global Interpreter Lock (GIL) in CPython, while multiprocessing spawns distinct OS processes with dedicated memory spaces.",
+                            "Multiprocessing cannot execute in parallel across multiple physical cores.",
+                            "CPython automatically compiles multithreaded scripts to WebAssembly.",
+                        ],
+                        correctOptionIndex: 1,
+                        weight: 1,
+                        explanation: "Due to the GIL, only one thread executes Python bytecode at a time in CPython. Multiprocessing bypasses this by spawning separate OS processes.",
+                    },
+                    {
+                        questionId: "q2",
+                        questionText: "Which HTTP status code is most appropriate when a client request violates an active rate-limiting policy?",
+                        options: ["401 Unauthorized", "403 Forbidden", "429 Too Many Requests", "503 Service Unavailable"],
+                        correctOptionIndex: 2,
+                        weight: 1,
+                        explanation: "RFC 6585 specifies HTTP 429 Too Many Requests when a client sends excessive requests in a given amount of time.",
+                    },
+                    {
+                        questionId: "q3",
+                        questionText: "In distributed systems, which property does the Raft consensus protocol guarantee during network partitions?",
+                        options: [
+                            "Zero latency on all writes",
+                            "Strict consistency with safety guarantees preventing split-brain states",
+                            "Infinite scalability without heartbeat exchanges",
+                            "Automatic master-master asynchronous replication",
+                        ],
+                        correctOptionIndex: 1,
+                        weight: 1,
+                        explanation: "Raft guarantees safety (consistency) by requiring a majority quorum for leader election and log entry commits, preventing split-brain.",
+                    },
+                ],
+                createdBy: institutionUser._id,
+            },
+        ]);
 
-        const pythonAssessment = await assessmentModel.create({
-            title: "Python for Data & Systems Benchmark",
-            description: "Objective evaluation testing proficiency in memory models, list comprehensions, data frames, and algorithmic efficiency.",
-            category: "Technical",
-            skillVectors: ["Python", "Pandas", "Data Structures"],
-            durationMinutes: 10,
-            passPercentage: 70,
-            difficulty: "Intermediate",
-            badgeAwarded: "Verified Python Practitioner",
-            questions: [
-                {
-                    questionId: "py-1",
-                    questionText: "What is the primary difference between Python's 'is' and '==' operators?",
-                    options: [
-                        "'is' checks object identity (memory address), while '==' checks value equality",
-                        "'is' checks value equality, while '==' checks object type",
-                        "'is' is faster because it automatically casts types",
-                        "There is no difference in modern Python 3"
-                    ],
-                    correctOptionIndex: 0,
-                    explanation: "'is' evaluates reference equality in memory (id(a) == id(b)), whereas '==' calls the __eq__ method.",
-                    weight: 1,
-                },
-                {
-                    questionId: "py-2",
-                    questionText: "Which data structure in Python provides O(1) average time complexity for key lookups?",
-                    options: ["List", "Tuple", "Dictionary (Hash Map)", "Binary Search Tree"],
-                    correctOptionIndex: 2,
-                    explanation: "Python dictionaries are implemented using high-density hash tables providing amortized O(1) lookup.",
-                    weight: 1,
-                },
-                {
-                    questionId: "py-3",
-                    questionText: "What does the GIL (Global Interpreter Lock) in CPython prevent?",
-                    options: [
-                        "Multiple processes from running simultaneously",
-                        "Multiple native threads from executing Python bytecode in parallel",
-                        "Asyncio event loops from handling I/O operations",
-                        "Garbage collection cycles"
-                    ],
-                    correctOptionIndex: 1,
-                    explanation: "The GIL ensures thread-safe memory management in CPython by allowing only one thread to execute bytecode at a time.",
-                    weight: 1,
-                },
-                {
-                    questionId: "py-4",
-                    questionText: "In Pandas, what is the most memory-efficient way to handle a column with few unique string values?",
-                    options: [
-                        "Convert dtype to 'category'",
-                        "Convert dtype to 'object'",
-                        "Store as raw byte strings",
-                        "Leave as default string format"
-                    ],
-                    correctOptionIndex: 0,
-                    explanation: "Categorical dtypes encode distinct values into an integer dictionary, drastically reducing RAM utilization.",
-                    weight: 1,
-                },
-                {
-                    questionId: "py-5",
-                    questionText: "What will `[x**2 for x in range(5) if x % 2 == 0]` produce?",
-                    options: ["[0, 4, 16]", "[0, 1, 4, 9, 16]", "[1, 9]", "[4, 16]"],
-                    correctOptionIndex: 0,
-                    explanation: "Range(5) yields 0, 1, 2, 3, 4. Even values are 0, 2, 4. Squared: 0, 4, 16.",
-                    weight: 1,
-                },
-            ],
-        });
-
-        const cloudAssessment = await assessmentModel.create({
-            title: "Cloud Infrastructure & Containerization Assessment",
-            description: "Standardized evaluation on Docker container isolation, image layers, and microservice networking.",
-            category: "Technical",
-            skillVectors: ["Docker", "Cloud", "Linux"],
-            durationMinutes: 10,
-            passPercentage: 70,
-            difficulty: "Intermediate",
-            badgeAwarded: "Certified Container Specialist",
-            questions: [
-                {
-                    questionId: "cl-1",
-                    questionText: "What Linux kernel primitives form the core foundation of Docker container isolation?",
-                    options: [
-                        "Namespaces and cgroups",
-                        "KVM and QEMU hypervisors",
-                        "Systemd and Cron daemons",
-                        "IPTables and BPF filters only"
-                    ],
-                    correctOptionIndex: 0,
-                    explanation: "Namespaces provide workspace isolation (PID, NET, MNT), and cgroups limit resource consumption (CPU, RAM).",
-                    weight: 1,
-                },
-                {
-                    questionId: "cl-2",
-                    questionText: "Why is multi-stage Docker builds recommended for production deployments?",
-                    options: [
-                        "It makes containers run 10x faster",
-                        "It excludes compilation toolchains and build dependencies from the final lightweight runtime image",
-                        "It bypasses root user requirements automatically",
-                        "It creates multiple container instances concurrently"
-                    ],
-                    correctOptionIndex: 1,
-                    explanation: "Multi-stage builds allow copying only built artifacts into a minimal base image (like alpine or distroless).",
-                    weight: 1,
-                },
-                {
-                    questionId: "cl-3",
-                    questionText: "What does the `EXPOSE` instruction in a Dockerfile do?",
-                    options: [
-                        "Automatically publishes the port to the host network interface",
-                        "Serves as documentation metadata indicating which port the container listens on",
-                        "Opens firewall rules in the operating system",
-                        "Encrypts incoming traffic"
-                    ],
-                    correctOptionIndex: 1,
-                    explanation: "`EXPOSE` functions purely as operational documentation. Host port publishing requires the `-p` runtime flag.",
-                    weight: 1,
-                },
-                {
-                    questionId: "cl-4",
-                    questionText: "In AWS architecture, which service provides serverless event-driven compute?",
-                    options: ["Amazon EC2", "AWS Lambda", "Amazon EBS", "Amazon RDS"],
-                    correctOptionIndex: 1,
-                    explanation: "AWS Lambda executes code in response to events and automatically manages the underlying compute infrastructure.",
-                    weight: 1,
-                },
-            ],
-        });
-
-        // 4. Seed Marketplace Opportunities across all 6 categories
+        // 9. Seed Core Opportunities
         await opportunityModel.deleteMany({});
-        console.log("Seeding marketplace opportunities across all 6 categories...");
-
         const opp1 = await opportunityModel.create({
-            title: "AI Research & Applied NLP Engineering Intern",
-            description: "Work directly with senior AI researchers at TCS Innovation Labs developing domain-adapted LLMs and knowledge graphs for enterprise search.",
-            organization: "Tata Consultancy Services",
+            title: "Distributed Systems Engineering Internship (Summer 2026)",
+            description: "Join Razorpay's Core Reliability Engineering team to build next-generation event-streaming infrastructure and payment retry engines.",
+            organization: "Razorpay Software Pvt. Ltd.",
             createdBy: industryUser._id,
             category: "internship",
-            domain: "Machine Learning & Natural Language Processing",
-            location: "Bengaluru, KA",
+            domain: "Backend Infrastructure",
+            location: "Bengaluru, Karnataka / Hybrid",
             mode: "Hybrid",
             duration: "6 Months",
-            stipendOrPrize: "₹45,000 / mo",
-            requiredSkills: ["Python", "PyTorch", "NLP", "React"],
-            eligibility: "Pre-final / final year B.Tech, M.Tech, or MCA candidates with verified Python competency.",
+            stipendOrPrize: "₹85,000 / month",
+            requiredSkills: ["React", "TypeScript", "Node.js", "Python", "Docker"],
+            eligibility: "B.Tech/M.Tech Computer Science students graduating in 2026 or 2027.",
             deadline: "2026-10-30",
             status: "active",
             targetAudience: "student",
             recommendedToStudentsBy: [institutionUser._id],
-            applicantCount: 1, // 1 sample application from Priya Sharma
+            applicantCount: 1,
         });
 
-        const opp2 = await opportunityModel.create({
-            title: "Smart Ayush Healthcare Innovation Challenge 2026",
-            description: "National hackathon sponsored by Ministry of Ayush tackling digital herbarium classification, clinical telemetry standardization, and patient symptom triaging.",
-            organization: "Ministry of Ayush / SIH",
-            createdBy: industryUser._id,
-            category: "hackathon",
-            domain: "Ayurvedic Healthcare Telemetry",
-            location: "New Delhi (Grand Finale) / Virtual Sprints",
-            mode: "Hybrid",
-            duration: "48 Hours",
-            stipendOrPrize: "₹3,50,000 Prize Pool",
-            requiredSkills: ["React", "Node.js", "Data Analysis", "MongoDB"],
-            eligibility: "Student teams of 4-6 members enrolled in accredited AISHE Indian institutions.",
-            deadline: "2026-11-15",
-            status: "active",
-            targetAudience: "student",
-            recommendedToStudentsBy: [institutionUser._id],
-            applicantCount: 0,
-        });
-
-        const opp3 = await opportunityModel.create({
-            title: "AWS Cloud Practitioner & Serverless Architecture Masterclass",
-            description: "4-week hands-on deep dive covering AWS Lambda, API Gateway, DynamoDB, and infrastructure-as-code with official certification examination vouchers.",
-            organization: "AWS Academy & PortalAcademia",
-            createdBy: industryUser._id,
-            category: "workshop",
-            domain: "Cloud Architecture & DevOps",
-            location: "Remote (Interactive Virtual Lab)",
-            mode: "Remote",
-            duration: "4 Weeks",
-            stipendOrPrize: "Free Certified Voucher (Value ₹12,000)",
-            requiredSkills: ["Cloud", "Linux", "Docker"],
-            eligibility: "Open to all students and faculty seeking official AWS Cloud certification.",
-            deadline: "2026-10-15",
-            status: "active",
-            targetAudience: "both",
-            recommendedToStudentsBy: [institutionUser._id],
-            recommendedToFacultyBy: [institutionUser._id],
-            applicantCount: 0,
-        });
-
-        const opp4 = await opportunityModel.create({
-            title: "Faculty Development Program (FDP) on AI & Pedagogical Modernization",
-            description: "Intensive 2-week hybrid refresher program empowering university professors to integrate live industry telemetry, case studies, and ML tools into syllabus design.",
-            organization: "IIT Bombay & Ministry of Education",
-            createdBy: institutionUser._id,
-            category: "fdp",
-            domain: "Higher Education Curriculum Modernization",
-            location: "Mumbai, Maharashtra",
-            mode: "Hybrid",
-            duration: "2 Weeks",
-            stipendOrPrize: "MHRD Certified Credit Badge",
-            requiredSkills: ["Machine Learning", "Curriculum Design", "Python"],
-            eligibility: "Accredited university professors, assistant professors, and lecturers across all departments.",
-            deadline: "2026-10-25",
-            status: "active",
-            targetAudience: "faculty",
-            recommendedToFacultyBy: [institutionUser._id],
-            applicantCount: 0,
-        });
-
-        const opp5 = await opportunityModel.create({
-            title: "Industrial Sabbatical in Autonomous Systems & Robotics",
-            description: "Corporate sabbatical residency at DRDO laboratories for university faculty to conduct defense robotics research, unmanned aerial system simulation, and embedded control testing.",
-            organization: "DRDO Research & Development Center",
-            createdBy: industryUser._id,
-            category: "sabbatical",
-            domain: "Robotics, Autonomous Navigation & Control",
-            location: "Pune, Maharashtra",
-            mode: "On-site",
-            duration: "3 - 6 Months",
-            stipendOrPrize: "₹1,20,000 / mo Fellowship",
-            requiredSkills: ["Robotics", "Embedded Systems", "C++", "Linux"],
-            eligibility: "Tenured or contract faculty with Ph.D. or 5+ years academic teaching experience in engineering.",
-            deadline: "2026-11-30",
-            status: "active",
-            targetAudience: "faculty",
-            recommendedToFacultyBy: [institutionUser._id],
-            applicantCount: 0,
-        });
-
-        const opp6 = await opportunityModel.create({
-            title: "Joint Industry-Academia Ayurvedic Telemetry Knowledge Graph",
-            description: "Sponsored corporate-academic research grant to build a unified ontologic knowledge graph linking classical Ayurvedic formulations with modern biochemical telemetry.",
-            organization: "Dabur Research & Ministry of Ayush",
-            createdBy: industryUser._id,
-            category: "research",
-            domain: "Medical Informatics & Knowledge Graphs",
-            location: "New Delhi / Remote",
-            mode: "Hybrid",
-            duration: "12 Months",
-            stipendOrPrize: "₹15,00,000 Seed Grant",
-            requiredSkills: ["Knowledge Graphs", "Python", "Data Analysis"],
-            eligibility: "Joint proposals led by a university professor paired with student researchers.",
-            deadline: "2026-12-15",
-            status: "active",
-            targetAudience: "faculty",
-            recommendedToFacultyBy: [institutionUser._id],
-            applicantCount: 0,
-        });
-
-        // 5. Seed Initial Sample Application
+        // 10. Sample Application
         await applicationModel.deleteMany({});
         await applicationModel.create({
             opportunityId: opp1._id,
@@ -433,18 +520,21 @@ async function seed() {
             applicantEmail: "priya.sharma@iitb.ac.in",
             applicantInstitution: "Indian Institute of Technology Bombay",
             applicantSkills: ["React", "TypeScript", "Node.js", "Python", "Docker"],
-            matchScore: 92,
+            matchScore: 94,
             status: "Shortlisted",
             appliedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-            notes: "I have hands-on experience building NLP text processing pipelines and modern React dashboards.",
-            reviewerNotes: "Excellent profile. Passed standardized Python test with 90%. Advancing to interview.",
+            notes: "Hands-on experience building distributed systems, WebRTC video calling, and React dashboards.",
+            reviewerNotes: "Top tier profile. Passed standardized diagnostic with 94%. Advancing to final round.",
         });
 
-        console.log("Database seeded successfully!");
-        console.log(`- Seeded 4 User Profiles: Student, Industry, Institution, Faculty`);
-        console.log(`- Seeded 2 Standardized Assessments: Python & Cloud/Containers`);
-        console.log(`- Seeded 6 Opportunities across all categories: Internship, Hackathon, Workshop, FDP, Sabbatical, Research`);
-        console.log(`- Seeded 1 Active Application for Priya Sharma (Shortlisted)`);
+        console.log("Database seeded successfully to MongoDB Atlas!");
+        console.log(`- Seeded 7 Users: Student, Industry, Institution, Faculty, 3 Senior Mentors`);
+        console.log(`- Seeded Active Premium Membership for Priya Sharma`);
+        console.log(`- Seeded 3 Senior Mentors with Free Registration & Accepted Terms`);
+        console.log(`- Seeded 2 Mentorship Pairings: 1 Active (WebRTC ready) & 1 Completed (5.0★ + Certificate)`);
+        console.log(`- Seeded 4 Enterprise Community Spaces with Live Messages`);
+        console.log(`- Seeded 2 Open Source Projects & 1 Verified GitHub PR Credential`);
+        console.log(`- Seeded Standardized Assessments & Core Opportunities`);
 
         process.exit(0);
     } catch (err) {

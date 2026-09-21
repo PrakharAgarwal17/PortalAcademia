@@ -186,6 +186,43 @@ POST /api/ai/chat
 | `POST` | `/api/onboarding/verify-otp` | Authenticated | Verifies code and records institutional email verification. |
 | `POST` | `/api/onboarding/crawl-college-emails` | Authenticated | Extracts institutional domain format from college directory. |
 
+
+---
+
+## 14. Peer Mentorship & WebRTC Video (`/api/mentorship`)
+
+| Method | Endpoint | Access | Description |
+|:---|:---|:---|:---|
+| `GET` | `/api/mentorship/mentors` | Authenticated | Discover verified senior peer mentors with average ratings. |
+| `POST` | `/api/mentorship/apply` | Authenticated (Student) | Final-year students apply for free by agreeing to Mentor Honor Code. |
+| `POST` | `/api/mentorship/request` | Authenticated (Premium) | Premium students schedule 1-on-1 advisory session with a mentor. |
+| `GET` | `/api/mentorship/my-pairings` | Authenticated | Retrieve active and completed sessions (as mentor or mentee). |
+| `POST` | `/api/mentorship/:id/complete` | Authenticated (Pairing) | Gated completion: requires $\ge 21$ days timeline or 2 calls $\ge 30$ mins. |
+| `POST` | `/api/mentorship/:id/rate` | Mentee | 1-5 star evaluation. Ratings $\ge 4.0$ on completed terms award Certificate & +20 ATS boost. |
+| `POST` | `/api/mentorship/:id/report` | Authenticated (Pairing) | Submit in-call misconduct report for administrative audit. |
+| `GET` | `/api/mentorship/reports` | Institution / Admin | Administrative review of misconduct reports. |
+| `PATCH`| `/api/mentorship/reports/:id/status` | Institution / Admin | Update report status (`action_taken` auto-revokes mentor status). |
+
+### WebRTC Socket Signaling (`Socket.IO`)
+- Handshake Authentication: Cookie verification (`accesstoken`/`refreshtoken`).
+- Rooms: `mentorship_<pairingId>` (participant authorization strictly enforced).
+- Events: `join_call_room`, `webrtc_offer`, `webrtc_answer`, `webrtc_ice_candidate`, `call_message`, `end_call`.
+
+---
+
+## 15. Enterprise Technical Spaces (`/api/community`)
+
+| Method | Endpoint | Access | Description |
+|:---|:---|:---|:---|
+| `GET` | `/api/community/spaces` | Authenticated | List all enterprise community spaces with member counts. |
+| `POST` | `/api/community/spaces` | Industry / Faculty / Admin | Create a new verified discussion space. |
+| `POST` | `/api/community/spaces/:id/join` | Premium / Faculty / Industry | Join space (requires Premium for students; free for faculty/industry). |
+| `GET` | `/api/community/spaces/:id/messages` | Authenticated | Fetch latest 100 chat messages chronologically. |
+
+### Real-time Space Chat (`Socket.IO`)
+- Rooms: `community_<spaceId>` (socket-level premium and role entitlement checked).
+- Events: `join_community_space`, `send_community_message`, `new_community_message`, `leave_community_space`.
+
 ---
 
 ## Standard Error Response Format

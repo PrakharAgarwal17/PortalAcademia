@@ -16,6 +16,9 @@ PortalAcademia addresses the structural gap between university curricula and ent
 5. **Contextual AI Career Guide**: LLaMA-3 / Groq-powered conversational mentor with dynamic profile context injection and storage-preserving TTL safeguards.
 6. **Open-Source Contribution Engine & Automated GitHub Webhooks**: Industry partners register enterprise open-source repositories; students contribute code; merged pull requests trigger SHA256 HMAC-verified webhooks to automatically record contributions, notify students, and allow companies to issue verifiable achievement certificates.
 7. **Razorpay Membership & Payment Infrastructure**: Student tier progression supporting 7-day one-time free trials and ₹200 / 30-day subscriptions via Razorpay checkout, unlocking premium open-source repositories, recruiter talent pipelines, and specialized career tracks.
+8. **Peer Mentorship & Direct WebRTC 1-on-1 Video Engine**: Senior scholars (4th year) apply for free by pledging to the Mentor Honor Code. Junior scholars with active Premium schedule 1-on-1 advisory sessions featuring direct WebRTC audio/video calling with STUN and TURN relay fallback, in-call live chat notes, and misconduct reporting. Completion integrity gates enforce minimum term elapsed time or logged call volume before issuing Certificates of Appreciation and +20 ATS profile boosts.
+9. **Enterprise Technical Spaces & Real-Time Chat**: Live industry community discussion channels powered by Socket.IO with socket-level authorization ensuring verified faculty, recruiters, and premium scholars can collaborate.
+10. **Asynchronous Skill-Matched Opportunity Dispatches**: Non-blocking telemetry service using Nodemailer to alert relevant students when verified opportunities matching their verified skills are published.
 
 ```mermaid
 flowchart TB
