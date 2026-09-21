@@ -73,8 +73,13 @@ export async function applyAsMentor(req: Request, res: Response) {
  */
 export async function getMentors(req: Request, res: Response) {
     try {
+        const query: any = { isMentor: true };
+        if (req.userId && mongoose.Types.ObjectId.isValid(req.userId)) {
+            query.userId = { $ne: new mongoose.Types.ObjectId(req.userId) };
+        }
+
         const mentors = await profileModel
-            .find({ isMentor: true })
+            .find(query)
             .select("userId name headline bio profileImage image institution graduationYear skills verifiedSkills mentorBio mentorTopics atsBoostPoints createdAt")
             .lean();
 

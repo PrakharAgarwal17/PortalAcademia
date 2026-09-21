@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Crown,
   Sparkles,
@@ -599,7 +598,6 @@ function CertificateModal({ contribution, studentName, onClose }: CertificateMod
 type ActiveTab = "overview" | "opensource" | "mentors" | "communities" | "digest";
 
 export default function PremiumDashboard() {
-  const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [membership, setMembership] = useState<MembershipStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -630,6 +628,8 @@ export default function PremiumDashboard() {
   const [isLoadingSpaces, setIsLoadingSpaces] = useState(false);
   const [activeChatSpace, setActiveChatSpace] = useState<CommunitySpace | null>(null);
   const [joiningSpaceId, setJoiningSpaceId] = useState<string | null>(null);
+  const [communitySearchQuery, setCommunitySearchQuery] = useState("");
+  const [selectedCommunityIndustry, setSelectedCommunityIndustry] = useState<string>("all");
 
   const isPremium = membership?.isPremium === true;
 
@@ -1015,27 +1015,56 @@ export default function PremiumDashboard() {
                   </div>
                 </div>
 
-                {/* Mentor Application Callout */}
-                <div className="rounded-md border border-border bg-card p-4 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-md bg-secondary border border-border flex items-center justify-center shrink-0">
-                      <Shield className="w-4 h-4 text-foreground" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-foreground">
-                        Senior Scholar or Alumni Mentor Application
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Are you a 4th-year student or alumni? Apply to mentor junior peers and earn verification credits.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => navigate("/profile")}
-                    className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors cursor-pointer"
-                  >
-                    View Mentor Requirements
-                  </button>
+                {/* Mentor Status / Application Callout */}
+                <div className="rounded-md border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  {profile?.isMentor ? (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-md bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                          <GraduationCap className="w-4 h-4 text-emerald-500" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-foreground flex items-center gap-2">
+                            <span>Verified Senior Peer Mentor</span>
+                            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-xs border border-emerald-500/20">
+                              +{profile.atsBoostPoints || 20} ATS Boost
+                            </span>
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Your mentor profile is published in the scholar directory. You can update your coaching topics or advising bio anytime.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowMentorApplyModal(true)}
+                        className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors cursor-pointer"
+                      >
+                        Update Mentor Profile
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-md bg-secondary border border-border flex items-center justify-center shrink-0">
+                          <Shield className="w-4 h-4 text-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-foreground">
+                            Senior Scholar or Alumni Mentor Application
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Are you a 4th-year student or alumni? Apply to mentor junior peers and earn verification credits.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowMentorApplyModal(true)}
+                        className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors cursor-pointer"
+                      >
+                        View Mentor Requirements &amp; Apply
+                      </button>
+                    </>
+                  )}
                 </div>
               </>
             )}
@@ -1260,9 +1289,18 @@ export default function PremiumDashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     {profile?.isMentor ? (
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Registered Mentor · +{profile.atsBoostPoints || 0} ATS Boost</span>
+                      <div className="flex items-center gap-2">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Registered Mentor · +{profile.atsBoostPoints || 20} ATS Boost</span>
+                        </div>
+                        <button
+                          onClick={() => setShowMentorApplyModal(true)}
+                          className="px-3 py-1.5 rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                          <GraduationCap className="w-3.5 h-3.5 text-primary" />
+                          <span>Edit Bio &amp; Topics</span>
+                        </button>
                       </div>
                     ) : (
                       <button
@@ -1407,23 +1445,10 @@ export default function PremiumDashboard() {
                     <div className="p-12 flex items-center justify-center">
                       <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                     </div>
-                  ) : mentors.length === 0 ? (
-                    <div className="p-8 rounded-md border border-dashed border-border text-center space-y-2">
-                      <p className="text-xs font-semibold text-foreground">No active mentors found</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Be the first senior scholar to apply and mentor junior peers!
-                      </p>
-                      <button
-                        onClick={() => setShowMentorApplyModal(true)}
-                        className="px-3 py-1.5 text-xs font-semibold rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer inline-flex items-center gap-1.5 mt-2"
-                      >
-                        <GraduationCap className="w-3.5 h-3.5" />
-                        <span>Register as Mentor</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {mentors
+                  ) : (() => {
+                      const currentUserId = (profile?.userId || profile?._id)?.toString();
+                      const availableMentors = mentors
+                        .filter((m) => !currentUserId || m.userId?.toString() !== currentUserId)
                         .filter(
                           (m) =>
                             !mentorSearchQuery ||
@@ -1438,97 +1463,126 @@ export default function PremiumDashboard() {
                               m.skills.some((s) =>
                                 s.toLowerCase().includes(mentorSearchQuery.toLowerCase())
                               ))
-                        )
-                        .map((m) => (
-                          <div
-                            key={m.userId}
-                            className="p-4 rounded-md border border-border bg-card flex flex-col justify-between gap-3 shadow-xs"
-                          >
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-mono uppercase text-muted-foreground">
-                                  Verified Mentor
-                                </span>
-                                <div className="flex items-center gap-1 text-[11px] font-mono text-amber-500">
-                                  <Star className="w-3 h-3 fill-amber-500" />
-                                  <span>{m.rating || 5.0}</span>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    ({m.reviewCount || 0})
+                        );
+
+                      if (availableMentors.length === 0) {
+                        return (
+                          <div className="p-8 rounded-md border border-dashed border-border text-center space-y-2">
+                            <p className="text-xs font-semibold text-foreground">
+                              {profile?.isMentor
+                                ? "No other verified mentors currently found"
+                                : "No active mentors found"}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {profile?.isMentor
+                                ? "Your mentor profile is published in the directory. Other peers and mentors will appear as they join."
+                                : "Be the first senior scholar to apply and mentor junior peers!"}
+                            </p>
+                            {!profile?.isMentor && (
+                              <button
+                                onClick={() => setShowMentorApplyModal(true)}
+                                className="px-3 py-1.5 text-xs font-semibold rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer inline-flex items-center gap-1.5 mt-2"
+                              >
+                                <GraduationCap className="w-3.5 h-3.5" />
+                                <span>Register as Mentor</span>
+                              </button>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {availableMentors.map((m) => (
+                            <div
+                              key={m.userId}
+                              className="p-4 rounded-md border border-border bg-card flex flex-col justify-between gap-3 shadow-xs"
+                            >
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                                    Verified Mentor
                                   </span>
+                                  <div className="flex items-center gap-1 text-[11px] font-mono text-amber-500">
+                                    <Star className="w-3 h-3 fill-amber-500" />
+                                    <span>{m.rating || 5.0}</span>
+                                    <span className="text-[10px] text-muted-foreground">
+                                      ({m.reviewCount || 0})
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <h3 className="text-xs font-bold text-foreground">{m.name}</h3>
+                                  <p className="text-[11px] text-muted-foreground line-clamp-1">
+                                    {m.headline || m.institution || "Scholar"}
+                                  </p>
+                                  {m.mentorBio && (
+                                    <p className="text-[11px] text-muted-foreground/80 mt-1 line-clamp-2 leading-relaxed">
+                                      {m.mentorBio}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="flex flex-wrap gap-1 pt-1">
+                                  {(m.mentorTopics || m.skills || []).slice(0, 4).map((t) => (
+                                    <span
+                                      key={t}
+                                      className="text-[9px] font-mono bg-secondary px-1.5 py-0.5 rounded-sm border border-border text-muted-foreground"
+                                    >
+                                      {t}
+                                    </span>
+                                  ))}
                                 </div>
                               </div>
 
-                              <div>
-                                <h3 className="text-xs font-bold text-foreground">{m.name}</h3>
-                                <p className="text-[11px] text-muted-foreground line-clamp-1">
-                                  {m.headline || m.institution || "Scholar"}
-                                </p>
-                                {m.mentorBio && (
-                                  <p className="text-[11px] text-muted-foreground/80 mt-1 line-clamp-2 leading-relaxed">
-                                    {m.mentorBio}
-                                  </p>
-                                )}
-                              </div>
-
-                              <div className="flex flex-wrap gap-1 pt-1">
-                                {(m.mentorTopics || m.skills || []).slice(0, 4).map((t) => (
-                                  <span
-                                    key={t}
-                                    className="text-[9px] font-mono bg-secondary px-1.5 py-0.5 rounded-sm border border-border text-muted-foreground"
-                                  >
-                                    {t}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-
-                            <button
-                              onClick={async () => {
-                                if (!isPremium) {
-                                  setShowPaymentModal(true);
-                                  return;
-                                }
-                                setBookingLoadingId(m.userId);
-                                try {
-                                  const res = await fetch(`${API_BASE}/api/mentorship/request`, {
-                                    method: "POST",
-                                    credentials: "include",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({
-                                      mentorUserId: m.userId,
-                                      notes: "Scheduled 1-on-1 technical advisory session",
-                                      topics: m.mentorTopics || m.skills || [],
-                                    }),
-                                  });
-                                  const data = await res.json();
-                                  if (data.success) {
-                                    setMentorshipAlert(
-                                      `Session confirmed with ${m.name}! Direct WebRTC video calling is now active.`
-                                    );
-                                    void fetchMentorshipData();
-                                  } else {
-                                    alert(data.message || "Failed to schedule session.");
+                              <button
+                                onClick={async () => {
+                                  if (!isPremium) {
+                                    setShowPaymentModal(true);
+                                    return;
                                   }
-                                } catch {
-                                  alert("Network error while booking mentorship.");
-                                } finally {
-                                  setBookingLoadingId(null);
-                                }
-                              }}
-                              disabled={bookingLoadingId === m.userId}
-                              className="w-full text-xs font-semibold py-2 rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
-                            >
-                              {bookingLoadingId === m.userId ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <PhoneCall className="w-3.5 h-3.5" />
-                              )}
-                              <span>Request 1-on-1 Advising</span>
-                            </button>
-                          </div>
-                        ))}
-                    </div>
-                  )}
+                                  setBookingLoadingId(m.userId);
+                                  try {
+                                    const res = await fetch(`${API_BASE}/api/mentorship/request`, {
+                                      method: "POST",
+                                      credentials: "include",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        mentorUserId: m.userId,
+                                        focusArea: m.mentorTopics?.[0] || "Career & Architecture Advising",
+                                      }),
+                                    });
+                                    const data = await res.json();
+                                    if (data.success) {
+                                      setMentorshipAlert(
+                                        `Session confirmed with ${m.name}! Direct WebRTC video calling is now active.`
+                                      );
+                                      void fetchMentorshipData();
+                                    } else {
+                                      alert(data.message || "Failed to schedule session.");
+                                    }
+                                  } catch {
+                                    alert("Network error while booking mentorship.");
+                                  } finally {
+                                    setBookingLoadingId(null);
+                                  }
+                                }}
+                                disabled={bookingLoadingId === m.userId}
+                                className="w-full text-xs font-semibold py-2 rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                              >
+                                {bookingLoadingId === m.userId ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <PhoneCall className="w-3.5 h-3.5" />
+                                )}
+                                <span>Request 1-on-1 Advising</span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                 </div>
               </div>
             )}
@@ -1536,92 +1590,190 @@ export default function PremiumDashboard() {
             {/* ── COMMUNITIES TAB ──────────────────────────────────── */}
             {activeTab === "communities" && (
               <div className="space-y-6">
-                <div>
-                  <h1 className="text-sm font-bold tracking-tight text-foreground uppercase">
-                    Enterprise Technical Spaces
-                  </h1>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Join verified company and institutional engineering communities for technical AMAs, design reviews, and hiring discussions.
-                  </p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
+                  <div>
+                    <h1 className="text-sm font-bold tracking-tight text-foreground uppercase">
+                      Enterprise Technical Spaces
+                    </h1>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Join verified company and institutional engineering communities for technical AMAs, design reviews, and hiring discussions.
+                    </p>
+                  </div>
+                  <div className="relative w-full sm:w-72">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Search spaces, focus, industry..."
+                      value={communitySearchQuery}
+                      onChange={(e) => setCommunitySearchQuery(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-background border border-border rounded-sm text-foreground focus:outline-none focus:border-foreground/40"
+                    />
+                  </div>
                 </div>
 
                 {!isPremium && profile?.accountType === "student" ? (
                   <PremiumLockedBanner onUpgrade={() => setShowPaymentModal(true)} />
                 ) : (
                   <div className="space-y-4">
+                    {/* Industry Domain Filter Chips */}
+                    {(() => {
+                      const industries = Array.from(
+                        new Set(communitySpaces.map((s) => s.industry).filter(Boolean))
+                      );
+                      if (industries.length === 0) return null;
+                      return (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedCommunityIndustry("all")}
+                            className={cn(
+                              "text-[10px] font-mono uppercase px-2.5 py-1 rounded-sm border transition-colors cursor-pointer",
+                              selectedCommunityIndustry === "all"
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-card text-muted-foreground border-border hover:text-foreground"
+                            )}
+                          >
+                            All Spaces ({communitySpaces.length})
+                          </button>
+                          {industries.map((ind) => {
+                            const count = communitySpaces.filter((s) => s.industry === ind).length;
+                            return (
+                              <button
+                                key={ind}
+                                type="button"
+                                onClick={() => setSelectedCommunityIndustry(ind)}
+                                className={cn(
+                                  "text-[10px] font-mono uppercase px-2.5 py-1 rounded-sm border transition-colors cursor-pointer",
+                                  selectedCommunityIndustry === ind
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-card text-muted-foreground border-border hover:text-foreground"
+                                )}
+                              >
+                                {ind} ({count})
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+
                     {isLoadingSpaces ? (
                       <div className="p-12 flex items-center justify-center">
                         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                       </div>
-                    ) : communitySpaces.length === 0 ? (
-                      <div className="p-8 rounded-md border border-dashed border-border text-center space-y-1">
-                        <p className="text-xs font-semibold text-foreground">No enterprise spaces found</p>
-                        <p className="text-[11px] text-muted-foreground">
-                          Technical discussion forums will appear here as industry partners initiate channels.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {communitySpaces.map((space) => (
-                          <div
-                            key={space._id}
-                            className="p-4 rounded-md border border-border bg-card flex flex-col justify-between gap-3"
-                          >
-                            <div className="space-y-1.5">
-                              <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
-                                <span className="uppercase">{space.industry}</span>
-                                <span className="flex items-center gap-1">
-                                  <Users className="w-3 h-3" />
-                                  <span>{space.memberCount || 0} scholars</span>
-                                </span>
-                              </div>
-                              <h3 className="text-xs font-bold text-foreground">{space.name}</h3>
-                              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                {space.description}
-                              </p>
-                              {space.focus && (
-                                <span className="inline-block text-[10px] font-mono text-primary bg-primary/5 px-2 py-0.5 rounded-sm border border-primary/20">
-                                  {space.focus}
-                                </span>
-                              )}
-                            </div>
+                    ) : (() => {
+                      const filteredSpaces = communitySpaces.filter((space) => {
+                        const matchesIndustry =
+                          selectedCommunityIndustry === "all" ||
+                          space.industry?.toLowerCase() === selectedCommunityIndustry.toLowerCase();
+                        if (!matchesIndustry) return false;
+                        if (!communitySearchQuery.trim()) return true;
+                        const q = communitySearchQuery.toLowerCase();
+                        return (
+                          space.name.toLowerCase().includes(q) ||
+                          space.description.toLowerCase().includes(q) ||
+                          (space.industry && space.industry.toLowerCase().includes(q)) ||
+                          (space.focus && space.focus.toLowerCase().includes(q))
+                        );
+                      });
 
-                            <button
-                              onClick={async () => {
-                                setJoiningSpaceId(space._id);
-                                try {
-                                  const res = await fetch(
-                                    `${API_BASE}/api/community/spaces/${space._id}/join`,
-                                    {
-                                      method: "POST",
-                                      credentials: "include",
-                                    }
-                                  );
-                                  const data = await res.json();
-                                  if (data.success) {
-                                    setActiveChatSpace(space);
-                                    void fetchCommunitySpaces();
-                                  } else {
-                                    alert(data.message || "Failed to join space.");
-                                  }
-                                } catch {
-                                  alert("Network error while connecting to space.");
-                                } finally {
-                                  setJoiningSpaceId(null);
-                                }
-                              }}
-                              disabled={joiningSpaceId === space._id}
-                              className="text-xs font-semibold px-3 py-1.5 rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors self-start cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                            >
-                              {joiningSpaceId === space._id && (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              )}
-                              <span>Open Discussion Channel →</span>
-                            </button>
+                      if (filteredSpaces.length === 0) {
+                        return (
+                          <div className="p-8 rounded-md border border-dashed border-border text-center space-y-2">
+                            <p className="text-xs font-semibold text-foreground">
+                              {communitySearchQuery || selectedCommunityIndustry !== "all"
+                                ? "No matching technical spaces found"
+                                : "No enterprise spaces found"}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {communitySearchQuery || selectedCommunityIndustry !== "all"
+                                ? "Try broadening your search terms or selecting another industry domain."
+                                : "Technical discussion forums will appear here as industry partners initiate channels."}
+                            </p>
+                            {(communitySearchQuery || selectedCommunityIndustry !== "all") && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCommunitySearchQuery("");
+                                  setSelectedCommunityIndustry("all");
+                                }}
+                                className="px-3 py-1.5 text-xs font-semibold rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors cursor-pointer inline-flex items-center gap-1.5 mt-1"
+                              >
+                                <span>Reset Filters</span>
+                              </button>
+                            )}
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        );
+                      }
+
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {filteredSpaces.map((space) => (
+                            <div
+                              key={space._id}
+                              className="p-4 rounded-md border border-border bg-card flex flex-col justify-between gap-3 shadow-xs hover:border-foreground/30 transition-colors"
+                            >
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between text-[10px] font-mono">
+                                  <span className="uppercase text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-sm border border-border">
+                                    {space.industry}
+                                  </span>
+                                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    <Users className="w-3 h-3" />
+                                    <span>{space.memberCount || 0} scholars</span>
+                                  </span>
+                                </div>
+                                <div>
+                                  <h3 className="text-xs font-bold text-foreground">{space.name}</h3>
+                                  <p className="text-[11px] text-muted-foreground leading-relaxed mt-1 line-clamp-2">
+                                    {space.description}
+                                  </p>
+                                </div>
+                                {space.focus && (
+                                  <span className="inline-block text-[10px] font-mono text-primary bg-primary/5 px-2 py-0.5 rounded-sm border border-primary/20">
+                                    #{space.focus}
+                                  </span>
+                                )}
+                              </div>
+
+                              <button
+                                onClick={async () => {
+                                  setJoiningSpaceId(space._id);
+                                  try {
+                                    const res = await fetch(
+                                      `${API_BASE}/api/community/spaces/${space._id}/join`,
+                                      {
+                                        method: "POST",
+                                        credentials: "include",
+                                      }
+                                    );
+                                    const data = await res.json();
+                                    if (data.success) {
+                                      setActiveChatSpace(space);
+                                      void fetchCommunitySpaces();
+                                    } else {
+                                      alert(data.message || "Failed to join space.");
+                                    }
+                                  } catch {
+                                    alert("Network error while connecting to space.");
+                                  } finally {
+                                    setJoiningSpaceId(null);
+                                  }
+                                }}
+                                disabled={joiningSpaceId === space._id}
+                                className="text-xs font-semibold px-3 py-1.5 rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors self-start cursor-pointer flex items-center gap-1.5 disabled:opacity-50 mt-1"
+                              >
+                                {joiningSpaceId === space._id && (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                )}
+                                <span>Open Discussion Channel →</span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
