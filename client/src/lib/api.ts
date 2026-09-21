@@ -14,7 +14,8 @@ export function getApiBaseUrl(): string {
   if (typeof window !== "undefined" && window.location.hostname) {
     const { protocol, hostname } = window.location;
     // When accessed from another device on the local network (e.g. 192.168.x.x)
-    if (hostname !== "localhost" && hostname !== "127.0.0.1") {
+    const isLocalIp = /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname) || hostname.endsWith(".local");
+    if (isLocalIp && hostname !== "127.0.0.1") {
       return `${protocol}//${hostname}:3000`;
     }
   }

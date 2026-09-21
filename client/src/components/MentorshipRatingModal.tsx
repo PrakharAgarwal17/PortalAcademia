@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Star, Award, Loader2, X, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { API_BASE } from "@/lib/api";
 
 interface MentorshipRatingModalProps {
   pairingId: string;
@@ -21,8 +22,6 @@ export default function MentorshipRatingModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedMessage, setSubmittedMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

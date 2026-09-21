@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { API_BASE } from "@/lib/api";
 
 interface MentorshipVideoCallModalProps {
   pairingId: string;
@@ -77,13 +78,17 @@ export default function MentorshipVideoCallModal({
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const callDurationRef = useRef(0);
 
-  const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
-
-  // Duration timer
+  // Duration timer - decoupled from effect closures via ref
   useEffect(() => {
     const timer = setInterval(() => {
-      setCallDuration((prev) => prev + 1);
+      setCallDuration((prev) => {
+        const next = prev + 1;
+        callDurationRef.current = next;
+        return next;
+      });
     }, 1000);
     return () => clearInterval(timer);
   }, []);
@@ -106,42 +111,72 @@ export default function MentorshipVideoCallModal({
     (durationMins?: number) => {
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((t) => t.stop());
+        localStreamRef.current = null;
       }
       if (screenStreamRef.current) {
         screenStreamRef.current.getTracks().forEach((t) => t.stop());
+        screenStreamRef.current = null;
       }
       if (peerConnectionRef.current) {
         peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
       }
-      if (socket) {
-        socket.emit("end_call", {
+      const activeSock = socketRef.current;
+      if (activeSock) {
+        activeSock.emit("end_call", {
           pairingId,
-          durationMinutes: durationMins || Math.max(1, Math.round(callDuration / 60)),
+          durationMinutes: durationMins || Math.max(1, Math.round(callDurationRef.current / 60)),
         });
-        socket.disconnect();
+        activeSock.disconnect();
+        socketRef.current = null;
       }
-      const finalMins = durationMins || Math.max(1, Math.round(callDuration / 60));
+      const finalMins = durationMins || Math.max(1, Math.round(callDurationRef.current / 60));
       onCallEnded(finalMins);
       onClose();
     },
-    [callDuration, onCallEnded, onClose, pairingId, socket]
+    [onCallEnded, onClose, pairingId]
   );
 
-  // Initialize WebRTC and Socket.IO
+  const cleanupRef = useRef(cleanupMediaAndClose);
+  useEffect(() => {
+    cleanupRef.current = cleanupMediaAndClose;
+  }, [cleanupMediaAndClose]);
+
+  // Initialize WebRTC and Socket.IO - runs once per pairing session
   useEffect(() => {
     const s = io(API_BASE, {
       withCredentials: true,
-      transports: ["websocket", "polling"],
+      transports: ["polling", "websocket"],
+      auth: {
+        userId: currentUserId,
+      },
     });
     setSocket(s);
+    socketRef.current = s;
 
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     peerConnectionRef.current = pc;
+
+    // Buffer incoming ICE candidates that arrive before setRemoteDescription completes
+    const pendingIceCandidates: RTCIceCandidateInit[] = [];
+    const flushIceCandidates = async () => {
+      while (pendingIceCandidates.length > 0) {
+        const candidate = pendingIceCandidates.shift();
+        if (candidate) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (e) {
+            console.error("Error applying buffered ICE candidate:", e);
+          }
+        }
+      }
+    };
 
     // Handle incoming remote media tracks
     pc.ontrack = (event) => {
       if (remoteVideoRef.current && event.streams[0]) {
         remoteVideoRef.current.srcObject = event.streams[0];
+        remoteVideoRef.current.play().catch((e) => console.warn("Remote video autoplay deferred:", e));
         setPeerConnected(true);
         setCallStatus("Direct WebRTC peer connection established.");
       }
@@ -167,23 +202,37 @@ export default function MentorshipVideoCallModal({
       }
     };
 
-    // Request local audio & video
-    navigator.mediaDevices
-      .getUserMedia({ video: true, audio: true })
-      .then((stream) => {
+    // Acquire camera & mic with graceful fallback to audio-only
+    const initMedia = async () => {
+      let stream: MediaStream | null = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      } catch (videoErr) {
+        console.warn("Camera & mic acquisition failed, attempting audio-only fallback:", videoErr);
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+          setIsVideoOff(true);
+        } catch (audioErr) {
+          console.warn("Audio acquisition also failed or denied:", audioErr);
+          setIsVideoOff(true);
+          setIsMuted(true);
+          setErrorMessage("Camera/Microphone unavailable or permission denied. Connected in listen & notes mode.");
+        }
+      }
+
+      if (stream) {
         localStreamRef.current = stream;
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
-        stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+        stream.getTracks().forEach((track) => pc.addTrack(track, stream!));
+      }
 
-        // Join room once local stream is ready
-        s.emit("join_call_room", { pairingId });
-      })
-      .catch((err) => {
-        console.error("Camera/Mic access error:", err);
-        setErrorMessage("Camera or microphone permission was denied. Please grant media access.");
-      });
+      // ALWAYS join the secure signaling room
+      s.emit("join_call_room", { pairingId, userId: currentUserId });
+    };
+
+    void initMedia();
 
     // Socket signaling listeners
     s.on("call_room_joined", (data: { role: string; peerCount: number }) => {
@@ -208,6 +257,7 @@ export default function MentorshipVideoCallModal({
     s.on("webrtc_offer", async (data: { sdp: RTCSessionDescriptionInit }) => {
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+        await flushIceCandidates();
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         s.emit("webrtc_answer", { pairingId, sdp: answer });
@@ -219,6 +269,7 @@ export default function MentorshipVideoCallModal({
     s.on("webrtc_answer", async (data: { sdp: RTCSessionDescriptionInit }) => {
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+        await flushIceCandidates();
       } catch (err) {
         console.error("Error handling WebRTC answer:", err);
       }
@@ -226,8 +277,11 @@ export default function MentorshipVideoCallModal({
 
     s.on("webrtc_ice_candidate", async (data: { candidate: RTCIceCandidateInit }) => {
       try {
-        if (data.candidate) {
+        if (!data?.candidate) return;
+        if (pc.remoteDescription && pc.remoteDescription.type) {
           await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        } else {
+          pendingIceCandidates.push(data.candidate);
         }
       } catch (err) {
         console.error("Error adding ICE candidate:", err);
@@ -239,7 +293,7 @@ export default function MentorshipVideoCallModal({
     });
 
     s.on("call_ended", (data: { durationMinutes: number }) => {
-      cleanupMediaAndClose(data.durationMinutes);
+      cleanupRef.current(data.durationMinutes);
     });
 
     s.on("call_error", (data: { message: string }) => {
@@ -248,15 +302,19 @@ export default function MentorshipVideoCallModal({
 
     return () => {
       s.disconnect();
+      socketRef.current = null;
       pc.close();
+      peerConnectionRef.current = null;
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((t) => t.stop());
+        localStreamRef.current = null;
       }
       if (screenStreamRef.current) {
         screenStreamRef.current.getTracks().forEach((t) => t.stop());
+        screenStreamRef.current = null;
       }
     };
-  }, [API_BASE, cleanupMediaAndClose, pairingId]);
+  }, [currentUserId, pairingId]);
 
   // Toggle Mute
   const toggleMute = () => {

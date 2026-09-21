@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { GraduationCap, ShieldCheck, Loader2, X, Check } from "lucide-react";
+import { API_BASE } from "@/lib/api";
 
 interface MentorApplicationModalProps {
   onClose: () => void;
@@ -19,8 +20,6 @@ export default function MentorApplicationModal({
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
