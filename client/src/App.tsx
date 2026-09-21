@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/context/store";
 import { checkAuthThunk } from "@/context/authSlice";
 import { ThemeProvider } from "@/context/theme";
+import { API_BASE } from "@/lib/api";
 
 // Lazy-loaded pages (keeps initial bundle small)
 import LandingPage from "@/pages/LandingPage";
@@ -43,7 +44,7 @@ interface ProtectedRouteProps {
 }
 
 function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, isInitialized, user } = useAppSelector((s) => s.auth);
+  const { isAuthenticated, isLoading, isInitialized } = useAppSelector((s) => s.auth);
 
   if (isLoading || !isInitialized) {
     return (
@@ -55,10 +56,6 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
-  }
-
-  if (!user?.isOnboarded) {
-    return <Navigate to="/onboarding/select-type" replace />;
   }
 
   return <>{children}</>;
@@ -89,7 +86,7 @@ function RoleProtectedRoute({ allowedRole, children }: RoleProtectedRouteProps) 
     let isMounted = true;
     async function resolveRole() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:3000"}/api/profile/me`, {
+        const res = await fetch(`${API_BASE}/api/profile/me`, {
           method: "GET",
           credentials: "include",
         });
@@ -106,7 +103,7 @@ function RoleProtectedRoute({ allowedRole, children }: RoleProtectedRouteProps) 
       }
     }
 
-    if (isAuthenticated && user?.isOnboarded) {
+    if (isAuthenticated) {
       resolveRole();
     } else {
       setIsResolving(false);
@@ -115,7 +112,7 @@ function RoleProtectedRoute({ allowedRole, children }: RoleProtectedRouteProps) 
     return () => {
       isMounted = false;
     };
-  }, [isAuthenticated, user?.role, user?.isOnboarded]);
+  }, [isAuthenticated, user?.role]);
 
   if (isLoading || !isInitialized || isResolving) {
     return (
@@ -129,12 +126,12 @@ function RoleProtectedRoute({ allowedRole, children }: RoleProtectedRouteProps) 
     return <Navigate to="/auth" replace />;
   }
 
-  if (!user?.isOnboarded) {
-    return <Navigate to="/onboarding/select-type" replace />;
-  }
-
   // Strictly lock individual to their assigned stakeholder console
   if (resolvedRole && resolvedRole !== allowedRole) {
+    const validRoles = ["student", "faculty", "institution", "industry"];
+    if (validRoles.includes(resolvedRole)) {
+      return <Navigate to={`/dashboard/${resolvedRole}`} replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -146,7 +143,7 @@ function RoleProtectedRoute({ allowedRole, children }: RoleProtectedRouteProps) 
 // ============================================================
 
 function OnboardingRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, isInitialized, user } = useAppSelector((s) => s.auth);
+  const { isAuthenticated, isLoading, isInitialized } = useAppSelector((s) => s.auth);
 
   if (isLoading || !isInitialized) {
     return (
@@ -158,11 +155,6 @@ function OnboardingRoute({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
-  }
-
-  // Already onboarded users shouldn't re-enter onboarding
-  if (user?.isOnboarded) {
-    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

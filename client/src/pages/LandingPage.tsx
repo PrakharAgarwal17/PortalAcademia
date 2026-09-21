@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useAppSelector } from "@/context/store";
+import { useAppSelector, useAppDispatch } from "@/context/store";
+import { signOutThunk } from "@/context/authSlice";
 import {
   GraduationCap,
   Brain,
@@ -235,6 +236,7 @@ const landingFaqs = [
 
 function Navbar() {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const { isAuthenticated, user } = useAppSelector((s) => s.auth);
   const { theme, toggleTheme } = useTheme();
 
@@ -291,22 +293,35 @@ function Navbar() {
           </button>
 
           {isAuthenticated ? (
-            <button
-              type="button"
-              id="nav-console-btn"
-              onClick={() => navigate(user?.isOnboarded ? "/dashboard" : "/onboarding/select-type")}
-              className="inline-flex items-center justify-center gap-1.5 h-9 px-4 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors shadow-sm"
-            >
-              Console
-              <ChevronRight className="w-3.5 h-3.5 ml-1" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                id="nav-console-btn"
+                onClick={() => navigate(user?.isOnboarded ? "/dashboard" : "/onboarding/select-type")}
+                className="inline-flex items-center justify-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors shadow-sm cursor-pointer"
+              >
+                <span>Console</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                id="nav-signout-btn"
+                onClick={async () => {
+                  await dispatch(signOutThunk());
+                  navigate("/auth");
+                }}
+                className="h-9 px-3 text-xs font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+              >
+                Sign Out
+              </button>
+            </div>
           ) : (
-            <>
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 id="nav-signin-btn"
                 onClick={() => navigate("/auth")}
-                className="h-9 px-3.5 text-xs font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="h-9 px-3 text-xs font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
               >
                 Sign In
               </button>
@@ -314,12 +329,12 @@ function Navbar() {
                 type="button"
                 id="nav-getstarted-btn"
                 onClick={() => navigate("/auth")}
-                className="inline-flex items-center justify-center gap-1.5 h-9 px-4 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors shadow-sm"
+                className="inline-flex items-center justify-center gap-1.5 h-9 px-3.5 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors shadow-sm cursor-pointer"
               >
-                Get Started
-                <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                <span>Get Started</span>
+                <ChevronRight className="w-3.5 h-3.5" />
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -329,6 +344,7 @@ function Navbar() {
 
 function Hero() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAppSelector((s) => s.auth);
   const [activeTab, setActiveTab] = useState<number>(0);
 
   const previewTabs = [
@@ -400,10 +416,10 @@ function Hero() {
           <button
             type="button"
             id="hero-primary-cta"
-            onClick={() => navigate("/auth")}
+            onClick={() => navigate(isAuthenticated ? "/dashboard" : "/auth")}
             className="inline-flex items-center justify-center gap-2 h-10 px-5 text-xs sm:text-sm font-semibold rounded-md bg-[#111827] text-white hover:bg-[#1f2937] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white transition-all shadow-sm cursor-pointer"
           >
-            Get Started Free
+            {isAuthenticated ? "Enter Workspace Console" : "Get Started Free"}
             <ArrowRight className="w-4 h-4 ml-1" />
           </button>
           <button
@@ -461,7 +477,7 @@ function Hero() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => navigate("/auth")}
+                  onClick={() => navigate(isAuthenticated ? "/dashboard" : "/auth")}
                   className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground hover:underline shrink-0 cursor-pointer"
                 >
                   <span>Explore Workspace</span>
@@ -496,6 +512,7 @@ function Hero() {
 
 function RolesSection() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAppSelector((s) => s.auth);
 
   return (
     <section id="roles" className="py-20 px-4 sm:px-6 border-b border-border bg-transparent">
@@ -554,10 +571,10 @@ function RolesSection() {
                 </span>
                 <button
                   type="button"
-                  onClick={() => navigate("/auth")}
-                  className="text-xs font-medium text-foreground hover:underline inline-flex items-center gap-1"
+                  onClick={() => navigate(isAuthenticated ? `/dashboard/${r.roleKey}` : "/auth")}
+                  className="text-xs font-medium text-foreground hover:underline inline-flex items-center gap-1 cursor-pointer"
                 >
-                  Join as {r.title}
+                  {isAuthenticated ? `Enter ${r.title} Console` : `Join as ${r.title}`}
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -723,6 +740,7 @@ function FAQSection() {
 
 function CTABanner() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAppSelector((s) => s.auth);
 
   return (
     <section className="py-20 px-4 sm:px-6 border-b border-border bg-transparent">
@@ -738,10 +756,10 @@ function CTABanner() {
             <button
               type="button"
               id="cta-enter-btn"
-              onClick={() => navigate("/auth")}
+              onClick={() => navigate(isAuthenticated ? "/dashboard" : "/auth")}
               className="inline-flex items-center justify-center gap-2 bg-white text-zinc-900 hover:bg-zinc-100 h-10 px-6 text-xs sm:text-sm font-semibold rounded-md transition-colors cursor-pointer shadow-sm"
             >
-              Get Started Free
+              {isAuthenticated ? "Enter Workspace Console" : "Get Started Free"}
               <ArrowRight className="w-4 h-4 ml-1" />
             </button>
           </div>
