@@ -106,35 +106,93 @@ export default function MentorshipVideoCallModal({
     }
   }, [chatMessages, showChat]);
 
-  // Clean shutdown
-  const cleanupMediaAndClose = useCallback(
-    (durationMins?: number) => {
+  // Stop all camera, mic, and screen tracks and clear element srcObjects
+  const stopAllMediaTracks = useCallback(() => {
+    try {
       if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((t) => t.stop());
+        localStreamRef.current.getTracks().forEach((track) => {
+          try {
+            track.stop();
+            track.enabled = false;
+          } catch (e) {
+            console.error("Error stopping local track:", e);
+          }
+        });
         localStreamRef.current = null;
       }
       if (screenStreamRef.current) {
-        screenStreamRef.current.getTracks().forEach((t) => t.stop());
+        screenStreamRef.current.getTracks().forEach((track) => {
+          try {
+            track.stop();
+            track.enabled = false;
+          } catch (e) {
+            console.error("Error stopping screen track:", e);
+          }
+        });
         screenStreamRef.current = null;
       }
+      if (localVideoRef.current) {
+        try {
+          localVideoRef.current.pause();
+        } catch {}
+        localVideoRef.current.srcObject = null;
+      }
+      if (remoteVideoRef.current) {
+        try {
+          remoteVideoRef.current.pause();
+        } catch {}
+        remoteVideoRef.current.srcObject = null;
+      }
+      // Revoke permissions if supported by browser
+      if (typeof navigator !== "undefined" && (navigator as any).permissions?.revoke) {
+        try {
+          (navigator as any).permissions.revoke({ name: "camera" }).catch(() => {});
+          (navigator as any).permissions.revoke({ name: "microphone" }).catch(() => {});
+        } catch {}
+      }
+    } catch (err) {
+      console.error("Error in stopAllMediaTracks:", err);
+    }
+  }, []);
+
+  const isCleaningUpRef = useRef(false);
+
+  // Clean shutdown
+  const cleanupMediaAndClose = useCallback(
+    (durationMins?: number) => {
+      if (isCleaningUpRef.current) return;
+      isCleaningUpRef.current = true;
+
+      stopAllMediaTracks();
+
       if (peerConnectionRef.current) {
-        peerConnectionRef.current.close();
+        try {
+          peerConnectionRef.current.close();
+        } catch (e) {
+          console.error("Error closing peer connection:", e);
+        }
         peerConnectionRef.current = null;
       }
+
       const activeSock = socketRef.current;
       if (activeSock) {
-        activeSock.emit("end_call", {
-          pairingId,
-          durationMinutes: durationMins || Math.max(1, Math.round(callDurationRef.current / 60)),
-        });
-        activeSock.disconnect();
+        try {
+          activeSock.emit("end_call", {
+            pairingId,
+            durationMinutes: durationMins || Math.max(1, Math.round(callDurationRef.current / 60)),
+          });
+          activeSock.disconnect();
+        } catch (e) {
+          console.error("Error ending socket call:", e);
+        }
         socketRef.current = null;
       }
+
       const finalMins = durationMins || Math.max(1, Math.round(callDurationRef.current / 60));
       onCallEnded(finalMins);
       onClose();
     },
-    [onCallEnded, onClose, pairingId]
+    [onCallEnded, onClose, pairingId, stopAllMediaTracks]
   );
 
   const cleanupRef = useRef(cleanupMediaAndClose);
@@ -144,6 +202,13 @@ export default function MentorshipVideoCallModal({
 
   // Initialize WebRTC and Socket.IO - runs once per pairing session
   useEffect(() => {
+    let isCancelled = false;
+
+    const handleBeforeUnload = () => {
+      stopAllMediaTracks();
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
     const s = io(API_BASE, {
       withCredentials: true,
       transports: ["polling", "websocket"],
@@ -218,6 +283,19 @@ export default function MentorshipVideoCallModal({
           setIsMuted(true);
           setErrorMessage("Camera/Microphone unavailable or permission denied. Connected in listen & notes mode.");
         }
+      }
+
+      // If call unmounted or cleanup was initiated while waiting for hardware permissions
+      if (isCancelled || isCleaningUpRef.current) {
+        if (stream) {
+          stream.getTracks().forEach((track) => {
+            try {
+              track.stop();
+              track.enabled = false;
+            } catch {}
+          });
+        }
+        return;
       }
 
       if (stream) {
@@ -301,20 +379,21 @@ export default function MentorshipVideoCallModal({
     });
 
     return () => {
-      s.disconnect();
+      isCancelled = true;
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      try {
+        s.disconnect();
+      } catch {}
       socketRef.current = null;
-      pc.close();
-      peerConnectionRef.current = null;
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((t) => t.stop());
-        localStreamRef.current = null;
+      if (peerConnectionRef.current) {
+        try {
+          peerConnectionRef.current.close();
+        } catch {}
+        peerConnectionRef.current = null;
       }
-      if (screenStreamRef.current) {
-        screenStreamRef.current.getTracks().forEach((t) => t.stop());
-        screenStreamRef.current = null;
-      }
+      stopAllMediaTracks();
     };
-  }, [currentUserId, pairingId]);
+  }, [currentUserId, pairingId, stopAllMediaTracks]);
 
   // Toggle Mute
   const toggleMute = () => {
@@ -494,6 +573,13 @@ export default function MentorshipVideoCallModal({
                   {chatMessages.length}
                 </span>
               )}
+            </button>
+            <button
+              onClick={() => cleanupMediaAndClose()}
+              className="text-xs p-1.5 rounded-sm border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 transition-colors cursor-pointer"
+              title="Leave Call and Close"
+            >
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
