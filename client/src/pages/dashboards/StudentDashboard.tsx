@@ -20,6 +20,7 @@ import {
   Check,
   TrendingUp,
   Plus,
+  Crown,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,7 @@ interface UserProfile {
   institutionName?: string;
   institutionEmail?: string;
   isEmailVerified?: boolean;
+  isPremium?: boolean;
   skills?: string[];
   certifications?: Array<{
     _id?: string;
@@ -854,6 +856,16 @@ export default function StudentDashboard() {
                     <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 inline-flex items-center gap-1 text-[11px] font-medium" title="Institutional Email Not Verified">
                       <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
                       Unverified Scholar
+                    </span>
+                  )}
+                  {profile?.isPremium && (
+                    <span
+                      onClick={() => navigate("/premium")}
+                      className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 inline-flex items-center gap-1 text-[11px] font-bold cursor-pointer hover:bg-amber-500/20 transition-colors"
+                      title="Premium Member"
+                    >
+                      <Crown className="w-3.5 h-3.5 text-amber-500" />
+                      Premium Scholar
                     </span>
                   )}
                   <button

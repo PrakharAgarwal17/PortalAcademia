@@ -4,6 +4,7 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import type { Profile } from "passport-google-oauth20";
 import type { VerifyCallback } from "passport-google-oauth20";
 import User from "../models/userModel.js";
+import profileModel from "../models/profileModel.js";
 
 dotenv.config();
 
@@ -43,14 +44,36 @@ passport.use(
                         provider: "google",
                         providerID: profile.id,
                         isVerified: true,
-                        isOnboarded: false,
+                        isOnboarded: true,
                     });
-                } else if (!user.providerID) {
-                    user.provider = "google";
-                    user.providerID = profile.id;
-                    user.isVerified = true;
+                } else {
+                    let needsSave = false;
+                    if (!user.providerID) {
+                        user.provider = "google";
+                        user.providerID = profile.id;
+                        user.isVerified = true;
+                        needsSave = true;
+                    }
+                    if (!user.isOnboarded) {
+                        user.isOnboarded = true;
+                        needsSave = true;
+                    }
+                    if (needsSave) {
+                        await user.save();
+                    }
+                }
 
-                    await user.save();
+                const existingProfile = await profileModel.findOne({ userId: user._id });
+                if (!existingProfile) {
+                    const resolvedName: string = profile.displayName || (email ? email.split("@")[0] : "Scholar") || "Scholar";
+                    await profileModel.create({
+                        userId: user._id,
+                        category: "individual",
+                        accountType: "student",
+                        name: resolvedName,
+                        profileImage: profile.photos?.[0]?.value || "",
+                        image: profile.photos?.[0]?.value || "",
+                    });
                 }
 
                 return done(null, user);

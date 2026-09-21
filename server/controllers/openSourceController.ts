@@ -104,8 +104,10 @@ export async function getAllProjects(req: Request, res: Response) {
         const userId = req.userId;
 
         const user = await userModel.findById(userId).lean();
-        if (!user?.isPremium) {
-            return res.status(403).json({ success: false, message: "Premium membership required to access open source projects." });
+        const now = new Date();
+        const isPremiumActive = user?.isPremium && user.premiumExpiresAt && new Date(user.premiumExpiresAt) > now;
+        if (!isPremiumActive) {
+            return res.status(403).json({ success: false, message: "Active premium membership required to access open source projects." });
         }
 
         const { tech, difficulty, company } = req.query;
@@ -181,6 +183,26 @@ export async function issueCertificate(req: Request, res: Response) {
         contribution.certificateIssuedAt = new Date();
         await contribution.save();
 
+        // Automatically push verified certification to student profile
+        const companyLabel = profile?.companyName || "Industry Partner";
+        await profileModel.findOneAndUpdate(
+            { userId: contribution.studentId },
+            {
+                $push: {
+                    certifications: {
+                        title: `Open Source Contributor: ${project.title}`,
+                        description: `Merged PR #${contribution.prNumber}: ${contribution.prTitle}`,
+                        issuer: companyLabel,
+                        credentialUrl: contribution.prUrl,
+                        isVerified: true,
+                        verifiedBy: userId as any,
+                        verifiedAt: new Date(),
+                        verificationNotes: "Verified via PortalAcademia GitHub Webhook Engine",
+                    },
+                },
+            }
+        );
+
         await notificationModel.create({
             userId: contribution.studentId,
             type: "certificate_issued",
@@ -235,15 +257,21 @@ export async function handleGithubWebhook(req: Request, res: Response) {
             return res.status(401).json({ message: "Missing GitHub signature." });
         }
 
-        const rawBody = JSON.stringify(req.body);
+        const rawPayload = (req as any).rawBody
+            ? (req as any).rawBody
+            : Buffer.from(JSON.stringify(req.body));
+
         const expectedSig =
             "sha256=" +
             crypto
                 .createHmac("sha256", project.webhookSecret)
-                .update(rawBody)
+                .update(rawPayload)
                 .digest("hex");
 
-        if (!crypto.timingSafeEqual(Buffer.from(sigHeader), Buffer.from(expectedSig))) {
+        const sigBuf = Buffer.from(sigHeader);
+        const expectedBuf = Buffer.from(expectedSig);
+
+        if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
             return res.status(401).json({ message: "Invalid signature." });
         }
 
@@ -277,16 +305,19 @@ export async function handleGithubWebhook(req: Request, res: Response) {
             return res.status(200).json({ message: "Contribution already recorded." });
         }
 
+        const safeGithubUsername = githubUsername.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const studentProfile = await profileModel.findOne({
-            github: { $regex: new RegExp(`(^|/)${githubUsername}$`, "i") },
+            github: { $regex: new RegExp(`(^|/)${safeGithubUsername}$`, "i") },
         } as any);
 
         if (!studentProfile) {
             return res.status(200).json({ message: "GitHub user not found on platform." });
         }
 
+        const now = new Date();
         const studentUser = await userModel.findById(studentProfile.userId).lean();
-        if (!studentUser?.isPremium) {
+        const isPremium = studentUser?.isPremium && studentUser.premiumExpiresAt && new Date(studentUser.premiumExpiresAt) > now;
+        if (!isPremium) {
             return res.status(200).json({ message: "Student not premium — contribution not recorded." });
         }
 

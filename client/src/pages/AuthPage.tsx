@@ -14,7 +14,7 @@ import {
   Moon,
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/context/store";
-import { checkAuthThunk } from "@/context/authSlice";
+import { checkAuthThunk, signOutThunk } from "@/context/authSlice";
 import { useTheme } from "@/context/theme";
 import authLightImg from "@/assets/auth-light.png";
 import authDarkImg from "@/assets/auth-dark.png";
@@ -23,7 +23,7 @@ import authDarkImg from "@/assets/auth-dark.png";
 // Constants
 // ============================================================
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
+import { API_BASE } from "@/lib/api";
 const OTP_LENGTH = 6;
 
 // ============================================================
@@ -404,12 +404,7 @@ function SignInForm() {
       }
 
       await dispatch(checkAuthThunk());
-
-      if (data.isOnboarded === false) {
-        navigate("/onboarding/select-type", { replace: true });
-      } else {
-        navigate("/dashboard", { replace: true });
-      }
+      navigate("/dashboard", { replace: true });
     } catch {
       setError("Network error. Please check your connection and try again.");
     } finally {
@@ -630,14 +625,10 @@ function SignUpForm() {
     }
   }
 
-  async function handleVerified(isOnboarded: boolean) {
+  async function handleVerified(_isOnboarded: boolean) {
     setOtpModalOpen(false);
     await dispatch(checkAuthThunk());
-    if (!isOnboarded) {
-      navigate("/onboarding/select-type", { replace: true });
-    } else {
-      navigate("/dashboard", { replace: true });
-    }
+    navigate("/dashboard", { replace: true });
   }
 
   return (
@@ -804,19 +795,22 @@ function SignUpForm() {
 
 export default function AuthPage() {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const { isAuthenticated, user, isInitialized } = useAppSelector((s) => s.auth);
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
 
   useEffect(() => {
-    if (isInitialized && isAuthenticated) {
-      if (user?.isOnboarded) {
-        navigate("/dashboard", { replace: true });
-      } else {
-        navigate("/onboarding/select-type", { replace: true });
-      }
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get("switch") === "true") {
+      dispatch(signOutThunk());
+      return;
     }
-  }, [isAuthenticated, isInitialized, user, navigate]);
+
+    if (isInitialized && isAuthenticated && !searchParams.get("stay")) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, isInitialized, user, navigate, dispatch]);
 
   return (
     <>

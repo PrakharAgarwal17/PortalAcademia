@@ -3,7 +3,11 @@ import mongoose, { Schema, type Document, type Model } from "mongoose";
 export type NotificationType =
     | "pr_merged"
     | "certificate_issued"
-    | "general";
+    | "general"
+    | "mentorship_request"
+    | "mentorship_accepted"
+    | "mentorship_completed"
+    | "mentorship_rating";
 
 export interface INotification extends Document {
     userId: mongoose.Types.ObjectId;
@@ -32,7 +36,15 @@ const notificationSchema = new Schema<INotification>(
         },
         type: {
             type: String,
-            enum: ["pr_merged", "certificate_issued", "general"],
+            enum: [
+                "pr_merged",
+                "certificate_issued",
+                "general",
+                "mentorship_request",
+                "mentorship_accepted",
+                "mentorship_completed",
+                "mentorship_rating",
+            ],
             required: true,
         },
         title: {

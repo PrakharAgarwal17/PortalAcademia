@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import userModel from "../models/userModel.js";
+import profileModel from "../models/profileModel.js";
 import bcrypt from "bcrypt";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 import nodemailer from "nodemailer";
@@ -79,13 +80,19 @@ export function setAuthCookies(
     res: Response,
     accesstoken: string,
     refreshtoken: string,
-    rememberMe = false
+    rememberMe = false,
+    req?: Request
 ) {
     const isProd = process.env.NODE_ENV === "production";
+    const isHttps =
+        Boolean(req?.secure) ||
+        req?.headers?.["x-forwarded-proto"] === "https" ||
+        isProd;
+
     const baseOptions = {
         httpOnly: true,
-        secure: isProd,
-        sameSite: isProd ? ("none" as const) : ("lax" as const),
+        secure: isHttps,
+        sameSite: isHttps ? ("none" as const) : ("lax" as const),
         path: "/",
     };
 
@@ -160,16 +167,41 @@ export async function SignIn(
             });
         }
 
+        // Ensure profile exists and isOnboarded is set to true
+        let userProfile = await profileModel.findOne({ userId: searchEmail._id });
+        if (!userProfile) {
+            const resolvedName: string = String(searchEmail.email || "Scholar").split("@")[0] || "Scholar";
+            userProfile = await profileModel.create({
+                userId: searchEmail._id,
+                category: "individual",
+                accountType: "student",
+                name: resolvedName,
+            });
+            await userModel.findByIdAndUpdate(searchEmail._id, { isOnboarded: true });
+            searchEmail.isOnboarded = true;
+        } else if (!searchEmail.isOnboarded) {
+            await userModel.findByIdAndUpdate(searchEmail._id, { isOnboarded: true });
+            searchEmail.isOnboarded = true;
+        }
+
         const { accesstoken, refreshtoken } = generateTokens(
             String(searchEmail._id),
             Boolean(rememberMe)
         );
 
-        setAuthCookies(res, accesstoken, refreshtoken, Boolean(rememberMe));
+        setAuthCookies(res, accesstoken, refreshtoken, Boolean(rememberMe), req);
 
         return res.status(200).json({
             message: "Sign in successful",
-            isOnboarded: searchEmail.isOnboarded,
+            isOnboarded: true,
+            user: {
+                id: String(searchEmail._id),
+                email: searchEmail.email,
+                isVerified: searchEmail.isVerified,
+                isOnboarded: true,
+                role: userProfile.accountType || "student",
+                isEmailVerified: Boolean(searchEmail.isEmailVerified),
+            },
         });
 
     } catch (err: unknown) {
@@ -411,14 +443,31 @@ export async function VerifyOtp(
             Boolean(data.rememberMe)
         );
 
-        setAuthCookies(res, accesstoken, refreshtoken, Boolean(data.rememberMe));
+        setAuthCookies(res, accesstoken, refreshtoken, Boolean(data.rememberMe), req);
 
         // OTP ko delete kar do
         OtpStorage.delete(normalizedEmail);
 
+        const resolvedName: string = String(createUser.email || "Scholar").split("@")[0] || "Scholar";
+        await profileModel.create({
+            userId: createUser._id,
+            category: "individual",
+            accountType: "student",
+            name: resolvedName,
+        });
+        await userModel.findByIdAndUpdate(createUser._id, { isOnboarded: true });
+
         return res.status(200).json({
             message: "User created successfully",
-            isOnboarded: false,
+            isOnboarded: true,
+            user: {
+                id: String(createUser._id),
+                email: createUser.email,
+                isVerified: createUser.isVerified,
+                isOnboarded: true,
+                role: "student",
+                isEmailVerified: false,
+            },
         });
 
     } catch (err: unknown) {
@@ -469,6 +518,33 @@ export function SignOut(
 // Check Auth
 // =========================
 
+async function buildUserSessionPayload(user: any) {
+    let userProfile = await profileModel.findOne({ userId: user._id });
+    if (!userProfile) {
+        const resolvedName: string = String(user.email || "Scholar").split("@")[0] || "Scholar";
+        userProfile = await profileModel.create({
+            userId: user._id,
+            category: "individual",
+            accountType: "student",
+            name: resolvedName,
+        });
+        await userModel.findByIdAndUpdate(user._id, { isOnboarded: true });
+        user.isOnboarded = true;
+    } else if (!user.isOnboarded) {
+        await userModel.findByIdAndUpdate(user._id, { isOnboarded: true });
+        user.isOnboarded = true;
+    }
+
+    return {
+        id: String(user._id),
+        email: user.email,
+        isVerified: user.isVerified,
+        isOnboarded: true,
+        role: userProfile.accountType || "student",
+        isEmailVerified: Boolean(user.isEmailVerified),
+    };
+}
+
 export async function checkAuth(
     req: Request,
     res: Response
@@ -491,15 +567,10 @@ export async function checkAuth(
                         .select("_id email isVerified isOnboarded isEmailVerified");
 
                     if (user) {
+                        const userData = await buildUserSessionPayload(user);
                         return res.status(200).json({
                             valid: true,
-                            user: {
-                                id: String(user._id),
-                                email: user.email,
-                                isVerified: user.isVerified,
-                                isOnboarded: user.isOnboarded,
-                                isEmailVerified: Boolean(user.isEmailVerified),
-                            },
+                            user: userData,
                         });
                     }
                 }
@@ -524,17 +595,12 @@ export async function checkAuth(
                     if (user) {
                         // Re-issue both tokens
                         const tokens = generateTokens(String(user._id), true);
-                        setAuthCookies(res, tokens.accesstoken, tokens.refreshtoken, true);
+                        setAuthCookies(res, tokens.accesstoken, tokens.refreshtoken, true, req);
 
+                        const userData = await buildUserSessionPayload(user);
                         return res.status(200).json({
                             valid: true,
-                            user: {
-                                id: String(user._id),
-                                email: user.email,
-                                isVerified: user.isVerified,
-                                isOnboarded: user.isOnboarded,
-                                isEmailVerified: Boolean(user.isEmailVerified),
-                            },
+                            user: userData,
                         });
                     }
                 }
@@ -570,7 +636,7 @@ export async function RefreshToken(
 
         if (!refreshtoken) {
             return res.status(401).json({
-                message: "Refresh token missing",
+                message: "No refresh token provided",
             });
         }
 
@@ -585,18 +651,16 @@ export async function RefreshToken(
             });
         }
 
-        const user = await userModel
-            .findById(decoded.id)
-            .select("_id email isVerified isOnboarded");
+        const user = await userModel.findById(decoded.id);
 
         if (!user) {
-            return res.status(401).json({
+            return res.status(404).json({
                 message: "User not found",
             });
         }
 
         const tokens = generateTokens(String(user._id), true);
-        setAuthCookies(res, tokens.accesstoken, tokens.refreshtoken, true);
+        setAuthCookies(res, tokens.accesstoken, tokens.refreshtoken, true, req);
 
         return res.status(200).json({
             message: "Token refreshed successfully",
@@ -633,29 +697,49 @@ export const googleSuccess = async (
     try {
         const user = req.user as GoogleUser;
 
+        const sessionOrigin = (req.session as any)?.frontendOrigin;
+        let frontendUrl = sessionOrigin || process.env.FRONTEND_URL || "http://localhost:5173";
+        // If frontendUrl is default localhost but client accessed from external host or origin, resolve dynamically
+        const originHeader = (req.headers.origin || req.headers.referer) as string | undefined;
+        if (!sessionOrigin && originHeader && frontendUrl.includes("localhost") && !originHeader.includes("localhost")) {
+            try {
+                const parsed = new URL(originHeader);
+                frontendUrl = `${parsed.protocol}//${parsed.host}`;
+            } catch { }
+        }
+
         if (!user || !user._id) {
-            const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
             return res.redirect(`${frontendUrl}/auth?error=google_auth_failed`);
         }
 
         const email = user.email;
 
         if (!email) {
-            const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
             return res.redirect(`${frontendUrl}/auth?error=email_not_found`);
         }
 
-        // Generate JWT tokens and set httpOnly cookies
-        const { accesstoken, refreshtoken } = generateTokens(String(user._id), true);
-        setAuthCookies(res, accesstoken, refreshtoken, true);
+        // Ensure user has an initialized profile and is marked onboarded
+        let userProfile = await profileModel.findOne({ userId: user._id });
+        if (!userProfile) {
+            const resolvedName: string = (req.user as any)?.displayName || (email ? String(email).split("@")[0] : "Scholar") || "Scholar";
+            userProfile = await profileModel.create({
+                userId: user._id,
+                category: "individual",
+                accountType: "student",
+                name: resolvedName,
+                profileImage: (req.user as any)?.photos?.[0]?.value || "",
+                image: (req.user as any)?.photos?.[0]?.value || "",
+            });
+        }
+        await userModel.findByIdAndUpdate(user._id, { isOnboarded: true });
 
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        // Generate JWT tokens and set httpOnly cookies with HTTPS/proxy awareness
+        const { accesstoken, refreshtoken } = generateTokens(String(user._id), true);
+        setAuthCookies(res, accesstoken, refreshtoken, true, req);
 
         // Append ?auth=google so the frontend knows this is a fresh OAuth redirect
-        // and re-verifies the session before deciding where to navigate
-        const redirectPath = user.isOnboarded ? "/dashboard" : "/onboarding/select-type";
-
-        return res.redirect(`${frontendUrl}${redirectPath}?auth=google`);
+        // and navigates straight to authorized dashboard
+        return res.redirect(`${frontendUrl}/dashboard?auth=google`);
 
     } catch (error) {
         console.error("Google Auth error:", error);

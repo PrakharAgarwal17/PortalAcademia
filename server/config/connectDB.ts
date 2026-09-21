@@ -11,12 +11,24 @@ function getMongoUri(): string {
     return `${raw.replace(/\/+$/, "")}/PortalAcademia`;
 }
 
-export default async function connectDB(){
-    try{
-        await mongoose.connect(getMongoUri(), { dbName: "PortalAcademia" });
-        console.log("MongoDB connected successfully")
-    }catch(err){
-        console.log("MongoDB failed to connect")
-        console.log(err)
+export default async function connectDB() {
+    const primaryUri = getMongoUri();
+    try {
+        await mongoose.connect(primaryUri, { dbName: "PortalAcademia", serverSelectionTimeoutMS: 5000 });
+        console.log("MongoDB connected successfully via primary cluster");
+    } catch (err: any) {
+        console.warn("Primary MongoDB cluster connection unreachable:", err?.message);
+        console.log("Attempting fallback to local MongoDB instance (localhost:27017)...");
+        try {
+            await mongoose.connect("mongodb://root:rootpassword@localhost:27017/PortalAcademia?authSource=admin", { serverSelectionTimeoutMS: 5000 });
+            console.log("MongoDB connected successfully via local instance (authenticated)");
+        } catch {
+            try {
+                await mongoose.connect("mongodb://localhost:27017/PortalAcademia", { serverSelectionTimeoutMS: 5000 });
+                console.log("MongoDB connected successfully via local instance");
+            } catch (fallbackErr) {
+                console.error("MongoDB failed to connect to all cluster and local targets:", fallbackErr);
+            }
+        }
     }
 }

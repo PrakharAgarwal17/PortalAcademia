@@ -50,14 +50,15 @@ export default function isloggedIn(req: Request, res: Response, next: NextFuncti
 
                     // Re-issue new accesstoken
                     const isProd = process.env.NODE_ENV === "production";
+                    const isHttps = Boolean(req.secure) || req.headers["x-forwarded-proto"] === "https" || isProd;
                     const newAccessToken = jwt.sign({ id: userId }, getAccessSecret(), {
                         expiresIn: "15m",
                     });
 
                     res.cookie("accesstoken", newAccessToken, {
                         httpOnly: true,
-                        secure: isProd,
-                        sameSite: isProd ? ("none" as const) : ("lax" as const),
+                        secure: isHttps,
+                        sameSite: isHttps ? ("none" as const) : ("lax" as const),
                         path: "/",
                         maxAge: 15 * 60 * 1000,
                     });

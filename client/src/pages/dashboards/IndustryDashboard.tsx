@@ -2125,8 +2125,8 @@ export default function IndustryDashboard() {
 
       {/* Post Open Source Project Modal */}
       {isOssModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-xl w-full max-w-lg p-6 space-y-5 max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-zinc-950/80 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-md w-full max-w-lg p-6 space-y-5 max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between pb-4 border-b border-border">
               <div>
                 <h3 className="text-sm font-bold text-foreground">Post Open Source Project</h3>
@@ -2145,7 +2145,7 @@ export default function IndustryDashboard() {
             </div>
 
             {createdOssSetup ? (
-              <div className="space-y-4 bg-secondary/30 p-4 rounded-xl border border-border">
+              <div className="space-y-4 bg-secondary/30 p-4 rounded-md border border-border">
                 <div className="flex items-center gap-2 text-emerald-500 font-bold text-xs">
                   <Check className="w-4 h-4" />
                   <span>Project Created Successfully!</span>
@@ -2161,7 +2161,7 @@ export default function IndustryDashboard() {
                       type="text"
                       readOnly
                       value={createdOssSetup.webhookUrl}
-                      className="flex-1 text-xs p-2 rounded-lg bg-background border border-border text-foreground font-mono"
+                      className="flex-1 text-xs p-2 rounded-md bg-background border border-border text-foreground font-mono"
                     />
                     <button
                       type="button"
@@ -2170,7 +2170,7 @@ export default function IndustryDashboard() {
                         setCopiedWebhookUrl(true);
                         setTimeout(() => setCopiedWebhookUrl(false), 2000);
                       }}
-                      className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-foreground"
+                      className="p-2 rounded-md bg-secondary hover:bg-secondary/80 border border-border text-foreground"
                     >
                       {copiedWebhookUrl ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                     </button>
@@ -2184,7 +2184,7 @@ export default function IndustryDashboard() {
                       type="text"
                       readOnly
                       value={createdOssSetup.webhookSecret}
-                      className="flex-1 text-xs p-2 rounded-lg bg-background border border-border text-foreground font-mono"
+                      className="flex-1 text-xs p-2 rounded-md bg-background border border-border text-foreground font-mono"
                     />
                     <button
                       type="button"
@@ -2193,14 +2193,14 @@ export default function IndustryDashboard() {
                         setCopiedSecret(true);
                         setTimeout(() => setCopiedSecret(false), 2000);
                       }}
-                      className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-foreground"
+                      className="p-2 rounded-md bg-secondary hover:bg-secondary/80 border border-border text-foreground"
                     >
                       {copiedSecret ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
 
-                <p className="text-[11px] font-mono text-amber-500 bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
+                <p className="text-[11px] font-mono text-amber-500 bg-amber-500/10 p-2 rounded-md border border-amber-500/20">
                   Select Content type: application/json and choose &quot;Pull requests&quot; under events.
                 </p>
 
@@ -2210,7 +2210,7 @@ export default function IndustryDashboard() {
                     setIsOssModalOpen(false);
                     setCreatedOssSetup(null);
                   }}
-                  className="w-full text-xs font-semibold py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
+                  className="w-full text-xs font-semibold py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   Done
                 </button>
@@ -2225,7 +2225,7 @@ export default function IndustryDashboard() {
                     value={ossForm.title}
                     onChange={(e) => setOssForm((f) => ({ ...f, title: e.target.value }))}
                     placeholder="e.g. Distributed Cache Engine"
-                    className="w-full text-xs p-2.5 rounded-lg bg-background border border-border text-foreground focus:outline-none"
+                    className="w-full text-xs p-2.5 rounded-md bg-background border border-border text-foreground focus:outline-none"
                   />
                 </div>
 
@@ -2237,7 +2237,7 @@ export default function IndustryDashboard() {
                     value={ossForm.repoUrl}
                     onChange={(e) => setOssForm((f) => ({ ...f, repoUrl: e.target.value }))}
                     placeholder="https://github.com/organization/repository"
-                    className="w-full text-xs p-2.5 rounded-lg bg-background border border-border text-foreground focus:outline-none font-mono"
+                    className="w-full text-xs p-2.5 rounded-md bg-background border border-border text-foreground focus:outline-none font-mono"
                   />
                 </div>
 
@@ -2247,7 +2247,7 @@ export default function IndustryDashboard() {
                     <select
                       value={ossForm.difficulty}
                       onChange={(e) => setOssForm((f) => ({ ...f, difficulty: e.target.value }))}
-                      className="w-full text-xs p-2.5 rounded-lg bg-background border border-border text-foreground focus:outline-none"
+                      className="w-full text-xs p-2.5 rounded-md bg-background border border-border text-foreground focus:outline-none"
                     >
                       <option value="beginner">Beginner (Good First Issue)</option>
                       <option value="intermediate">Intermediate</option>
@@ -2262,7 +2262,7 @@ export default function IndustryDashboard() {
                       value={ossForm.techStack}
                       onChange={(e) => setOssForm((f) => ({ ...f, techStack: e.target.value }))}
                       placeholder="React, TypeScript, Go"
-                      className="w-full text-xs p-2.5 rounded-lg bg-background border border-border text-foreground focus:outline-none"
+                      className="w-full text-xs p-2.5 rounded-md bg-background border border-border text-foreground focus:outline-none"
                     />
                   </div>
                 </div>
@@ -2275,7 +2275,7 @@ export default function IndustryDashboard() {
                     value={ossForm.description}
                     onChange={(e) => setOssForm((f) => ({ ...f, description: e.target.value }))}
                     placeholder="Brief description of the repo, contribution guidelines, or target issues..."
-                    className="w-full text-xs p-2.5 rounded-lg bg-background border border-border text-foreground focus:outline-none"
+                    className="w-full text-xs p-2.5 rounded-md bg-background border border-border text-foreground focus:outline-none"
                   />
                 </div>
 
@@ -2284,14 +2284,14 @@ export default function IndustryDashboard() {
                     type="button"
                     onClick={() => setIsOssModalOpen(false)}
                     disabled={isPostingOss}
-                    className="text-xs font-semibold px-4 py-2 rounded-lg bg-secondary text-secondary-foreground border border-border hover:bg-secondary/80"
+                    className="text-xs font-semibold px-4 py-2 rounded-md bg-secondary text-secondary-foreground border border-border hover:bg-secondary/80"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isPostingOss}
-                    className="text-xs font-semibold px-5 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 shadow-sm"
+                    className="text-xs font-semibold px-5 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 shadow-sm"
                   >
                     {isPostingOss && <Loader2 className="w-4 h-4 animate-spin" />}
                     <span>Generate Webhook &amp; Post</span>
@@ -2305,8 +2305,8 @@ export default function IndustryDashboard() {
 
       {/* Contributors Modal */}
       {selectedOssProject && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-xl w-full max-w-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-zinc-950/80 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-md w-full max-w-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between pb-4 border-b border-border">
               <div>
                 <h3 className="text-sm font-bold text-foreground">{selectedOssProject.title} — Merged PR Contributors</h3>
@@ -2315,7 +2315,7 @@ export default function IndustryDashboard() {
               <button
                 type="button"
                 onClick={() => setSelectedOssProject(null)}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground border border-border"
+                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground border border-border"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -2332,7 +2332,7 @@ export default function IndustryDashboard() {
             ) : (
               <div className="space-y-3">
                 {ossContributors.map((c) => (
-                  <div key={c._id} className="p-4 rounded-xl border border-border bg-secondary/20 flex items-center justify-between gap-4">
+                  <div key={c._id} className="p-4 rounded-md border border-border bg-secondary/20 flex items-center justify-between gap-4">
                     <div className="space-y-1">
                       <p className="text-xs font-bold text-foreground">{c.studentName}</p>
                       <a
@@ -2359,7 +2359,7 @@ export default function IndustryDashboard() {
                           type="button"
                           onClick={() => handleIssueCertificate(c._id)}
                           disabled={issuingCertId === c._id}
-                          className="text-xs font-bold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1.5 shadow-sm"
+                          className="text-xs font-bold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1.5 shadow-sm"
                         >
                           {issuingCertId === c._id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                           <span>Generate Certificate</span>

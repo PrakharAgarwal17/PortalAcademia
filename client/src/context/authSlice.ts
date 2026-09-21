@@ -1,11 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
-
-// ============================================================
-// Constants
-// ============================================================
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
+import { API_BASE } from "@/lib/api";
 
 // ============================================================
 // Types
@@ -76,20 +71,25 @@ export const checkAuthThunk = createAsyncThunk<
 
     const data = (await response.json()) as CheckAuthResponse;
 
-    if (data.valid && data.user && data.user.isOnboarded) {
-      try {
-        const profileRes = await fetch(`${API_BASE}/api/profile/me`, {
-          method: "GET",
-          credentials: "include",
-        });
-        if (profileRes.ok) {
-          const profileData = await profileRes.json();
-          if (profileData.success && profileData.profile?.accountType) {
-            data.user.role = profileData.profile.accountType;
+    if (data.valid && data.user) {
+      if (!data.user.role) {
+        try {
+          const profileRes = await fetch(`${API_BASE}/api/profile/me`, {
+            method: "GET",
+            credentials: "include",
+          });
+          if (profileRes.ok) {
+            const profileData = await profileRes.json();
+            if (profileData.success && profileData.profile?.accountType) {
+              data.user.role = profileData.profile.accountType;
+            }
           }
+        } catch {
+          // Fallback gracefully if profile lookup encounters network blip
         }
-      } catch {
-        // Fallback gracefully if profile lookup encounters network blip
+      }
+      if (!data.user.role) {
+        data.user.role = "student";
       }
     }
 
@@ -168,9 +168,12 @@ const authSlice = createSlice({
         if (action.payload.valid && action.payload.user) {
           state.isAuthenticated = true;
           state.user = {
+            id: action.payload.user.id,
+            _id: action.payload.user.id,
             email: action.payload.user.email,
             isVerified: action.payload.user.isVerified,
             isOnboarded: action.payload.user.isOnboarded,
+            isEmailVerified: action.payload.user.isEmailVerified,
             role: action.payload.user.role,
           };
         } else {

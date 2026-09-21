@@ -97,6 +97,15 @@ export interface IProfile extends Document {
     linkedin?: string;
     github?: string;
 
+    // Peer Mentorship fields
+    isMentor?: boolean;
+    isMentorVerified?: boolean;
+    mentorBio?: string;
+    mentorTopics?: string[];
+    mentorTermsAccepted?: boolean;
+    mentorTermsAcceptedAt?: Date | null;
+    atsBoostPoints?: number;
+
     createdAt: Date;
     updatedAt: Date;
 }
@@ -372,6 +381,38 @@ const profileSchema = new Schema<IProfile>(
         premiumExpiresAt: {
             type: Date,
             default: null,
+        },
+
+        // Peer Mentorship fields
+        isMentor: {
+            type: Boolean,
+            default: false,
+            index: true,
+        },
+        isMentorVerified: {
+            type: Boolean,
+            default: false,
+        },
+        mentorBio: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+        mentorTopics: {
+            type: [String],
+            default: [],
+        },
+        mentorTermsAccepted: {
+            type: Boolean,
+            default: false,
+        },
+        mentorTermsAcceptedAt: {
+            type: Date,
+            default: null,
+        },
+        atsBoostPoints: {
+            type: Number,
+            default: 0,
         },
     },
     {

@@ -82,8 +82,10 @@ export async function createMembershipOrder(req: Request, res: Response) {
             // Mark user + profile as premium
             await userModel.findByIdAndUpdate(userId, {
                 isPremium:        true,
-                premiumExpiresAt: expiresAt,
+                planTier:         "trial",
                 hasUsedTrial:     true,
+                trialEndsAt:      expiresAt,
+                premiumExpiresAt: expiresAt,
             });
             await profileModel.findOneAndUpdate(
                 { userId },
@@ -161,7 +163,9 @@ export async function verifyMembershipPayment(req: Request, res: Response) {
             .update(body)
             .digest("hex");
 
-        if (expectedSignature !== razorpay_signature) {
+        const expectedBuf = Buffer.from(expectedSignature);
+        const actualBuf = Buffer.from(razorpay_signature);
+        if (expectedBuf.length !== actualBuf.length || !crypto.timingSafeEqual(expectedBuf, actualBuf)) {
             return res.status(400).json({ success: false, message: "Payment signature mismatch" });
         }
 
@@ -176,19 +180,31 @@ export async function verifyMembershipPayment(req: Request, res: Response) {
             return res.status(404).json({ message: "Membership order not found" });
         }
 
-        // Activate
+        const now = new Date();
+        const activeExpiresAt = addDays(PLAN_CONFIG.premium.daysValid);
+
+        // Retire any previous active memberships (e.g. trial)
+        await membershipModel.updateMany(
+            { userId, status: "active", _id: { $ne: membership._id } },
+            { status: "expired" }
+        );
+
+        // Activate membership starting from payment verification
         membership.status            = "active";
+        membership.startDate         = now;
+        membership.expiresAt         = activeExpiresAt;
         membership.razorpayPaymentId = razorpay_payment_id;
         membership.razorpaySignature = razorpay_signature;
         await membership.save();
 
         await userModel.findByIdAndUpdate(userId, {
             isPremium:        true,
-            premiumExpiresAt: membership.expiresAt,
+            planTier:         "paid",
+            premiumExpiresAt: activeExpiresAt,
         });
         await profileModel.findOneAndUpdate(
             { userId },
-            { isPremium: true, premiumExpiresAt: membership.expiresAt }
+            { isPremium: true, premiumExpiresAt: activeExpiresAt }
         );
 
         return res.status(200).json({

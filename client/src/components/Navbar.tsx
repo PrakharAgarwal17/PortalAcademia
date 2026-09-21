@@ -27,6 +27,13 @@ interface NotificationItem {
   title: string;
   message: string;
   isRead: boolean;
+  metadata?: {
+    projectId?: string;
+    contributionId?: string;
+    prUrl?: string;
+    companyName?: string;
+    projectTitle?: string;
+  };
   createdAt: string;
 }
 
@@ -47,6 +54,9 @@ export default function Navbar({ profileId, userName, userRole }: NavbarProps) {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
+  const isIndustry =
+    userRole === "industry" ||
+    location.pathname.includes("/dashboard/industry");
   const isFaculty =
     userRole === "faculty" ||
     location.pathname.includes("/dashboard/faculty") ||
@@ -56,7 +66,9 @@ export default function Navbar({ profileId, userName, userRole }: NavbarProps) {
     location.pathname.includes("/dashboard/institution") ||
     location.pathname.includes("/trends/institution");
 
-  const dashboardPath = isFaculty
+  const dashboardPath = isIndustry
+    ? "/dashboard/industry"
+    : isFaculty
     ? "/dashboard/faculty"
     : isInstitution
     ? "/dashboard/institution"
@@ -142,6 +154,26 @@ export default function Navbar({ profileId, userName, userRole }: NavbarProps) {
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     } catch (e) {
       // silent
+    }
+  };
+
+  const handleNotificationClick = async (n: NotificationItem) => {
+    if (!n.isRead) {
+      try {
+        await fetch(`${API_BASE}/api/notifications/${n._id}/read`, {
+          method: "PATCH",
+          credentials: "include",
+        });
+        setNotifications((prev) =>
+          prev.map((item) => (item._id === n._id ? { ...item, isRead: true } : item))
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } catch (err) {
+        // silent
+      }
+    }
+    if (n.metadata?.prUrl) {
+      window.open(n.metadata.prUrl, "_blank", "noopener,noreferrer");
     }
   };
 
@@ -236,14 +268,14 @@ export default function Navbar({ profileId, userName, userRole }: NavbarProps) {
           </button>
 
           {isNotifOpen && (
-            <div className="absolute right-0 mt-2 w-80 rounded-xl border border-border bg-card shadow-xl z-50 p-3 space-y-2 animate-in fade-in-50">
+            <div className="absolute right-0 mt-2 w-80 rounded-md border border-border bg-card shadow-lg z-50 p-3 space-y-2">
               <div className="flex items-center justify-between border-b border-border pb-2">
                 <span className="text-xs font-bold text-foreground">Notifications</span>
                 {unreadCount > 0 && (
                   <button
                     type="button"
                     onClick={markAllRead}
-                    className="text-[10px] text-primary hover:underline font-semibold"
+                    className="text-[10px] text-primary hover:underline font-semibold cursor-pointer"
                   >
                     Mark all read
                   </button>
@@ -256,24 +288,32 @@ export default function Navbar({ profileId, userName, userRole }: NavbarProps) {
                   notifications.map((n) => (
                     <div
                       key={n._id}
+                      onClick={() => handleNotificationClick(n)}
                       className={cn(
-                        "p-2 rounded-lg border border-border text-left text-xs transition-colors",
-                        n.isRead ? "bg-background/40 opacity-75" : "bg-secondary/40 font-medium"
+                        "p-2 rounded-sm border border-border text-left text-xs transition-colors cursor-pointer hover:border-primary/40",
+                        n.isRead ? "bg-background/50 opacity-80" : "bg-secondary/40 font-medium"
                       )}
                     >
-                      <div className="flex items-center gap-1.5 font-bold text-[11px] text-foreground">
+                      <div className="flex items-center gap-1.5 font-semibold text-[11px] text-foreground">
                         {n.type === "certificate_issued" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
                         {n.title}
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{n.message}</p>
-                      <span className="text-[9px] text-muted-foreground/60 font-mono mt-1 block">
-                        {new Date(n.createdAt).toLocaleDateString("en-IN", {
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
+                      <div className="flex items-center justify-between mt-1 pt-0.5">
+                        <span className="text-[9px] text-muted-foreground/70 font-mono">
+                          {new Date(n.createdAt).toLocaleDateString("en-IN", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                        {n.metadata?.prUrl && (
+                          <span className="text-[9px] text-primary font-mono hover:underline">
+                            View PR →
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))
                 )}
