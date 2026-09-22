@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
   LayoutDashboard,
   Bot,
@@ -13,9 +13,10 @@ import {
   Crown,
   Bell,
   CheckCircle2,
+  GraduationCap,
 } from "lucide-react";
 import { useTheme } from "@/context/theme";
-import { useAppDispatch } from "@/context/store";
+import { useAppDispatch, useAppSelector } from "@/context/store";
 import { signOutThunk } from "@/context/authSlice";
 import { cn } from "@/lib/utils";
 import { API_BASE } from "@/lib/api";
@@ -53,17 +54,26 @@ export default function Navbar({ profileId, userName, userRole }: NavbarProps) {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const isIndustry =
-    userRole === "industry" ||
-    location.pathname.includes("/dashboard/industry");
-  const isFaculty =
-    userRole === "faculty" ||
-    location.pathname.includes("/dashboard/faculty") ||
-    location.pathname.includes("/trends/faculty");
-  const isInstitution =
-    userRole === "institution" ||
-    location.pathname.includes("/dashboard/institution") ||
-    location.pathname.includes("/trends/institution");
+  const [searchParams] = useSearchParams();
+  const currentTab = searchParams.get("tab");
+  const authUser = useAppSelector((state) => state.auth.user);
+
+  const effectiveRole =
+    userRole ||
+    authUser?.role ||
+    (location.pathname.includes("/dashboard/institution") ||
+    location.pathname.includes("/trends/institution") ||
+    location.pathname.includes("/institution")
+      ? "institution"
+      : location.pathname.includes("/faculty")
+      ? "faculty"
+      : location.pathname.includes("/industry")
+      ? "industry"
+      : "student");
+
+  const isIndustry = effectiveRole === "industry";
+  const isFaculty = effectiveRole === "faculty";
+  const isInstitution = effectiveRole === "institution";
 
   const dashboardPath = isIndustry
     ? "/dashboard/industry"
@@ -78,32 +88,67 @@ export default function Navbar({ profileId, userName, userRole }: NavbarProps) {
     ? "/trends/institution"
     : "/trends/student";
 
-  const navLinks = [
-    {
-      name: "Dashboard",
-      path: dashboardPath,
-      icon: LayoutDashboard,
-      isActive: location.pathname.startsWith("/dashboard"),
-    },
-    {
-      name: "Market Trends",
-      path: trendsPath,
-      icon: TrendingUp,
-      isActive: location.pathname.startsWith("/trends"),
-    },
-    {
-      name: "Test Your Skills",
-      path: "/assessments",
-      icon: Award,
-      isActive: location.pathname === "/assessments",
-    },
-    {
-      name: "Current Applications",
-      path: "/applications",
-      icon: Briefcase,
-      isActive: location.pathname === "/applications",
-    },
-  ];
+  let navLinks: Array<{
+    name: string;
+    path: string;
+    icon: any;
+    isActive: boolean;
+  }> = [];
+
+  if (isInstitution) {
+    navLinks = [
+      {
+        name: "Dashboard",
+        path: "/dashboard/institution",
+        icon: LayoutDashboard,
+        isActive:
+          location.pathname === "/dashboard/institution" &&
+          (!currentTab || currentTab !== "students"),
+      },
+      {
+        name: "Enrolled Students",
+        path: "/dashboard/institution?tab=students",
+        icon: GraduationCap,
+        isActive:
+          (location.pathname === "/dashboard/institution" && currentTab === "students") ||
+          location.pathname.startsWith("/institution/directory") ||
+          location.pathname.startsWith("/institution/member"),
+      },
+      {
+        name: "Market Trends",
+        path: "/trends/institution",
+        icon: TrendingUp,
+        isActive: location.pathname.startsWith("/trends"),
+      },
+    ];
+  } else {
+    navLinks = [
+      {
+        name: "Dashboard",
+        path: dashboardPath,
+        icon: LayoutDashboard,
+        isActive: location.pathname.startsWith("/dashboard"),
+      },
+      {
+        name: "Market Trends",
+        path: trendsPath,
+        icon: TrendingUp,
+        isActive: location.pathname.startsWith("/trends"),
+      },
+      {
+        name: "Test Your Skills",
+        path: "/assessments",
+        icon: Award,
+        isActive: location.pathname === "/assessments",
+      },
+      {
+        name: "Current Applications",
+        path: "/applications",
+        icon: Briefcase,
+        isActive: location.pathname === "/applications",
+      },
+    ];
+  }
 
   // Fetch notifications
   useEffect(() => {
@@ -321,19 +366,21 @@ export default function Navbar({ profileId, userName, userRole }: NavbarProps) {
           )}
         </div>
 
-        {/* Premium Link */}
-        <Link
-          to="/premium"
-          className={cn(
-            "p-1.5 rounded-md border transition-all cursor-pointer flex items-center justify-center shadow-xs",
-            location.pathname.startsWith("/premium")
-              ? "bg-amber-400 text-amber-950 border-amber-400"
-              : "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800"
-          )}
-          title="Premium Dashboard"
-        >
-          <Crown className="w-4 h-4" />
-        </Link>
+        {/* Premium Link (Hidden for Institution role) */}
+        {!isInstitution && (
+          <Link
+            to="/premium"
+            className={cn(
+              "p-1.5 rounded-md border transition-all cursor-pointer flex items-center justify-center shadow-xs",
+              location.pathname.startsWith("/premium")
+                ? "bg-amber-400 text-amber-950 border-amber-400"
+                : "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800"
+            )}
+            title="Premium Dashboard"
+          >
+            <Crown className="w-4 h-4" />
+          </Link>
+        )}
 
         {/* Profile Link (Icon Only) */}
         <Link

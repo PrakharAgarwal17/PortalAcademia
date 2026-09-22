@@ -52,16 +52,23 @@ interface CheckAuthResponse {
  */
 export const checkAuthThunk = createAsyncThunk<
   CheckAuthResponse,
-  void,
+  string | void,
   { rejectValue: string }
->("auth/checkAuth", async (_, { rejectWithValue }) => {
+>("auth/checkAuth", async (token, { rejectWithValue }) => {
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (token && typeof token === "string") {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(
       `${API_BASE}/api/auth/checkAuth`,
       {
         method: "POST",
         credentials: "include", // send httpOnly cookie
-        headers: { "Content-Type": "application/json" },
+        headers,
       }
     );
 
@@ -74,9 +81,14 @@ export const checkAuthThunk = createAsyncThunk<
     if (data.valid && data.user) {
       if (data.user.isOnboarded && !data.user.role) {
         try {
+          const profileHeaders: Record<string, string> = {};
+          if (token && typeof token === "string") {
+            profileHeaders["Authorization"] = `Bearer ${token}`;
+          }
           const profileRes = await fetch(`${API_BASE}/api/profile/me`, {
             method: "GET",
             credentials: "include",
+            headers: profileHeaders,
           });
           if (profileRes.ok) {
             const profileData = await profileRes.json();

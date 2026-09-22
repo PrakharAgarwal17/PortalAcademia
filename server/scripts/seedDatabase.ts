@@ -55,11 +55,13 @@ async function seed() {
             { email: "industry.test@company.com", isOnboarded: true },
             { email: "iitb.admin@portalacademia.ac.in", isOnboarded: true },
             { email: "faculty.test@portalacademia.ac.in", isOnboarded: true },
-            { email: "new.student@portalacademia.ac.in", isOnboarded: false },
+            { email: "new.student@portalacademia.ac.in", isOnboarded: true },
             // Senior Scholar Peer Mentors (Free Registration)
             { email: "arjun.mentor@portalacademia.ac.in", isOnboarded: true },
             { email: "meera.mentor@portalacademia.ac.in", isOnboarded: true },
             { email: "kabir.mentor@portalacademia.ac.in", isOnboarded: true },
+            { email: "ananya.mentor@portalacademia.ac.in", isOnboarded: true },
+            { email: "rohan.mentor@portalacademia.ac.in", isOnboarded: true },
         ];
 
         const seededUserDocs: Record<string, any> = {};
@@ -83,12 +85,15 @@ async function seed() {
         }
 
         const studentUser = seededUserDocs["student.test@portalacademia.ac.in"];
+        const juniorStudent = seededUserDocs["new.student@portalacademia.ac.in"];
         const industryUser = seededUserDocs["industry.test@company.com"];
         const institutionUser = seededUserDocs["iitb.admin@portalacademia.ac.in"];
         const facultyUser = seededUserDocs["faculty.test@portalacademia.ac.in"];
         const mentor1 = seededUserDocs["arjun.mentor@portalacademia.ac.in"];
         const mentor2 = seededUserDocs["meera.mentor@portalacademia.ac.in"];
         const mentor3 = seededUserDocs["kabir.mentor@portalacademia.ac.in"];
+        const mentor4 = seededUserDocs["ananya.mentor@portalacademia.ac.in"];
+        const mentor5 = seededUserDocs["rohan.mentor@portalacademia.ac.in"];
 
         // 2. Configure Student as Active Premium User
         const premiumExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -117,14 +122,24 @@ async function seed() {
                 category: "individual",
                 accountType: "student",
                 name: "Priya Sharma",
-                bio: "Pre-final year Computer Science undergraduate at IIT Bombay focused on distributed systems and AI applications.",
+                headline: "4th Year CS Scholar · Distributed Systems & Web Architect",
+                academicYear: "4th Year",
+                graduationYear: new Date().getFullYear() + 1,
+                bio: "Final-year Computer Science undergraduate at IIT Bombay focused on distributed systems, WebRTC signaling, and high-performance React architectures.",
                 location: "Mumbai, Maharashtra",
                 institution: "Indian Institute of Technology Bombay",
                 institutionEmail: "priya.sharma@iitb.ac.in",
                 isEmailVerified: true,
                 isPremium: true,
                 premiumExpiresAt: premiumExpiry,
-                skills: ["React", "TypeScript", "Node.js", "Python", "Docker"],
+                isMentor: true,
+                isMentorVerified: true,
+                mentorBio: "4th-year senior scholar at IIT Bombay specializing in distributed backends, WebSocket signaling, and React architecture. Happy to advise juniors on thesis design, ATS resumes, and internship interview prep.",
+                mentorTopics: ["React 19", "Distributed Systems", "Full-Stack System Design", "Resume Review", "Mock Interviews"],
+                mentorTermsAccepted: true,
+                mentorTermsAcceptedAt: new Date(),
+                atsBoostPoints: 20,
+                skills: ["React", "TypeScript", "Node.js", "Python", "Docker", "Distributed Systems"],
                 certifications: [
                     {
                         title: "Meta Certified Front-End Developer",
@@ -140,6 +155,26 @@ async function seed() {
                         isVerified: false,
                     },
                 ],
+            },
+            { upsert: true, new: true }
+        );
+
+        // Seed Junior Mentee Profile (Aarav Patel)
+        await profileModel.findOneAndUpdate(
+            { userId: juniorStudent._id },
+            {
+                userId: juniorStudent._id,
+                category: "individual",
+                accountType: "student",
+                name: "Aarav Patel",
+                headline: "2nd Year CS Undergrad · Open Source Enthusiast",
+                academicYear: "2nd Year",
+                graduationYear: new Date().getFullYear() + 3,
+                institution: "Indian Institute of Technology Bombay",
+                institutionEmail: "aarav.patel@iitb.ac.in",
+                bio: "Sophomore studying computer science at IIT Bombay. Currently exploring full-stack engineering and asynchronous event pipelines.",
+                location: "Mumbai, Maharashtra",
+                skills: ["React", "JavaScript", "Tailwind CSS", "Node.js"],
             },
             { upsert: true, new: true }
         );
@@ -207,6 +242,7 @@ async function seed() {
                 name: "Arjun Venkatraman",
                 headline: "4th Year CS Scholar · Distributed Systems Specialist",
                 institution: "IIT Madras",
+                academicYear: "4th Year",
                 graduationYear: new Date().getFullYear() + 1,
                 isMentor: true,
                 isMentorVerified: true,
@@ -214,7 +250,7 @@ async function seed() {
                 mentorTopics: ["Distributed Systems", "Go", "Docker", "Consensus Algorithms", "Resume Review"],
                 mentorTermsAccepted: true,
                 mentorTermsAcceptedAt: new Date(),
-                atsBoostPoints: 0,
+                atsBoostPoints: 20,
                 skills: ["Go", "Kubernetes", "Distributed Systems", "Docker"],
             },
             { upsert: true, new: true }
@@ -229,6 +265,7 @@ async function seed() {
                 name: "Meera Krishnan",
                 headline: "Senior Engineering Fellow · Full-Stack Lead",
                 institution: "BITS Pilani",
+                academicYear: "4th Year",
                 graduationYear: new Date().getFullYear(),
                 isMentor: true,
                 isMentorVerified: true,
@@ -236,7 +273,7 @@ async function seed() {
                 mentorTopics: ["React 19", "Full-Stack System Design", "TypeScript", "Performance Tuning"],
                 mentorTermsAccepted: true,
                 mentorTermsAcceptedAt: new Date(),
-                atsBoostPoints: 20, // Received from verified 5★ completed mentorship
+                atsBoostPoints: 20,
                 skills: ["React", "TypeScript", "Node.js", "WebRTC", "System Design"],
             },
             { upsert: true, new: true }
@@ -251,6 +288,7 @@ async function seed() {
                 name: "Kabir Sen",
                 headline: "AI/ML Research Fellow",
                 institution: "IIIT Hyderabad",
+                academicYear: "4th Year",
                 graduationYear: new Date().getFullYear() + 1,
                 isMentor: true,
                 isMentorVerified: true,
@@ -258,17 +296,63 @@ async function seed() {
                 mentorTopics: ["Machine Learning", "Transformers", "PyTorch", "NLP", "Model Quantization"],
                 mentorTermsAccepted: true,
                 mentorTermsAcceptedAt: new Date(),
-                atsBoostPoints: 0,
+                atsBoostPoints: 20,
                 skills: ["Python", "PyTorch", "Machine Learning", "Transformers"],
             },
             { upsert: true, new: true }
         );
 
-        // 5. Seed Mentorship Pairings (Active & Completed with Certificate)
+        await profileModel.findOneAndUpdate(
+            { userId: mentor4._id },
+            {
+                userId: mentor4._id,
+                category: "individual",
+                accountType: "student",
+                name: "Ananya Deshmukh",
+                headline: "Cloud Architect & SRE Specialist",
+                institution: "IIT Delhi",
+                academicYear: "4th Year",
+                graduationYear: new Date().getFullYear() + 1,
+                isMentor: true,
+                isMentorVerified: true,
+                mentorBio: "Specializing in AWS cloud topologies, Terraform IaC, and Kubernetes cluster reliability. Experienced in conducting mock cloud design interviews.",
+                mentorTopics: ["Cloud Architecture", "AWS", "Kubernetes", "DevOps & CI/CD", "System Design"],
+                mentorTermsAccepted: true,
+                mentorTermsAcceptedAt: new Date(),
+                atsBoostPoints: 20,
+                skills: ["AWS", "Kubernetes", "Terraform", "Docker", "Go"],
+            },
+            { upsert: true, new: true }
+        );
+
+        await profileModel.findOneAndUpdate(
+            { userId: mentor5._id },
+            {
+                userId: mentor5._id,
+                category: "individual",
+                accountType: "student",
+                name: "Rohan Verma",
+                headline: "Compilers & Systems Fellow",
+                institution: "BITS Goa",
+                academicYear: "4th Year",
+                graduationYear: new Date().getFullYear() + 1,
+                isMentor: true,
+                isMentorVerified: true,
+                mentorBio: "Focusing on Rust compiler internals, WebAssembly runtimes, and low-level Linux performance tuning. Eager to help scholars with OS and systems questions.",
+                mentorTopics: ["Rust", "Operating Systems", "Compilers", "WebAssembly", "C++"],
+                mentorTermsAccepted: true,
+                mentorTermsAcceptedAt: new Date(),
+                atsBoostPoints: 20,
+                skills: ["Rust", "C++", "Compilers", "Linux", "WASM"],
+            },
+            { upsert: true, new: true }
+        );
+
+        // 5. Seed Mentorship Pairings (Outgoing & Incoming, Active & Completed)
         await mentorshipModel.deleteMany({});
 
-        // Pairing 1: Active Pairing (Priya Sharma + Arjun Venkatraman)
-        const activePairing = await mentorshipModel.create({
+        // Outgoing Pairing 1: Active Pairing (Priya Sharma with mentor Arjun Venkatraman)
+        await mentorshipModel.create({
             mentorId: mentor1._id,
             menteeId: studentUser._id,
             status: "active",
@@ -287,7 +371,7 @@ async function seed() {
             totalCallDurationMinutes: 25,
         });
 
-        // Pairing 2: Completed Pairing (Priya Sharma + Meera Krishnan) with 5★ Rating & Certificate
+        // Outgoing Pairing 2: Completed Pairing (Priya Sharma with mentor Meera Krishnan)
         await mentorshipModel.create({
             mentorId: mentor2._id,
             menteeId: studentUser._id,
@@ -318,6 +402,53 @@ async function seed() {
             certificateIssued: true,
             certificateIssuedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
             certificateId: "CERT-MENTOR-M8K2X1",
+        });
+
+        // Incoming Pairing 3: Active Pairing (Priya Sharma as Mentor advising junior Aarav Patel)
+        await mentorshipModel.create({
+            mentorId: studentUser._id,
+            menteeId: juniorStudent._id,
+            status: "active",
+            startDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+            targetEndDate: new Date(Date.now() + 27 * 24 * 60 * 60 * 1000),
+            topics: ["React 19", "Resume Review"],
+            notes: "Advising on component state machine design and ATS formatting for campus hackathon project.",
+            callSessions: [
+                {
+                    callRoomId: "session-call-priya-aarav",
+                    startedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+                    endedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000),
+                    durationMinutes: 30,
+                },
+            ],
+            totalCallDurationMinutes: 30,
+        });
+
+        // Incoming Pairing 4: Completed Pairing (Priya Sharma as Mentor advising a completed mentee)
+        await mentorshipModel.create({
+            mentorId: studentUser._id,
+            menteeId: mentor3._id, // Kabir as sample mentee
+            status: "completed",
+            startDate: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000),
+            targetEndDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+            completedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+            topics: ["Distributed Systems", "Full-Stack System Design"],
+            notes: "End-to-end distributed system review for ML model deployment service.",
+            callSessions: [
+                {
+                    callRoomId: "session-call-priya-kabir-1",
+                    startedAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000),
+                    endedAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000 + 35 * 60 * 1000),
+                    durationMinutes: 35,
+                },
+            ],
+            totalCallDurationMinutes: 35,
+            menteeRating: 5,
+            menteeFeedback: "Priya gave me invaluable feedback on my system architecture and mock interview readiness. Truly top tier!",
+            ratedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+            certificateIssued: true,
+            certificateIssuedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+            certificateId: "CERT-PRIYA-MENTOR-2026",
         });
 
         // 6. Seed Community Spaces & Real-time Messages

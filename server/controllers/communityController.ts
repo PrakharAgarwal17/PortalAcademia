@@ -56,10 +56,10 @@ export async function joinSpace(req: Request, res: Response) {
             return res.status(404).json({ success: false, message: "Profile not found." });
         }
 
-        const isFacultyOrIndustry = ["faculty", "industry"].includes(profile.accountType);
+        const isPrivilegedRole = ["faculty", "industry", "institution"].includes(profile.accountType);
         const isPremiumStudent = profile.accountType === "student" && profile.isPremium === true;
 
-        if (!isFacultyOrIndustry && !isPremiumStudent) {
+        if (!isPrivilegedRole && !isPremiumStudent) {
             return res.status(403).json({
                 success: false,
                 message: "Accessing technical enterprise spaces requires an active Premium membership for students.",

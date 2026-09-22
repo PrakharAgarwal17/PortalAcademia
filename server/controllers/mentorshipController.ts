@@ -4,6 +4,7 @@ import mentorshipModel from "../models/mentorshipModel.js";
 import mentorshipReportModel from "../models/mentorshipReportModel.js";
 import profileModel from "../models/profileModel.js";
 import notificationModel from "../models/notificationModel.js";
+import { resolveAlumniStatus } from "../utils/alumniResolver.js";
 
 /** Shape returned by generateMentorAssessment and expected by MentorApplicationModal */
 interface AssessmentQuestion {
@@ -104,7 +105,7 @@ export async function applyAsMentor(req: Request, res: Response) {
             return res.status(401).json({ success: false, message: "Unauthorized: Session required." });
         }
 
-        const { mentorBio, mentorTopics, mentorTermsAccepted, testScore, testPassed } = req.body;
+        const { mentorBio, mentorTopics, mentorTermsAccepted, testScore, testPassed, academicYear } = req.body;
 
         if (!mentorTermsAccepted) {
             return res.status(400).json({
@@ -116,6 +117,27 @@ export async function applyAsMentor(req: Request, res: Response) {
         const profile = await profileModel.findOne({ userId: req.userId });
         if (!profile) {
             return res.status(404).json({ success: false, message: "Profile not found." });
+        }
+
+        // Allow student to confirm 4th-year status if explicitly submitted
+        if (academicYear === "4th Year" || academicYear === "Alumni") {
+            profile.academicYear = academicYear;
+        }
+
+        // Strictly verify that the applicant is 4th year or alumni (or faculty)
+        const alumniInfo = resolveAlumniStatus(profile);
+        const isEligibleYear =
+            profile.accountType === "faculty" ||
+            alumniInfo.isAlumni ||
+            alumniInfo.academicYear === "4th Year" ||
+            profile.academicYear === "4th Year";
+
+        if (!isEligibleYear) {
+            return res.status(403).json({
+                success: false,
+                message: `Peer mentorship is reserved for senior 4th-year students and alumni. Your academic profile is currently registered as "${alumniInfo.academicYear}".`,
+                academicYear: alumniInfo.academicYear,
+            });
         }
 
         // Require mandatory 80% passing score on Mentor Competency & Ethics Assessment for new applicants
@@ -652,6 +674,32 @@ export async function generateMentorAssessment(req: Request, res: Response) {
             return res.status(401).json({ success: false, message: "Unauthorized." });
         }
 
+        const profile = await profileModel.findOne({ userId: req.userId });
+        if (!profile) {
+            return res.status(404).json({ success: false, message: "Profile not found." });
+        }
+
+        // Allow query param override if applicant confirmed 4th year
+        const queryYear = typeof req.query.academicYear === "string" ? req.query.academicYear.trim() : "";
+        if (queryYear === "4th Year" || queryYear === "Alumni") {
+            profile.academicYear = queryYear;
+        }
+
+        const alumniInfo = resolveAlumniStatus(profile);
+        const isEligibleYear =
+            profile.accountType === "faculty" ||
+            alumniInfo.isAlumni ||
+            alumniInfo.academicYear === "4th Year" ||
+            profile.academicYear === "4th Year";
+
+        if (!isEligibleYear) {
+            return res.status(403).json({
+                success: false,
+                message: `Peer mentorship is reserved for senior 4th-year students and alumni. Your academic profile is currently registered as "${alumniInfo.academicYear}".`,
+                academicYear: alumniInfo.academicYear,
+            });
+        }
+
         const bio = typeof req.query.bio === "string" ? req.query.bio.trim().slice(0, 500) : "";
         const topics = typeof req.query.topics === "string" ? req.query.topics.trim().slice(0, 300) : "";
 
@@ -686,50 +734,60 @@ Rules:
 4. Do NOT use the word "correct" anywhere in the option texts.
 5. Return ONLY the raw JSON array — no markdown fences, no extra commentary.`;
 
-        try {
-            const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify({
-                    model: "llama-3.3-70b-versatile",
-                    messages: [{ role: "user", content: prompt }],
-                    temperature: 0.72,
-                    max_tokens: 2400,
-                }),
-            });
+        // Active candidate models on Groq
+        const groqCandidateModels = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b"];
 
-            if (response.ok) {
-                const data = (await response.json()) as any;
-                const raw = data.choices?.[0]?.message?.content?.trim() || "";
-                // Strip markdown fences that some models emit despite instructions
-                const cleaned = raw
-                    .replace(/^```json\s*/i, "")
-                    .replace(/^```\s*/i, "")
-                    .replace(/\s*```$/i, "")
-                    .trim();
-                const parsed: AssessmentQuestion[] = JSON.parse(cleaned);
-                if (
-                    Array.isArray(parsed) &&
-                    parsed.length === 5 &&
-                    parsed.every(
-                        (q) =>
-                            typeof q.id === "number" &&
-                            typeof q.scenario === "string" &&
-                            Array.isArray(q.options) &&
-                            q.options.length === 4 &&
-                            typeof q.correctAnswer === "string"
-                    )
-                ) {
-                    return res.status(200).json({ success: true, questions: parsed, source: "ai" });
+        for (const candidateModel of groqCandidateModels) {
+            try {
+                const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${apiKey}`,
+                    },
+                    body: JSON.stringify({
+                        model: candidateModel,
+                        messages: [{ role: "user", content: prompt }],
+                        temperature: 0.5,
+                        max_tokens: 2400,
+                    }),
+                });
+
+                if (response.ok) {
+                    const data = (await response.json()) as any;
+                    const raw = data.choices?.[0]?.message?.content?.trim() || "";
+                    // Robust regex extraction for JSON array
+                    const match = raw.match(/\[\s*\{[\s\S]*\}\s*\]/);
+                    const jsonToParse = match
+                        ? match[0]
+                        : raw
+                              .replace(/^```json\s*/i, "")
+                              .replace(/^```\s*/i, "")
+                              .replace(/\s*```$/i, "")
+                              .trim();
+
+                    const parsed: AssessmentQuestion[] = JSON.parse(jsonToParse);
+                    if (
+                        Array.isArray(parsed) &&
+                        parsed.length === 5 &&
+                        parsed.every(
+                            (q) =>
+                                typeof q.id === "number" &&
+                                typeof q.scenario === "string" &&
+                                Array.isArray(q.options) &&
+                                q.options.length === 4 &&
+                                typeof q.correctAnswer === "string"
+                        )
+                    ) {
+                        return res.status(200).json({ success: true, questions: parsed, source: "ai" });
+                    }
+                } else {
+                    const errText = await response.text();
+                    console.warn(`generateMentorAssessment: Groq ${candidateModel} returned HTTP ${response.status}:`, errText);
                 }
-            } else {
-                console.warn("generateMentorAssessment: Groq returned HTTP", response.status);
+            } catch (err) {
+                console.warn(`generateMentorAssessment: Groq ${candidateModel} call failed:`, err);
             }
-        } catch (err) {
-            console.warn("generateMentorAssessment: Groq call failed, using fallback questions.", err);
         }
 
         return res.status(200).json({ success: true, questions: FALLBACK_ASSESSMENT_QUESTIONS, source: "fallback" });

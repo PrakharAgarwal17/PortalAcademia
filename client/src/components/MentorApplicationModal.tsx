@@ -33,6 +33,7 @@ interface MentorApplicationModalProps {
   defaultBio?: string;
   defaultTopics?: string[];
   isAlreadyMentor?: boolean;
+  academicYear?: string;
 }
 
 export default function MentorApplicationModal({
@@ -41,9 +42,18 @@ export default function MentorApplicationModal({
   defaultBio = "",
   defaultTopics = [],
   isAlreadyMentor = false,
+  academicYear = "",
 }: MentorApplicationModalProps) {
   // Step: "profile" | "loading" | "test" | "results"
   const [step, setStep] = useState<"profile" | "loading" | "test" | "results">("profile");
+
+  // Senior standing (4th Year / Alumni) verification
+  const isInitial4thOrAlumni = Boolean(
+    academicYear === "4th Year" ||
+    academicYear?.toLowerCase().includes("alumni") ||
+    isAlreadyMentor
+  );
+  const [confirmed4thYear, setConfirmed4thYear] = useState(isInitial4thOrAlumni);
 
   // Profile Form state
   const [bio, setBio] = useState(defaultBio);
@@ -69,9 +79,11 @@ export default function MentorApplicationModal({
     setQuestionsError(null);
     setStep("loading");
     try {
+      const effectiveYear = confirmed4thYear ? "4th Year" : (academicYear || "4th Year");
       const params = new URLSearchParams({
         bio: bioText.slice(0, 500),
         topics: topicsText.slice(0, 300),
+        academicYear: effectiveYear,
       });
       const res = await fetch(`${API_BASE}/api/mentorship/generate-assessment?${params.toString()}`, {
         credentials: "include",
@@ -85,7 +97,7 @@ export default function MentorApplicationModal({
         setTestScore(null);
         setStep("test");
       } else {
-        setQuestionsError("Could not load assessment questions. Please try again.");
+        setQuestionsError(data.message || "Could not load assessment questions. Please try again.");
         setStep("profile");
       }
     } catch {
@@ -96,6 +108,10 @@ export default function MentorApplicationModal({
 
   const handleStartAssessment = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!confirmed4thYear) {
+      setError("PortalAcademia peer mentorship is reserved for 4th-year students and alumni. Please verify your standing.");
+      return;
+    }
     if (!termsAccepted) {
       setError("You must accept the Mentor Terms & Conditions and Honor Code to proceed.");
       return;
@@ -165,6 +181,7 @@ export default function MentorApplicationModal({
           mentorTermsAccepted: true,
           testScore: finalScore,
           testPassed: finalPassed,
+          academicYear: confirmed4thYear ? "4th Year" : (academicYear || "4th Year"),
         }),
       });
 
@@ -272,6 +289,57 @@ export default function MentorApplicationModal({
                     </strong>
                   )}
                 </p>
+              </div>
+
+              {/* Senior Scholar / 4th Year Standing Verification Banner */}
+              <div
+                className={cn(
+                  "rounded-md border p-3 text-xs space-y-2 transition-colors",
+                  confirmed4thYear
+                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-800 dark:text-emerald-300"
+                    : "bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-300"
+                )}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    {confirmed4thYear ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                    )}
+                    <span className="font-bold text-xs">
+                      {confirmed4thYear
+                        ? "Eligibility Verified: Senior Standing (4th-Year / Alumni)"
+                        : "Senior Standing Verification Required"}
+                    </span>
+                  </div>
+                  {academicYear && (
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-background/80 border border-current font-bold uppercase">
+                      Profile: {academicYear}
+                    </span>
+                  )}
+                </div>
+
+                {!confirmed4thYear ? (
+                  <div className="space-y-2 pt-1 border-t border-amber-500/20">
+                    <p className="text-[11px] leading-relaxed opacity-90">
+                      Peer mentorship is reserved exclusively for senior 4th-year scholars and alumni to ensure credible career and architectural guidance for juniors.
+                    </p>
+                    <label className="flex items-start gap-2 cursor-pointer pt-1 font-semibold text-[11px]">
+                      <input
+                        type="checkbox"
+                        checked={confirmed4thYear}
+                        onChange={(e) => setConfirmed4thYear(e.target.checked)}
+                        className="mt-0.5 rounded-sm accent-primary cursor-pointer"
+                      />
+                      <span>I confirm I am actively in my 4th (Final) Year or an Alumnus.</span>
+                    </label>
+                  </div>
+                ) : (
+                  <p className="text-[11px] opacity-90">
+                    You satisfy the senior academic standing requirement to mentor junior scholars.
+                  </p>
+                )}
               </div>
 
               {/* Bio */}
