@@ -5,6 +5,94 @@ import mentorshipReportModel from "../models/mentorshipReportModel.js";
 import profileModel from "../models/profileModel.js";
 import notificationModel from "../models/notificationModel.js";
 
+/** Shape returned by generateMentorAssessment and expected by MentorApplicationModal */
+interface AssessmentQuestion {
+    id: number;
+    category: string;
+    scenario: string;
+    options: { id: string; text: string }[];
+    correctAnswer: string;
+    explanation: string;
+}
+
+const FALLBACK_ASSESSMENT_QUESTIONS: AssessmentQuestion[] = [
+    {
+        id: 1,
+        category: "Academic Honesty & Integrity",
+        scenario:
+            "A junior mentee asks you to write their graded assignment code for them under a tight deadline. As a verified PortalAcademia mentor, what is the required response?",
+        options: [
+            { id: "a", text: "Write the core logic for them since it's urgent, telling them to review it later." },
+            { id: "b", text: "Decline to write the code. Help them debug, review architecture, and explain concepts while upholding academic integrity." },
+            { id: "c", text: "Share your own past assignment repository and tell them to adapt it." },
+            { id: "d", text: "Report them to administration without offering any educational guidance." },
+        ],
+        correctAnswer: "b",
+        explanation:
+            "Mentors guide and empower scholars through architectural review and concept explanation — never by ghostwriting or compromising academic integrity.",
+    },
+    {
+        id: 2,
+        category: "Constructive Technical Advising",
+        scenario:
+            "A mentee presents an MVP with clear performance issues (N+1 database queries inside an unthrottled loop). How do you provide architectural critique?",
+        options: [
+            { id: "a", text: "Tell them the design is fundamentally flawed and rewrite their system design document yourself." },
+            { id: "b", text: "Ignore the bottlenecks entirely to protect their confidence, giving only visual praise." },
+            { id: "c", text: "Acknowledge what they built, ask guiding questions about database load under concurrency, and lead them to discover indexing and caching solutions." },
+            { id: "d", text: "Advise them to abandon the project and pick a simpler non-technical alternative." },
+        ],
+        correctAnswer: "c",
+        explanation:
+            "Effective mentorship uses Socratic questioning to build the mentee's critical problem-solving skills rather than giving blunt criticism or doing the work for them.",
+    },
+    {
+        id: 3,
+        category: "1-on-1 Session Conduct & Empathy",
+        scenario:
+            "During a scheduled 30-minute WebRTC session, a mentee appears nervous and expresses severe imposter syndrome regarding upcoming technical interviews. How do you structure the session?",
+        options: [
+            { id: "a", text: "Tell them that nervousness will cause them to fail and suggest cancelling their interviews." },
+            { id: "b", text: "Normalise their feelings, clarify their priority topics, and break down technical interview prep into manageable, actionable milestones." },
+            { id: "c", text: "Spend the entire 30 minutes reciting your own past offers and career achievements." },
+            { id: "d", text: "End the call early because psychological preparation is not part of technical mentorship." },
+        ],
+        correctAnswer: "b",
+        explanation:
+            "Mentors create psychological safety, normalise common challenges like imposter syndrome, and provide structured, actionable guidance.",
+    },
+    {
+        id: 4,
+        category: "Platform Safety & Zero Solicitation",
+        scenario:
+            "A mentee offers to pay you privately via UPI for extra offline coaching outside PortalAcademia. What does the Mentor Honor Code mandate?",
+        options: [
+            { id: "a", text: "Accept as long as no payment details are mentioned inside the platform chat." },
+            { id: "b", text: "Firmly and politely decline. Remind the mentee that PortalAcademia senior peer advising is 100% free and all sessions must be held through secure platform channels." },
+            { id: "c", text: "Accept payment in advance before joining the scheduled call." },
+            { id: "d", text: "Ask for platform gift cards or cryptocurrency transfers instead of cash." },
+        ],
+        correctAnswer: "b",
+        explanation:
+            "PortalAcademia senior peer mentorship is always free. Soliciting or accepting off-platform compensation is strictly prohibited.",
+    },
+    {
+        id: 5,
+        category: "Growth Mindset Pedagogy",
+        scenario:
+            "A mentee says 'I'm simply not smart enough for software engineering' after struggling with async code and race conditions. What is your pedagogical approach?",
+        options: [
+            { id: "a", text: "Validate that async programming is genuinely non-intuitive, share a relatable analogy, and trace through a minimal Promise example together step-by-step." },
+            { id: "b", text: "Agree that software engineering requires innate talent and suggest transitioning to a non-technical role." },
+            { id: "c", text: "Paste a 200-line boilerplate async utility into chat and tell them to copy-paste without understanding it." },
+            { id: "d", text: "Advise them to convert all asynchronous code to synchronous blocking operations to avoid complexity." },
+        ],
+        correctAnswer: "a",
+        explanation:
+            "Growth mindset and clear analogies help mentees overcome cognitive hurdles and build long-term technical confidence.",
+    },
+];
+
 /**
  * @description Senior student applies for free to become a mentor
  * @route POST /api/mentorship/apply
@@ -16,7 +104,7 @@ export async function applyAsMentor(req: Request, res: Response) {
             return res.status(401).json({ success: false, message: "Unauthorized: Session required." });
         }
 
-        const { mentorBio, mentorTopics, mentorTermsAccepted } = req.body;
+        const { mentorBio, mentorTopics, mentorTermsAccepted, testScore, testPassed } = req.body;
 
         if (!mentorTermsAccepted) {
             return res.status(400).json({
@@ -30,11 +118,21 @@ export async function applyAsMentor(req: Request, res: Response) {
             return res.status(404).json({ success: false, message: "Profile not found." });
         }
 
-        // Validate eligibility: 4th year / senior or has verified skills or past experience
-        const isSenior = (profile.graduationYear && profile.graduationYear <= new Date().getFullYear() + 1) ||
-            (profile.education && profile.education.length > 0) ||
-            (profile.verifiedSkills && profile.verifiedSkills.length > 0) ||
-            (profile.skills && profile.skills.length >= 3);
+        // Require mandatory 80% passing score on Mentor Competency & Ethics Assessment for new applicants
+        if (!profile.isMentor) {
+            const numericScore = typeof testScore === "number" ? testScore : Number(testScore);
+            if (!testPassed || isNaN(numericScore) || numericScore < 80) {
+                return res.status(400).json({
+                    success: false,
+                    message: "You must complete and pass the Mentor Competency & Ethics Assessment with at least 80% (4/5) to qualify.",
+                });
+            }
+            profile.mentorTestScore = numericScore;
+            profile.mentorTestPassedAt = new Date();
+            if (!profile.atsBoostPoints || profile.atsBoostPoints < 20) {
+                profile.atsBoostPoints = (profile.atsBoostPoints || 0) + 20;
+            }
+        }
 
         const topicsArray = Array.isArray(mentorTopics)
             ? mentorTopics.map((t: string) => String(t).trim()).filter(Boolean)
@@ -52,12 +150,14 @@ export async function applyAsMentor(req: Request, res: Response) {
 
         return res.status(200).json({
             success: true,
-            message: "Mentor privileges registered successfully. Senior scholars apply for free.",
+            message: "Mentor privileges registered successfully with verified competency credentials.",
             profile: {
                 isMentor: profile.isMentor,
                 mentorBio: profile.mentorBio,
                 mentorTopics: profile.mentorTopics,
                 isMentorVerified: profile.isMentorVerified,
+                mentorTestScore: profile.mentorTestScore,
+                atsBoostPoints: profile.atsBoostPoints,
             },
         });
     } catch (error) {
@@ -538,5 +638,103 @@ export async function updateMentorshipReportStatus(req: Request, res: Response) 
     } catch (error) {
         console.error("updateMentorshipReportStatus error:", error);
         return res.status(500).json({ success: false, message: "Failed to update report status." });
+    }
+}
+
+/**
+ * @description Generate AI-personalised mentor competency assessment questions via Groq
+ * @route GET /api/mentorship/generate-assessment
+ * @access Authenticated
+ */
+export async function generateMentorAssessment(req: Request, res: Response) {
+    try {
+        if (!req.userId) {
+            return res.status(401).json({ success: false, message: "Unauthorized." });
+        }
+
+        const bio = typeof req.query.bio === "string" ? req.query.bio.trim().slice(0, 500) : "";
+        const topics = typeof req.query.topics === "string" ? req.query.topics.trim().slice(0, 300) : "";
+
+        const apiKey = process.env.GROQ_API_KEY || process.env.GROK_API_KEY;
+        if (!apiKey) {
+            return res.status(200).json({ success: true, questions: FALLBACK_ASSESSMENT_QUESTIONS, source: "fallback" });
+        }
+
+        const contextClause =
+            bio || topics
+                ? `The applicant's advising bio is: "${bio}". Their declared advisory topics are: "${topics}". Where relevant, frame scenarios around these specific domains (e.g. if topics include 'Distributed Systems', create a scenario where they advise on a distributed systems architecture problem).`
+                : "Use general software engineering and academic mentorship scenarios.";
+
+        const prompt = `You are a senior mentorship quality auditor for PortalAcademia — an academic platform where senior students mentor juniors on technical skills, career paths, and research.
+
+Generate EXACTLY 5 scenario-based assessment questions to evaluate whether a mentor candidate demonstrates the correct pedagogical approach, academic integrity, and professional conduct expected of a verified PortalAcademia mentor.
+
+${contextClause}
+
+Return ONLY a valid JSON array with exactly 5 question objects. Each object must have these exact fields:
+- "id": integer 1–5
+- "category": string — short name of the competency being tested (e.g. "Academic Integrity", "Technical Guidance", "Session Conduct", "Platform Safety", "Growth Mindset")
+- "scenario": string — a realistic 2–3 sentence mentoring situation the candidate must respond to
+- "options": array of exactly 4 objects, each with "id" (one of "a","b","c","d") and "text" (1–2 sentence option text)
+- "correctAnswer": string — must be one of "a", "b", "c", "d"
+- "explanation": string — 1–2 sentence rationale for why the correct answer is right
+
+Rules:
+1. Exactly one option must be clearly and unambiguously correct (the ethical, pedagogically sound choice for a responsible senior peer mentor).
+2. The other three options must represent plausible but incorrect mentorship behaviours (e.g. doing the work for the mentee, being overly harsh, enabling academic dishonesty, soliciting payment).
+3. Scenarios must be grounded in realistic academic/technical mentorship situations.
+4. Do NOT use the word "correct" anywhere in the option texts.
+5. Return ONLY the raw JSON array — no markdown fences, no extra commentary.`;
+
+        try {
+            const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    model: "llama-3.3-70b-versatile",
+                    messages: [{ role: "user", content: prompt }],
+                    temperature: 0.72,
+                    max_tokens: 2400,
+                }),
+            });
+
+            if (response.ok) {
+                const data = (await response.json()) as any;
+                const raw = data.choices?.[0]?.message?.content?.trim() || "";
+                // Strip markdown fences that some models emit despite instructions
+                const cleaned = raw
+                    .replace(/^```json\s*/i, "")
+                    .replace(/^```\s*/i, "")
+                    .replace(/\s*```$/i, "")
+                    .trim();
+                const parsed: AssessmentQuestion[] = JSON.parse(cleaned);
+                if (
+                    Array.isArray(parsed) &&
+                    parsed.length === 5 &&
+                    parsed.every(
+                        (q) =>
+                            typeof q.id === "number" &&
+                            typeof q.scenario === "string" &&
+                            Array.isArray(q.options) &&
+                            q.options.length === 4 &&
+                            typeof q.correctAnswer === "string"
+                    )
+                ) {
+                    return res.status(200).json({ success: true, questions: parsed, source: "ai" });
+                }
+            } else {
+                console.warn("generateMentorAssessment: Groq returned HTTP", response.status);
+            }
+        } catch (err) {
+            console.warn("generateMentorAssessment: Groq call failed, using fallback questions.", err);
+        }
+
+        return res.status(200).json({ success: true, questions: FALLBACK_ASSESSMENT_QUESTIONS, source: "fallback" });
+    } catch (error) {
+        console.error("generateMentorAssessment error:", error);
+        return res.status(500).json({ success: false, message: "Failed to generate assessment questions." });
     }
 }

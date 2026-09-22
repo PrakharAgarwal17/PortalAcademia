@@ -633,6 +633,12 @@ export default function PremiumDashboard() {
 
   const isPremium = membership?.isPremium === true;
 
+  // Derived mentor stats (computed from myPairings — no extra fetch)
+  const mentorSessions = myPairings.filter((p) => p.isUserMentor);
+  const satisfiedMentees = mentorSessions.filter((p) => p.menteeRating && p.menteeRating >= 4).length;
+  const mentorCertsEarned = mentorSessions.filter((p) => p.certificateIssued).length;
+  const activeMenteeSessions = mentorSessions.filter((p) => p.status === "active").length;
+
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -871,13 +877,13 @@ export default function PremiumDashboard() {
           )}
 
           <div className="max-w-5xl mx-auto px-4 lg:px-8 py-6 flex flex-col gap-6">
-            {/* Resilient Pending Review Alert */}
+            {/* Pending Review Alert — shown to mentees who completed a call and haven't rated yet */}
             {myPairings.some((p) => p.requiresReview) && (
               <div className="p-3.5 rounded-md bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs animate-in fade-in-50">
                 <div className="flex items-center gap-2.5 text-amber-600 dark:text-amber-400">
                   <AlertTriangle className="w-4 h-4 shrink-0" />
                   <span>
-                    <strong>Pending Advisory Review:</strong> You completed a 1-on-1 mentorship call. Please submit your evaluation to certify hours and unlock mentor rewards.
+                    <strong>Pending Session Review:</strong> You completed a 1-on-1 mentorship call. Please submit your evaluation to help your mentor earn their session certificate.
                   </span>
                 </div>
                 <button
@@ -887,7 +893,7 @@ export default function PremiumDashboard() {
                   }}
                   className="px-3.5 py-1.5 bg-amber-500 text-zinc-950 font-semibold text-xs rounded-sm hover:bg-amber-400 transition-colors shrink-0 cursor-pointer"
                 >
-                  Review Session Now
+                  Rate Session Now
                 </button>
               </div>
             )}
@@ -964,9 +970,19 @@ export default function PremiumDashboard() {
                         <GraduationCap className="w-3.5 h-3.5 text-foreground" />
                       </div>
                       <p className="text-lg font-bold font-mono text-foreground">
-                        {myPairings.length > 0 ? `${myPairings.length} Active` : "Available"}
+                        {profile?.isMentor
+                          ? satisfiedMentees > 0
+                            ? `${satisfiedMentees} Satisfied`
+                            : activeMenteeSessions > 0
+                            ? `${activeMenteeSessions} Active`
+                            : "Mentor"
+                          : myPairings.length > 0
+                          ? `${myPairings.length} Session${myPairings.length !== 1 ? "s" : ""}`
+                          : "Available"}
                       </p>
-                      <p className="text-[10px] text-muted-foreground">Senior 1-on-1 slots</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {profile?.isMentor ? "Mentee ratings ≥4★" : "Senior 1-on-1 slots"}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -1024,14 +1040,23 @@ export default function PremiumDashboard() {
                           <GraduationCap className="w-4 h-4 text-emerald-500" />
                         </div>
                         <div>
-                          <p className="text-xs font-semibold text-foreground flex items-center gap-2">
+                          <p className="text-xs font-semibold text-foreground flex items-center gap-2 flex-wrap">
                             <span>Verified Senior Peer Mentor</span>
-                            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-xs border border-emerald-500/20">
-                              +{profile.atsBoostPoints || 20} ATS Boost
-                            </span>
+                            {satisfiedMentees > 0 && (
+                              <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-xs border border-emerald-500/20">
+                                {satisfiedMentees} satisfied mentee{satisfiedMentees !== 1 ? "s" : ""}
+                              </span>
+                            )}
+                            {mentorCertsEarned > 0 && (
+                              <span className="text-[10px] font-mono text-sky-600 dark:text-sky-400 bg-sky-500/10 px-1.5 py-0.5 rounded-xs border border-sky-500/20">
+                                {mentorCertsEarned} cert{mentorCertsEarned !== 1 ? "s" : ""} earned
+                              </span>
+                            )}
                           </p>
                           <p className="text-[11px] text-muted-foreground">
-                            Your mentor profile is published in the scholar directory. You can update your coaching topics or advising bio anytime.
+                            {activeMenteeSessions > 0
+                              ? `${activeMenteeSessions} active session${activeMenteeSessions !== 1 ? "s" : ""} · Your profile is published in the scholar directory.`
+                              : "Your mentor profile is published in the scholar directory. Update your coaching topics or advising bio anytime."}
                           </p>
                         </div>
                       </div>
@@ -1290,9 +1315,19 @@ export default function PremiumDashboard() {
                   <div className="flex items-center gap-2">
                     {profile?.isMentor ? (
                       <div className="flex items-center gap-2">
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Registered Mentor · +{profile.atsBoostPoints || 20} ATS Boost</span>
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex-wrap">
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                          <span>Registered Mentor</span>
+                          {satisfiedMentees > 0 && (
+                            <span className="text-[10px] font-mono opacity-80">
+                              · {satisfiedMentees} satisfied mentee{satisfiedMentees !== 1 ? "s" : ""}
+                            </span>
+                          )}
+                          {mentorCertsEarned > 0 && (
+                            <span className="text-[10px] font-mono opacity-80">
+                              · {mentorCertsEarned} cert{mentorCertsEarned !== 1 ? "s" : ""}
+                            </span>
+                          )}
                         </div>
                         <button
                           onClick={() => setShowMentorApplyModal(true)}
@@ -1906,6 +1941,7 @@ export default function PremiumDashboard() {
         <MentorApplicationModal
           defaultBio={profile?.mentorBio || profile?.bio || ""}
           defaultTopics={profile?.mentorTopics || profile?.skills || []}
+          isAlreadyMentor={Boolean(profile?.isMentor)}
           onClose={() => setShowMentorApplyModal(false)}
           onApplicationSuccess={() => {
             void fetchData();
