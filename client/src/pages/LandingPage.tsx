@@ -344,7 +344,7 @@ function Navbar() {
 
 function Hero() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAppSelector((s) => s.auth);
+  const { isAuthenticated, user } = useAppSelector((s) => s.auth);
   const [activeTab, setActiveTab] = useState<number>(0);
 
   const previewTabs = [
@@ -416,7 +416,7 @@ function Hero() {
           <button
             type="button"
             id="hero-primary-cta"
-            onClick={() => navigate(isAuthenticated ? "/dashboard" : "/auth")}
+            onClick={() => navigate(isAuthenticated ? (user?.isOnboarded ? "/dashboard" : "/onboarding/select-type") : "/auth")}
             className="inline-flex items-center justify-center gap-2 h-10 px-5 text-xs sm:text-sm font-semibold rounded-md bg-[#111827] text-white hover:bg-[#1f2937] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white transition-all shadow-sm cursor-pointer"
           >
             {isAuthenticated ? "Enter Workspace Console" : "Get Started Free"}
@@ -477,7 +477,7 @@ function Hero() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => navigate(isAuthenticated ? "/dashboard" : "/auth")}
+                  onClick={() => navigate(isAuthenticated ? (user?.isOnboarded ? "/dashboard" : "/onboarding/select-type") : "/auth")}
                   className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground hover:underline shrink-0 cursor-pointer"
                 >
                   <span>Explore Workspace</span>
@@ -740,7 +740,7 @@ function FAQSection() {
 
 function CTABanner() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAppSelector((s) => s.auth);
+  const { isAuthenticated, user } = useAppSelector((s) => s.auth);
 
   return (
     <section className="py-20 px-4 sm:px-6 border-b border-border bg-transparent">
@@ -756,7 +756,7 @@ function CTABanner() {
             <button
               type="button"
               id="cta-enter-btn"
-              onClick={() => navigate(isAuthenticated ? "/dashboard" : "/auth")}
+              onClick={() => navigate(isAuthenticated ? (user?.isOnboarded ? "/dashboard" : "/onboarding/select-type") : "/auth")}
               className="inline-flex items-center justify-center gap-2 bg-white text-zinc-900 hover:bg-zinc-100 h-10 px-6 text-xs sm:text-sm font-semibold rounded-md transition-colors cursor-pointer shadow-sm"
             >
               {isAuthenticated ? "Enter Workspace Console" : "Get Started Free"}

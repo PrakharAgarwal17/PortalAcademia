@@ -44,7 +44,7 @@ interface ProtectedRouteProps {
 }
 
 function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, isInitialized } = useAppSelector((s) => s.auth);
+  const { isAuthenticated, isLoading, isInitialized, user } = useAppSelector((s) => s.auth);
 
   if (isLoading || !isInitialized) {
     return (
@@ -56,6 +56,10 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
+  }
+
+  if (user && !user.isOnboarded) {
+    return <Navigate to="/onboarding/select-type" replace />;
   }
 
   return <>{children}</>;
@@ -79,6 +83,11 @@ function RoleProtectedRoute({ allowedRole, children }: RoleProtectedRouteProps) 
   useEffect(() => {
     if (user?.role) {
       setResolvedRole(user.role);
+      setIsResolving(false);
+      return;
+    }
+
+    if (!user?.isOnboarded) {
       setIsResolving(false);
       return;
     }
@@ -112,7 +121,7 @@ function RoleProtectedRoute({ allowedRole, children }: RoleProtectedRouteProps) 
     return () => {
       isMounted = false;
     };
-  }, [isAuthenticated, user?.role]);
+  }, [isAuthenticated, user?.role, user?.isOnboarded]);
 
   if (isLoading || !isInitialized || isResolving) {
     return (
@@ -124,6 +133,10 @@ function RoleProtectedRoute({ allowedRole, children }: RoleProtectedRouteProps) 
 
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
+  }
+
+  if (user && !user.isOnboarded) {
+    return <Navigate to="/onboarding/select-type" replace />;
   }
 
   // Strictly lock individual to their assigned stakeholder console
@@ -143,7 +156,7 @@ function RoleProtectedRoute({ allowedRole, children }: RoleProtectedRouteProps) 
 // ============================================================
 
 function OnboardingRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, isInitialized } = useAppSelector((s) => s.auth);
+  const { isAuthenticated, isLoading, isInitialized, user } = useAppSelector((s) => s.auth);
 
   if (isLoading || !isInitialized) {
     return (
@@ -155,6 +168,10 @@ function OnboardingRoute({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
+  }
+
+  if (user?.isOnboarded) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

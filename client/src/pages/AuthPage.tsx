@@ -403,8 +403,12 @@ function SignInForm() {
         return;
       }
 
-      await dispatch(checkAuthThunk());
-      navigate("/dashboard", { replace: true });
+      const authResult = await dispatch(checkAuthThunk()).unwrap().catch(() => null);
+      if (authResult?.user?.isOnboarded) {
+        navigate("/dashboard", { replace: true });
+      } else {
+        navigate("/onboarding/select-type", { replace: true });
+      }
     } catch {
       setError("Network error. Please check your connection and try again.");
     } finally {
@@ -625,10 +629,14 @@ function SignUpForm() {
     }
   }
 
-  async function handleVerified(_isOnboarded: boolean) {
+  async function handleVerified(isOnboarded: boolean) {
     setOtpModalOpen(false);
-    await dispatch(checkAuthThunk());
-    navigate("/dashboard", { replace: true });
+    const authResult = await dispatch(checkAuthThunk()).unwrap().catch(() => null);
+    if (authResult?.user?.isOnboarded || isOnboarded) {
+      navigate("/dashboard", { replace: true });
+    } else {
+      navigate("/onboarding/select-type", { replace: true });
+    }
   }
 
   return (
