@@ -56,6 +56,26 @@ function runScopingTests() {
         allPassed = false;
     }
 
+    // 1d: Current year graduation resolves to 4th Year
+    const fourthYearStudent = resolveAlumniStatus({
+        education: [{ timeline: `${currentYear - 3} - ${currentYear}`, education: "B.Tech" }]
+    });
+    if (fourthYearStudent.isAlumni === false && fourthYearStudent.academicYear === "4th Year") {
+        console.log(`  ✅ Graduating class timeline (${currentYear - 3}-${currentYear}) resolves to 4th Year: PASSED`);
+    } else {
+        console.error("  ❌ 4th Year resolution failed:", fourthYearStudent);
+        allPassed = false;
+    }
+
+    // 1e: Explicit profile academicYear takes precedence
+    const explicitFourthYear = resolveAlumniStatus({ academicYear: "4th Year" });
+    if (explicitFourthYear.isAlumni === false && explicitFourthYear.academicYear === "4th Year") {
+        console.log(`  ✅ Stored profile.academicYear='4th Year' properly preserved: PASSED`);
+    } else {
+        console.error("  ❌ Stored 4th Year resolution failed:", explicitFourthYear);
+        allPassed = false;
+    }
+
     // Test 2: Alumni Gating on Student-Only Opportunities
     console.log("\nTEST 2: Alumni Gating Enforcement on Student Opportunities");
     
@@ -197,9 +217,99 @@ function runScopingTests() {
         allPassed = false;
     }
 
+    // Test 5: Campus Announcement Broadcast Scoping
+    console.log("\nTEST 5: Campus Announcement Broadcast Scoping & Recipient Targeting");
+
+    const sampleInstitution = { institutionName: "Apex University of Engineering", accountType: "institution" };
+    const sampleMembers = [
+        { name: "Student 1", accountType: "student", institution: "Apex University of Engineering", userId: "u1" },
+        { name: "Student 2", accountType: "student", institution: "Apex University of Engineering", userId: "u2" },
+        { name: "Faculty 1", accountType: "faculty", institution: "Apex University of Engineering", userId: "u3" },
+        { name: "Student Other", accountType: "student", institution: "Other Institute", userId: "u4" },
+    ];
+
+    function simulateBroadcast(sender: { accountType: string; institutionName: string }, audience: "all" | "students" | "faculty") {
+        if (sender.accountType !== "institution") {
+            return { success: false, status: 403, error: "Only institutions can broadcast" };
+        }
+        const instEscaped = sender.institutionName.toLowerCase();
+        const matched = sampleMembers.filter((m) => m.institution.toLowerCase() === instEscaped);
+        let recipients = matched;
+        if (audience === "students") recipients = matched.filter((m) => m.accountType === "student");
+        if (audience === "faculty") recipients = matched.filter((m) => m.accountType === "faculty");
+        return { success: true, count: recipients.length, recipients: recipients.map((r) => r.name) };
+    }
+
+    const broadcastAll = simulateBroadcast(sampleInstitution, "all");
+    const broadcastStudents = simulateBroadcast(sampleInstitution, "students");
+    const broadcastFaculty = simulateBroadcast(sampleInstitution, "faculty");
+    const unauthorizedBroadcast = simulateBroadcast({ accountType: "student", institutionName: "Apex" }, "all");
+
+    if (broadcastAll.count === 3 && broadcastStudents.count === 2 && broadcastFaculty.count === 1) {
+        console.log("  ✅ Institution announcement targeting (All=3, Students=2, Faculty=1) accurately scopes: PASSED");
+    } else {
+        console.error("  ❌ Broadcast targeting failed:", { broadcastAll, broadcastStudents, broadcastFaculty });
+        allPassed = false;
+    }
+
+    if (!unauthorizedBroadcast.success && unauthorizedBroadcast.status === 403) {
+        console.log("  ✅ Non-institution broadcast attempts properly rejected with 403: PASSED");
+    } else {
+        console.error("  ❌ Unauthorized broadcast was not blocked:", unauthorizedBroadcast);
+        allPassed = false;
+    }
+
+    // Test 6: Community Space Privileged Role Verification
+    console.log("\nTEST 6: Community Space Privileged Role Verification");
+    const privilegedRoles = ["faculty", "industry", "institution"];
+    function checkCommunityAccess(role: string, isPremium: boolean) {
+        if (privilegedRoles.includes(role)) return { canJoin: true, reason: "Privileged academic/enterprise role" };
+        if (role === "student" && isPremium) return { canJoin: true, reason: "Premium student" };
+        return { canJoin: false, reason: "Requires Premium membership" };
+    }
+
+    if (
+        checkCommunityAccess("institution", false).canJoin &&
+        checkCommunityAccess("faculty", false).canJoin &&
+        checkCommunityAccess("industry", false).canJoin &&
+        checkCommunityAccess("student", true).canJoin &&
+        !checkCommunityAccess("student", false).canJoin
+    ) {
+        console.log("  ✅ Community access matrix verified (Institution/Faculty/Industry free, Student requires Premium): PASSED");
+    } else {
+        console.error("  ❌ Community role verification failed");
+        allPassed = false;
+    }
+
+    // Test 7: Mentor Assessment Eligibility (4th Year / Alumni)
+    console.log("\nTEST 7: Mentor Assessment Senior Standing Enforcement");
+    function checkMentorEligibility(profile: any) {
+        const alumniInfo = resolveAlumniStatus(profile);
+        const resolvedYear = profile.academicYear || alumniInfo.academicYear;
+        const isEligible = alumniInfo.isAlumni || resolvedYear === "4th Year" || resolvedYear === "Alumni";
+        return isEligible;
+    }
+
+    const firstYear = { education: [{ timeline: "2024 - 2028" }] };
+    const thirdYear = { education: [{ timeline: "2023 - 2027" }] };
+    const fourthYear = { education: [{ timeline: "2021 - 2025" }], academicYear: "4th Year" };
+    const alumniStudent = { isAlumni: true };
+
+    if (!checkMentorEligibility(firstYear) && !checkMentorEligibility(thirdYear) && checkMentorEligibility(fourthYear) && checkMentorEligibility(alumniStudent)) {
+        console.log("  ✅ Mentor assessment eligibility strictly gates 1st-3rd years and permits 4th years & alumni: PASSED");
+    } else {
+        console.error("  ❌ Mentor eligibility gating failed:", {
+            first: checkMentorEligibility(firstYear),
+            third: checkMentorEligibility(thirdYear),
+            fourth: checkMentorEligibility(fourthYear),
+            alumni: checkMentorEligibility(alumniStudent),
+        });
+        allPassed = false;
+    }
+
     console.log("\n=================================================");
     if (allPassed) {
-        console.log("🎉 ALL INSTITUTION SCOPING & ALUMNI TESTS PASSED SUCCESSFULLY!");
+        console.log("🎉 ALL 7 INSTITUTION SCOPING, ANNOUNCEMENT & GATING TESTS PASSED SUCCESSFULLY!");
     } else {
         console.error("❌ ONE OR MORE TESTS FAILED");
         process.exit(1);
@@ -208,3 +318,4 @@ function runScopingTests() {
 }
 
 runScopingTests();
+

@@ -217,20 +217,30 @@ POST /api/ai/chat
 - Rooms: `mentorship_<pairingId>` (participant authorization strictly enforced).
 - Events: `join_call_room`, `webrtc_offer`, `webrtc_answer`, `webrtc_ice_candidate`, `call_message`, `end_call`.
 
----
-
 ## 15. Enterprise Technical Spaces (`/api/community`)
 
 | Method | Endpoint | Access | Description |
 |:---|:---|:---|:---|
 | `GET` | `/api/community/spaces` | Authenticated | List all enterprise community spaces with member counts. |
-| `POST` | `/api/community/spaces` | Industry / Faculty / Admin | Create a new verified discussion space. |
-| `POST` | `/api/community/spaces/:id/join` | Premium / Faculty / Industry | Join space (requires Premium for students; free for faculty/industry). |
+| `POST` | `/api/community/spaces` | Industry / Faculty / Institution / Admin | Create a new verified discussion space. |
+| `POST` | `/api/community/spaces/:id/join` | Premium / Faculty / Industry / Institution | Join space (requires Premium for students; free for faculty, industry, and institution). |
 | `GET` | `/api/community/spaces/:id/messages` | Authenticated | Fetch latest 100 chat messages chronologically. |
 
 ### Real-time Space Chat (`Socket.IO`)
 - Rooms: `community_<spaceId>` (socket-level premium and role entitlement checked).
 - Events: `join_community_space`, `send_community_message`, `new_community_message`, `leave_community_space`.
+
+---
+
+## 16. Unified Notifications & Campus Broadcasts (`/api/notifications`)
+
+| Method | Endpoint | Access | Description |
+|:---|:---|:---|:---|
+| `GET` | `/api/notifications` | Authenticated | List user notifications with unread badge count. |
+| `PATCH`| `/api/notifications/:id/read` | Authenticated | Mark a single notification as read. |
+| `PATCH`| `/api/notifications/read-all` | Authenticated | Mark all notifications as read for current user. |
+| `POST` | `/api/notifications/broadcast` | Authenticated (Institution) | Broadcast an announcement directly to enrolled students and/or affiliated faculty. |
+| `GET` | `/api/notifications/broadcast-history` | Authenticated (Institution) | Retrieve past campus announcements dispatched by the institution. |
 
 ---
 

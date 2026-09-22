@@ -52,6 +52,7 @@ interface UserProfile {
   name: string;
   profileImage?: string;
   accountType: string;
+  academicYear?: string;
   graduationYear?: number;
   bio?: string;
   skills?: string[];
@@ -1942,6 +1943,7 @@ export default function PremiumDashboard() {
           defaultBio={profile?.mentorBio || profile?.bio || ""}
           defaultTopics={profile?.mentorTopics || profile?.skills || []}
           isAlreadyMentor={Boolean(profile?.isMentor)}
+          academicYear={profile?.academicYear}
           onClose={() => setShowMentorApplyModal(false)}
           onApplicationSuccess={() => {
             void fetchData();

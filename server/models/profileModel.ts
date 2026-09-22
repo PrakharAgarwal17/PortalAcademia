@@ -70,6 +70,7 @@ export interface IProfile extends Document {
 
     // Alumni specific fields
     isAlumni?: boolean;
+    academicYear?: string;
     graduationYear?: number;
     currentCompany?: string;
     currentRole?: string;
@@ -264,6 +265,12 @@ const profileSchema = new Schema<IProfile>(
             type: Boolean,
             default: false,
             index: true,
+        },
+
+        academicYear: {
+            type: String,
+            trim: true,
+            default: "",
         },
 
         graduationYear: {

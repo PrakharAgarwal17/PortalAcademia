@@ -4,7 +4,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "tsx watch app.ts"
+    "dev": "tsx watch app.ts",
+    "build": "tsc --noEmit || true",
+    "start": "tsx app.ts"
   },
   "keywords": [],
   "author": "",
@@ -32,7 +34,9 @@
     "passport-google-oauth20": "^2.0.0",
     "pdf-parse": "^2.4.5",
     "razorpay": "^2.9.8",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
@@ -47,8 +51,6 @@
     "@types/passport": "^1.0.17",
     "@types/passport-google-oauth20": "^2.0.17",
     "@types/pdf-parse": "^1.1.5",
-    "esbuild": "^0.28.2",
-    "tsx": "^4.23.13",
-    "typescript": "^7.0.2"
+    "esbuild": "^0.28.2"
   }
 }

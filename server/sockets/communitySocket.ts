@@ -35,12 +35,12 @@ export function registerCommunitySocket(io: Server, socket: Socket) {
                 return socket.emit("community_error", { message: "User profile not found." });
             }
 
-            const isStaffOrIndustry = ["faculty", "industry"].includes(profile.accountType);
+            const isStaffOrIndustry = ["faculty", "industry", "institution"].includes(profile.accountType);
             const isPremiumStudent = profile.accountType === "student" && profile.isPremium === true;
 
             if (!isStaffOrIndustry && !isPremiumStudent) {
                 return socket.emit("community_error", {
-                    message: "Forbidden: Accessing enterprise community channels requires Premium or Faculty/Industry status.",
+                    message: "Forbidden: Accessing enterprise community channels requires Premium, Faculty, Industry, or Institution status.",
                 });
             }
 

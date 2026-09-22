@@ -20,11 +20,19 @@ import {
   X,
   Briefcase,
   MapPin,
+  Megaphone,
+  MessageSquare,
+  Send,
+  Plus,
+  Radio,
+  Clock,
+  Volume2,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import Navbar from "@/components/Navbar";
 import { API_BASE } from "@/lib/api";
+import CommunityChatView from "@/components/CommunityChatView";
 
 interface InstitutionProfile {
   _id?: string;
@@ -74,6 +82,7 @@ export interface EnrolledStudent {
 interface CohortTelemetry {
   totalStudents: number;
   averageReadinessScore: number;
+  avgSkills?: number;
   verificationRate: number;
   totalCertificationsSubmitted: number;
   totalVerifiedCredentials: number;
@@ -86,18 +95,22 @@ interface CohortTelemetry {
   }>;
 }
 
-interface PendingCredential {
-  studentId: string;
-  studentName: string;
-  studentEmail: string;
-  institution: string;
-  credentialId: string;
-  type: "certification" | "experience";
+interface CampusBroadcast {
   title: string;
-  issuer?: string;
-  credentialUrl?: string;
-  upload?: string;
-  isVerified: boolean;
+  message: string;
+  targetAudience: string;
+  createdAt: string;
+  recipientCount: number;
+}
+
+interface CommunitySpaceItem {
+  _id: string;
+  name: string;
+  description: string;
+  industry: string;
+  focus?: string;
+  memberCount: number;
+  isJoined?: boolean;
 }
 
 interface Opportunity {
@@ -118,23 +131,52 @@ interface Opportunity {
   recommendedToFacultyBy?: string[];
 }
 
+export type DeskTab = "students" | "cohort" | "endorsement" | "announcements" | "community";
+
 export default function InstitutionDashboard() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [profile, setProfile] = useState<InstitutionProfile | null>(null);
   const [telemetry, setTelemetry] = useState<CohortTelemetry | null>(null);
-  const [pendingQueue, setPendingQueue] = useState<PendingCredential[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Active Desk Tabs: "verification" | "students" | "cohort" | "endorsement"
-  const [activeTab, setActiveTab] = useState<"verification" | "students" | "cohort" | "endorsement">("verification");
+  // Active Desk Tabs synchronized with URL search params (?tab=students)
+  const tabFromUrl = searchParams.get("tab") as DeskTab | null;
+  const activeTab: DeskTab =
+    tabFromUrl && ["students", "cohort", "endorsement", "announcements", "community"].includes(tabFromUrl)
+      ? tabFromUrl
+      : "students";
+
+  const setActiveTab = (tab: DeskTab) => {
+    setSearchParams({ tab });
+  };
 
   // Enrolled Students Directory state
   const [enrolledStudents, setEnrolledStudents] = useState<EnrolledStudent[]>([]);
   const [isStudentsLoading, setIsStudentsLoading] = useState(false);
   const [selectedYearFilter, setSelectedYearFilter] = useState<string>("all");
   const [studentSearchQuery, setStudentSearchQuery] = useState<string>("");
+
+  // Announcements state
+  const [broadcasts, setBroadcasts] = useState<CampusBroadcast[]>([]);
+  const [isBroadcastsLoading, setIsBroadcastsLoading] = useState(false);
+  const [broadcastTitle, setBroadcastTitle] = useState("");
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [broadcastAudience, setBroadcastAudience] = useState<"all" | "students" | "faculty">("all");
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [broadcastSuccessMsg, setBroadcastSuccessMsg] = useState<string | null>(null);
+  const [broadcastErrorMsg, setBroadcastErrorMsg] = useState<string | null>(null);
+
+  // Community Spaces state
+  const [spaces, setSpaces] = useState<CommunitySpaceItem[]>([]);
+  const [isSpacesLoading, setIsSpacesLoading] = useState(false);
+  const [isJoiningSpaceId, setIsJoiningSpaceId] = useState<string | null>(null);
+  const [activeChatSpace, setActiveChatSpace] = useState<{ id: string; name: string; focus?: string } | null>(null);
+  const [showCreateSpaceModal, setShowCreateSpaceModal] = useState(false);
+  const [newSpaceForm, setNewSpaceForm] = useState({ name: "", description: "", industry: "", focus: "" });
+  const [isCreatingSpace, setIsCreatingSpace] = useState(false);
 
   // Endorsement Desk filter & confirmation modal
   const [oppAudienceFilter, setOppAudienceFilter] = useState<"all" | "student" | "faculty">("all");
@@ -148,7 +190,6 @@ export default function InstitutionDashboard() {
   } | null>(null);
 
   // In-flight actions
-  const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [recommendingId, setRecommendingId] = useState<string | null>(null);
   const [verifiedSuccessMessage, setVerifiedSuccessMessage] = useState<string | null>(null);
 
@@ -191,21 +232,44 @@ export default function InstitutionDashboard() {
   }, []);
 
   /**
-   * @description Fetch pending student credentials queue
-   * @returns {Promise<void>}
+   * @description Fetch campus broadcast history
    */
-  const fetchPendingQueue = useCallback(async () => {
+  const fetchBroadcasts = useCallback(async () => {
+    setIsBroadcastsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/verification/pending`, {
+      const res = await fetch(`${API_BASE}/api/notifications/broadcast-history`, {
         method: "GET",
         credentials: "include",
       });
       const data = await res.json();
       if (data.success) {
-        setPendingQueue(data.data || []);
+        setBroadcasts(data.broadcasts || []);
       }
     } catch (err) {
-      console.error("Failed to fetch verification queue:", err);
+      console.error("Failed to fetch broadcast history:", err);
+    } finally {
+      setIsBroadcastsLoading(false);
+    }
+  }, []);
+
+  /**
+   * @description Fetch enterprise and campus community spaces
+   */
+  const fetchSpaces = useCallback(async () => {
+    setIsSpacesLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/community/spaces`, {
+        method: "GET",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSpaces(data.spaces || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch community spaces:", err);
+    } finally {
+      setIsSpacesLoading(false);
     }
   }, []);
 
@@ -266,11 +330,12 @@ export default function InstitutionDashboard() {
     Promise.all([
       fetchProfile(),
       fetchCohortTelemetry(),
-      fetchPendingQueue(),
       fetchOpportunities(),
       fetchEnrolledStudents(),
+      fetchBroadcasts(),
+      fetchSpaces(),
     ]).finally(() => setIsLoading(false));
-  }, [fetchProfile, fetchCohortTelemetry, fetchPendingQueue, fetchOpportunities, fetchEnrolledStudents]);
+  }, [fetchProfile, fetchCohortTelemetry, fetchOpportunities, fetchEnrolledStudents, fetchBroadcasts, fetchSpaces]);
 
   // Re-fetch students on filter or search changes
   useEffect(() => {
@@ -283,32 +348,88 @@ export default function InstitutionDashboard() {
   }, [selectedYearFilter, studentSearchQuery, activeTab, fetchEnrolledStudents]);
 
   /**
-   * @description Audit and verify student credential with official placement stamp
-   * @param {string} studentId - Target student ID
-   * @param {string} credentialId - Target credential ID
-   * @returns {Promise<void>}
+   * @description Dispatch official announcement to students & faculty
    */
-  const handleVerifyCredential = async (studentId: string, credentialId: string) => {
-    setVerifyingId(credentialId);
-    setVerifiedSuccessMessage(null);
+  const handleSendBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastTitle.trim() || !broadcastMessage.trim()) return;
+    setIsBroadcasting(true);
+    setBroadcastSuccessMsg(null);
+    setBroadcastErrorMsg(null);
     try {
-      const res = await fetch(`${API_BASE}/api/verification/verify/${studentId}/${credentialId}`, {
-        method: "PUT",
+      const res = await fetch(`${API_BASE}/api/notifications/broadcast`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ isVerified: true, verificationNotes: "Verified by Placement Cell" }),
+        body: JSON.stringify({
+          title: broadcastTitle.trim(),
+          message: broadcastMessage.trim(),
+          targetAudience: broadcastAudience,
+        }),
       });
       const data = await res.json();
       if (data.success) {
-        setPendingQueue((prev) => prev.filter((p) => p.credentialId !== credentialId));
-        setVerifiedSuccessMessage("Credential verified and cryptographic badge awarded!");
-        await fetchCohortTelemetry();
-        setTimeout(() => setVerifiedSuccessMessage(null), 3000);
+        setBroadcastSuccessMsg(
+          data.message || `Announcement successfully dispatched to ${data.recipientCount} campus member(s)!`
+        );
+        setBroadcastTitle("");
+        setBroadcastMessage("");
+        await fetchBroadcasts();
+      } else {
+        setBroadcastErrorMsg(data.message || "Failed to broadcast announcement.");
+      }
+    } catch (err: any) {
+      setBroadcastErrorMsg(err.message || "Failed to broadcast announcement.");
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
+
+  /**
+   * @description Join technical/campus community space
+   */
+  const handleJoinSpace = async (spaceId: string) => {
+    setIsJoiningSpaceId(spaceId);
+    try {
+      const res = await fetch(`${API_BASE}/api/community/spaces/${spaceId}/join`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        await fetchSpaces();
       }
     } catch (err) {
-      console.error("Failed to verify credential:", err);
+      console.error("Failed to join space:", err);
     } finally {
-      setVerifyingId(null);
+      setIsJoiningSpaceId(null);
+    }
+  };
+
+  /**
+   * @description Create new campus/department community space
+   */
+  const handleCreateSpace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSpaceForm.name.trim() || !newSpaceForm.description.trim() || !newSpaceForm.industry.trim()) return;
+    setIsCreatingSpace(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/community/spaces`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(newSpaceForm),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowCreateSpaceModal(false);
+        setNewSpaceForm({ name: "", description: "", industry: "", focus: "" });
+        await fetchSpaces();
+      }
+    } catch (err) {
+      console.error("Failed to create community space:", err);
+    } finally {
+      setIsCreatingSpace(false);
     }
   };
 
@@ -477,18 +598,18 @@ export default function InstitutionDashboard() {
               </div>
               <div className="px-4 py-2 rounded-xl bg-secondary/50 border border-border hover:border-primary/30 transition-colors">
                 <span className="text-muted-foreground block text-[10px] uppercase tracking-wider">
-                  Audited Portfolio
+                  Student Credentials
                 </span>
                 <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums text-base">
-                  {telemetry?.totalVerifiedCredentials ?? 0}
+                  {telemetry?.totalCertificationsSubmitted ?? telemetry?.totalVerifiedCredentials ?? 0}
                 </span>
               </div>
               <div className="px-4 py-2 rounded-xl bg-primary/10 border border-primary/20 hover:border-primary/40 transition-colors">
                 <span className="text-primary block text-[10px] uppercase tracking-wider font-bold">
-                  Audit Queue
+                  Announcements
                 </span>
                 <span className="font-bold text-primary tabular-nums text-base">
-                  {pendingQueue.length}
+                  {broadcasts.length}
                 </span>
               </div>
             </div>
@@ -531,30 +652,6 @@ export default function InstitutionDashboard() {
 
         {/* 3. Desk Navigation Tabs */}
         <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-secondary/50 border border-border">
-          <button
-            type="button"
-            onClick={() => setActiveTab("verification")}
-            className={cn(
-              "text-xs font-semibold px-3.5 py-2 rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
-              activeTab === "verification"
-                ? "bg-primary text-primary-foreground shadow-xs font-bold"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Credential Verification Gate</span>
-            <span
-              className={cn(
-                "ml-1 font-mono text-[10px] px-1.5 py-0.2 rounded-full font-bold",
-                activeTab === "verification"
-                  ? "bg-primary-foreground/20 text-primary-foreground"
-                  : "bg-secondary text-muted-foreground"
-              )}
-            >
-              {pendingQueue.length}
-            </span>
-          </button>
-
           <button
             type="button"
             onClick={() => setActiveTab("students")}
@@ -616,96 +713,55 @@ export default function InstitutionDashboard() {
               {opportunities.length}
             </span>
           </button>
-        </div>
 
-        {/* ========================================================================= */}
-        {/* DESK 1: CREDENTIAL VERIFICATION GATE */}
-        {/* ========================================================================= */}
-        {activeTab === "verification" && (
-          <section className="bg-card border border-border rounded-2xl p-5 space-y-4 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-border">
-              <div>
-                <h2 className="text-sm font-bold text-foreground tracking-tight flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-primary" />
-                  Candidate Credential Audit & Verification Queue
-                </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Official verification mandate: Audit student uploaded certificates and project credentials before issuing tamper-evident cryptographic badges.
-                </p>
-              </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary font-bold border border-primary/20 shrink-0 self-start sm:self-auto">
-                {pendingQueue.length} Audits Pending
-              </span>
-            </div>
-
-            {pendingQueue.length === 0 ? (
-              <div className="py-14 text-center border border-dashed border-border rounded-xl space-y-2">
-                <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
-                <p className="text-xs font-bold text-foreground">Institutional Audit Queue Clear</p>
-                <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
-                  All student certifications and experience proofs submitted under your AISHE affiliation have been audited.
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y divide-border/80 border border-border rounded-xl overflow-hidden bg-background">
-                {pendingQueue.map((item) => (
-                  <div
-                    key={item.credentialId}
-                    className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-secondary/20 transition-colors"
-                  >
-                    <div className="space-y-1.5 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-extrabold text-foreground">{item.title}</span>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground border border-border font-bold uppercase">
-                          {item.type}
-                        </span>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-bold">
-                          Pending Placement Verification
-                        </span>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                        <span>
-                          Student: <strong className="text-foreground">{item.studentName}</strong> ({item.studentEmail})
-                        </span>
-                        <span>•</span>
-                        <span>Issuer: <strong>{item.issuer || "External Credential Authority"}</strong></span>
-                      </div>
-
-                      {item.credentialUrl && (
-                        <a
-                          href={item.credentialUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-mono pt-0.5"
-                        >
-                          <span>Review External Proof & Cryptographic Hash</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleVerifyCredential(item.studentId, item.credentialId)}
-                        disabled={verifyingId === item.credentialId}
-                        className="text-xs font-semibold px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
-                      >
-                        {verifyingId === item.credentialId ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Check className="w-3.5 h-3.5" />
-                        )}
-                        <span>Approve & Issue Badge</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab("announcements")}
+            className={cn(
+              "text-xs font-semibold px-3.5 py-2 rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
+              activeTab === "announcements"
+                ? "bg-primary text-primary-foreground shadow-xs font-bold"
+                : "text-muted-foreground hover:text-foreground"
             )}
-          </section>
-        )}
+          >
+            <Megaphone className="w-3.5 h-3.5" />
+            <span>Campus Announcements</span>
+            <span
+              className={cn(
+                "ml-1 font-mono text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+                activeTab === "announcements"
+                  ? "bg-primary-foreground/20 text-primary-foreground"
+                  : "bg-secondary text-muted-foreground"
+              )}
+            >
+              {broadcasts.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("community")}
+            className={cn(
+              "text-xs font-semibold px-3.5 py-2 rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
+              activeTab === "community"
+                ? "bg-primary text-primary-foreground shadow-xs font-bold"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Campus Community</span>
+            <span
+              className={cn(
+                "ml-1 font-mono text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+                activeTab === "community"
+                  ? "bg-primary-foreground/20 text-primary-foreground"
+                  : "bg-secondary text-muted-foreground"
+              )}
+            >
+              {spaces.length}
+            </span>
+          </button>
+        </div>
 
         {/* ========================================================================= */}
         {/* DESK: ENROLLED STUDENTS & COHORT DIRECTORY */}
@@ -967,78 +1023,97 @@ export default function InstitutionDashboard() {
           <div className="space-y-6 animate-in fade-in duration-300">
             {/* Top Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-4 rounded-xl bg-card border border-border space-y-1 shadow-xs">
-                <span className="text-[10px] font-mono text-primary font-bold uppercase tracking-wider block">
-                  Total Cohort Tracked
-                </span>
+              <div className="p-4 rounded-lg bg-card border border-border space-y-1.5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono text-muted-foreground font-semibold uppercase tracking-wider block">
+                    Total Cohort Tracked
+                  </span>
+                  <Users className="w-3.5 h-3.5 text-primary" />
+                </div>
                 <p className="text-2xl font-bold text-foreground font-mono tabular-nums">
                   {telemetry?.totalStudents ?? 0}
                 </p>
                 <p className="text-[11px] text-muted-foreground">Active AISHE institutional candidates</p>
               </div>
 
-              <div className="p-4 rounded-xl bg-card border border-border space-y-1 shadow-xs">
-                <span className="text-[10px] font-mono text-primary font-bold uppercase tracking-wider block">
-                  Average Readiness Rating
-                </span>
+              <div className="p-4 rounded-lg bg-card border border-border space-y-1.5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono text-muted-foreground font-semibold uppercase tracking-wider block">
+                    Average Readiness Rating
+                  </span>
+                  <TrendingUp className="w-3.5 h-3.5 text-primary" />
+                </div>
                 <p className="text-2xl font-bold text-primary font-mono tabular-nums">
                   {telemetry?.averageReadinessScore ?? 0}%
                 </p>
-                <p className="text-[11px] text-muted-foreground">Synthesized from verified benchmark assessments</p>
+                <p className="text-[11px] text-muted-foreground">Synthesized from competency profiles</p>
               </div>
 
-              <div className="p-4 rounded-xl bg-card border border-border space-y-1 shadow-xs">
-                <span className="text-[10px] font-mono text-primary font-bold uppercase tracking-wider block">
-                  Audited Credentials
-                </span>
+              <div className="p-4 rounded-lg bg-card border border-border space-y-1.5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono text-muted-foreground font-semibold uppercase tracking-wider block">
+                    Student Credentials
+                  </span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                </div>
                 <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">
-                  {telemetry?.totalVerifiedCredentials ?? 0}
+                  {telemetry?.totalCertificationsSubmitted ?? 0}
                 </p>
-                <p className="text-[11px] text-muted-foreground">Tamper-evident portfolio items approved</p>
+                <p className="text-[11px] text-muted-foreground">Certifications & licenses uploaded by cohort</p>
               </div>
 
-              <div className="p-4 rounded-xl bg-card border border-border space-y-1 shadow-xs">
-                <span className="text-[10px] font-mono text-primary font-bold uppercase tracking-wider block">
-                  Verification Rate
-                </span>
+              <div className="p-4 rounded-lg bg-card border border-border space-y-1.5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono text-muted-foreground font-semibold uppercase tracking-wider block">
+                    Avg Skills Per Scholar
+                  </span>
+                  <Award className="w-3.5 h-3.5 text-primary" />
+                </div>
                 <p className="text-2xl font-bold text-foreground font-mono tabular-nums">
-                  {telemetry?.verificationRate ?? 0}%
+                  {telemetry?.avgSkills ?? 0}
                 </p>
-                <p className="text-[11px] text-muted-foreground">Portfolio audit completion ratio</p>
+                <p className="text-[11px] text-muted-foreground">Verified engineering competencies per candidate</p>
               </div>
             </div>
 
             {/* Two Column Grid: Top Skills Distribution + Curriculum Deficit Aggregation */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Cohort Skill Breakdown */}
-              <div className="bg-card border border-border rounded-xl p-5 space-y-3 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-foreground tracking-tight flex items-center gap-1.5 uppercase font-mono">
+              <div className="bg-card border border-border rounded-lg p-5 space-y-4 shadow-xs">
+                <div className="flex items-center justify-between pb-3 border-b border-border">
+                  <h3 className="text-xs font-bold text-foreground tracking-tight flex items-center gap-2 uppercase font-mono">
                     <PieChart className="w-4 h-4 text-primary" />
                     Cohort Competency Distribution
                   </h3>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary font-bold border border-primary/20">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-sm bg-primary/10 text-primary font-bold border border-primary/20">
                     Live Aggregation
                   </span>
                 </div>
 
-                <div className="space-y-3 pt-1">
+                <div className="space-y-2.5 pt-1">
                   {!telemetry?.topSkillsDistribution || telemetry.topSkillsDistribution.length === 0 ? (
-                    <div className="py-10 text-center text-xs text-muted-foreground border border-dashed border-border rounded-xl">
+                    <div className="py-10 text-center text-xs text-muted-foreground border border-dashed border-border rounded-lg">
                       No cohort skill data aggregated yet.
                     </div>
                   ) : (
                     telemetry.topSkillsDistribution.map((item, idx) => (
-                      <div key={idx} className="space-y-1">
-                        <div className="flex items-center justify-between text-xs font-mono">
-                          <span className="text-foreground uppercase font-bold">{item.skill}</span>
-                          <span className="text-muted-foreground">
-                            {item.studentCount} students ({item.percentage}%)
+                      <div
+                        key={idx}
+                        className="p-3 rounded-md bg-secondary/20 border border-border/60 hover:border-border transition-colors space-y-2"
+                      >
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-sm bg-muted/60 border border-border text-foreground uppercase tracking-wide">
+                            {item.skill}
+                          </span>
+                          <span className="text-muted-foreground font-mono text-xs tabular-nums">
+                            <strong className="text-foreground">{item.studentCount}</strong>{" "}
+                            {item.studentCount === 1 ? "student" : "students"}{" "}
+                            <span className="text-muted-foreground/80 font-semibold">({item.percentage}%)</span>
                           </span>
                         </div>
-                        <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
+                        <div className="w-full h-2 rounded-sm bg-muted/40 border border-border/40 overflow-hidden">
                           <div
-                            className="h-full bg-primary rounded-full transition-all duration-500"
+                            className="h-full bg-primary/85 rounded-sm transition-all duration-500"
                             style={{ width: `${item.percentage}%` }}
                           />
                         </div>
@@ -1049,43 +1124,105 @@ export default function InstitutionDashboard() {
               </div>
 
               {/* Curriculum Deficits vs Market Trends */}
-              <div className="bg-card border border-border rounded-xl p-5 space-y-3 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-foreground tracking-tight flex items-center gap-1.5 uppercase font-mono">
+              <div className="bg-card border border-border rounded-lg p-5 space-y-4 shadow-xs">
+                <div className="flex items-center justify-between pb-3 border-b border-border">
+                  <h3 className="text-xs font-bold text-foreground tracking-tight flex items-center gap-2 uppercase font-mono">
                     <AlertTriangle className="w-4 h-4 text-amber-500" />
                     Curriculum Deficits vs Live Industry Demand
                   </h3>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-sm bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20">
                     Remediation Target
                   </span>
                 </div>
 
                 <div className="space-y-2.5 pt-1">
                   {!telemetry?.curriculumDeficits || telemetry.curriculumDeficits.length === 0 ? (
-                    <div className="py-10 text-center text-xs text-muted-foreground border border-dashed border-border rounded-xl">
+                    <div className="py-10 text-center text-xs text-muted-foreground border border-dashed border-border rounded-lg">
                       No curriculum deficits detected across active market opportunities.
                     </div>
                   ) : (
-                    telemetry.curriculumDeficits.map((item, idx) => (
-                      <div key={idx} className="p-3 rounded-lg bg-secondary/30 border border-border space-y-1.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-bold text-foreground font-mono uppercase">{item.skill}</span>
-                          <span className="text-[11px] font-mono text-rose-500 font-bold">
-                            {item.curriculumDeficitPercent}% Deficit
-                          </span>
+                    telemetry.curriculumDeficits.map((item, idx) => {
+                      const isZeroDeficit = item.curriculumDeficitPercent === 0;
+                      const isModerate = item.curriculumDeficitPercent > 0 && item.curriculumDeficitPercent <= 50;
+                      const coveragePercent = Math.max(0, 100 - item.curriculumDeficitPercent);
+
+                      return (
+                        <div
+                          key={idx}
+                          className={cn(
+                            "p-3 rounded-md border space-y-2 transition-colors",
+                            isZeroDeficit
+                              ? "bg-emerald-500/[0.03] border-emerald-500/20 hover:border-emerald-500/40"
+                              : isModerate
+                              ? "bg-amber-500/[0.03] border-amber-500/20 hover:border-amber-500/40"
+                              : "bg-rose-500/[0.03] border-rose-500/20 hover:border-rose-500/40"
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-2 text-xs">
+                            <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-sm bg-muted/60 border border-border text-foreground uppercase tracking-wide">
+                              {item.skill}
+                            </span>
+                            {isZeroDeficit ? (
+                              <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold px-2 py-0.5 rounded-sm bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                <CheckCircle2 className="w-3 h-3" /> Fully Covered (0% Gap)
+                              </span>
+                            ) : isModerate ? (
+                              <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold px-2 py-0.5 rounded-sm bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                <AlertTriangle className="w-3 h-3" /> Moderate Gap ({item.curriculumDeficitPercent}%)
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold px-2 py-0.5 rounded-sm bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                                <AlertTriangle className="w-3 h-3" /> Critical Deficit ({item.curriculumDeficitPercent}%)
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Dual-tone Coverage vs Gap bar */}
+                          <div className="w-full h-2 rounded-sm bg-muted/40 border border-border/40 overflow-hidden flex">
+                            <div
+                              className={cn(
+                                "h-full transition-all duration-500",
+                                isZeroDeficit
+                                  ? "bg-emerald-500 dark:bg-emerald-400"
+                                  : coveragePercent > 0
+                                  ? "bg-primary/80"
+                                  : "bg-transparent"
+                              )}
+                              style={{ width: `${coveragePercent}%` }}
+                              title={`Cohort Proficiency: ${coveragePercent}%`}
+                            />
+                            <div
+                              className={cn(
+                                "h-full transition-all duration-500",
+                                isZeroDeficit
+                                  ? "bg-transparent"
+                                  : "bg-rose-500/40 dark:bg-rose-500/50"
+                              )}
+                              style={{ width: `${item.curriculumDeficitPercent}%` }}
+                              title={`Curriculum Gap: ${item.curriculumDeficitPercent}%`}
+                            />
+                          </div>
+
+                          <div className="text-[11px] text-muted-foreground flex items-center justify-between font-mono pt-0.5 tabular-nums">
+                            <span className="flex items-center gap-1.5">
+                              <TrendingUp className="w-3 h-3 text-muted-foreground/70" />
+                              Market Demand:{" "}
+                              <strong className="text-foreground font-semibold">
+                                {item.marketDemandIndex} {item.marketDemandIndex === 1 ? "posting" : "postings"}
+                              </strong>
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                              <Users className="w-3 h-3 text-muted-foreground/70" />
+                              Cohort:{" "}
+                              <strong className="text-foreground font-semibold">
+                                {item.cohortProficiencyCount} {item.cohortProficiencyCount === 1 ? "student" : "students"}
+                              </strong>{" "}
+                              proficient ({coveragePercent}%)
+                            </span>
+                          </div>
                         </div>
-                        <div className="w-full h-1.5 rounded-full bg-secondary overflow-hidden">
-                          <div
-                            className="h-full bg-rose-500 rounded-full"
-                            style={{ width: `${item.curriculumDeficitPercent}%` }}
-                          />
-                        </div>
-                        <p className="text-[10.5px] text-muted-foreground flex items-center justify-between font-mono pt-0.5">
-                          <span>Market Demand Index: {item.marketDemandIndex}</span>
-                          <span>Cohort Proficiency: {item.cohortProficiencyCount} students</span>
-                        </p>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -1334,6 +1471,410 @@ export default function InstitutionDashboard() {
             )}
           </section>
         )}
+
+        {/* ========================================================================= */}
+        {/* DESK: CAMPUS ANNOUNCEMENTS & BROADCASTS */}
+        {/* ========================================================================= */}
+        {activeTab === "announcements" && (
+          <section className="space-y-6 animate-in fade-in duration-300">
+            {/* Header */}
+            <div className="bg-card border border-border rounded-2xl p-5 sm:p-6 space-y-2 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
+                <div>
+                  <h2 className="text-base font-bold text-foreground tracking-tight flex items-center gap-2">
+                    <Megaphone className="w-5 h-5 text-primary" />
+                    Campus Announcements & Official Broadcasts
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Broadcast communications directly into the notification feeds of verified enrolled students and affiliated faculty members.
+                  </p>
+                </div>
+                <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-bold border border-primary/20 shrink-0 self-start sm:self-auto">
+                  {broadcasts.length} Broadcasts Dispatched
+                </span>
+              </div>
+
+              {/* Feedback Toasts */}
+              {broadcastSuccessMsg && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-2 animate-in fade-in">
+                  <CheckCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span>{broadcastSuccessMsg}</span>
+                </div>
+              )}
+              {broadcastErrorMsg && (
+                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive font-medium flex items-center gap-2 animate-in fade-in">
+                  <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+                  <span>{broadcastErrorMsg}</span>
+                </div>
+              )}
+
+              {/* Compose Announcement Form */}
+              <form onSubmit={handleSendBroadcast} className="pt-2 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="md:col-span-2 space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      Announcement Title *
+                    </label>
+                    <input
+                      type="text"
+                      value={broadcastTitle}
+                      onChange={(e) => setBroadcastTitle(e.target.value)}
+                      placeholder="e.g. Fall 2026 Campus Placement Registration Now Open"
+                      required
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-secondary/30 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:border-primary transition-colors"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      Target Audience *
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-secondary/30 border border-border">
+                      <button
+                        type="button"
+                        onClick={() => setBroadcastAudience("all")}
+                        className={cn(
+                          "text-[11px] font-semibold py-1.5 px-2 rounded-lg transition-all cursor-pointer text-center",
+                          broadcastAudience === "all"
+                            ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBroadcastAudience("students")}
+                        className={cn(
+                          "text-[11px] font-semibold py-1.5 px-2 rounded-lg transition-all cursor-pointer text-center",
+                          broadcastAudience === "students"
+                            ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        Students
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBroadcastAudience("faculty")}
+                        className={cn(
+                          "text-[11px] font-semibold py-1.5 px-2 rounded-lg transition-all cursor-pointer text-center",
+                          broadcastAudience === "faculty"
+                            ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        Faculty
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-foreground">
+                      Announcement Message *
+                    </label>
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      {broadcastMessage.length}/2000
+                    </span>
+                  </div>
+                  <textarea
+                    rows={4}
+                    value={broadcastMessage}
+                    onChange={(e) => setBroadcastMessage(e.target.value)}
+                    placeholder="Enter detailed notice, schedules, deadlines, or department instructions..."
+                    required
+                    maxLength={2000}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-secondary/30 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:border-primary transition-colors leading-relaxed"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <p className="text-[11px] text-muted-foreground">
+                    Notice will be dispatched to all verified{" "}
+                    <strong className="text-foreground">
+                      {broadcastAudience === "all"
+                        ? "students & faculty"
+                        : broadcastAudience === "students"
+                        ? "enrolled students"
+                        : "affiliated faculty"}
+                    </strong>{" "}
+                    under {profile?.institutionName || "your institution"}.
+                  </p>
+                  <button
+                    type="submit"
+                    disabled={isBroadcasting || !broadcastTitle.trim() || !broadcastMessage.trim()}
+                    className="inline-flex items-center gap-2 text-xs font-bold px-5 py-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all cursor-pointer shadow-xs disabled:opacity-50 shrink-0"
+                  >
+                    {isBroadcasting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                    <span>Broadcast Notice</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Broadcast History List */}
+            <div className="bg-card border border-border rounded-2xl p-5 sm:p-6 space-y-4 shadow-xs">
+              <div className="flex items-center justify-between pb-3 border-b border-border">
+                <h3 className="text-sm font-bold text-foreground tracking-tight flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-primary" />
+                  Recent Campus Broadcasts
+                </h3>
+                <button
+                  type="button"
+                  onClick={fetchBroadcasts}
+                  className="text-xs text-primary hover:underline font-semibold cursor-pointer"
+                >
+                  Refresh
+                </button>
+              </div>
+
+              {isBroadcastsLoading ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-2">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  <p className="text-xs font-mono text-muted-foreground">Fetching broadcast history…</p>
+                </div>
+              ) : broadcasts.length === 0 ? (
+                <div className="py-14 text-center border border-dashed border-border rounded-xl space-y-2 bg-secondary/10">
+                  <Megaphone className="w-8 h-8 text-muted-foreground mx-auto opacity-70" />
+                  <p className="text-xs font-bold text-foreground">No Campus Broadcasts Dispatched Yet</p>
+                  <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+                    Use the compose box above to announce deadlines, academic notices, or placement drives.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border/80 border border-border rounded-xl overflow-hidden bg-background">
+                  {broadcasts.map((b, idx) => (
+                    <div key={idx} className="p-4 space-y-2 hover:bg-secondary/20 transition-colors">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-extrabold text-foreground">{b.title}</span>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-bold capitalize">
+                            Audience: {b.targetAudience === "all" ? "Students & Faculty" : b.targetAudience}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+                          <span className="px-2 py-0.5 rounded bg-secondary text-[10px] font-bold text-foreground border border-border">
+                            {b.recipientCount} recipient{b.recipientCount === 1 ? "" : "s"}
+                          </span>
+                          <span>•</span>
+                          <span>{new Date(b.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
+                        {b.message}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ========================================================================= */}
+        {/* DESK: CAMPUS & TECHNICAL COMMUNITY SPACES */}
+        {/* ========================================================================= */}
+        {activeTab === "community" && (
+          <section className="bg-card border border-border rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs animate-in fade-in duration-300">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
+              <div>
+                <h2 className="text-base font-bold text-foreground tracking-tight flex items-center gap-2">
+                  <Users className="w-5 h-5 text-primary" />
+                  Campus & Technical Enterprise Community Spaces
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Engage with your students, faculty, and industry partners in specialized technical chat rooms.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateSpaceModal(true)}
+                className="inline-flex items-center gap-2 text-xs font-bold px-4 py-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all cursor-pointer shadow-xs shrink-0 self-start sm:self-auto"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create Community Space</span>
+              </button>
+            </div>
+
+            {isSpacesLoading ? (
+              <div className="py-16 flex flex-col items-center justify-center gap-2">
+                <Loader2 className="w-7 h-7 animate-spin text-primary" />
+                <p className="text-xs font-mono text-muted-foreground">Loading community channels…</p>
+              </div>
+            ) : spaces.length === 0 ? (
+              <div className="py-14 text-center border border-dashed border-border rounded-xl space-y-2.5 bg-secondary/10">
+                <Users className="w-8 h-8 text-muted-foreground mx-auto opacity-70" />
+                <p className="text-xs font-bold text-foreground">No Community Spaces Created Yet</p>
+                <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+                  Click the button above to launch an institutional research channel or domain-specific study group.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {spaces.map((space) => (
+                  <div
+                    key={space._id}
+                    className="p-4 rounded-xl border border-border/80 bg-secondary/20 hover:bg-secondary/40 hover:border-primary/50 transition-all flex flex-col justify-between space-y-3.5 shadow-xs"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-bold uppercase">
+                          {space.industry}
+                        </span>
+                        <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
+                          <Users className="w-3 h-3 text-primary" />
+                          <span>{space.memberCount} members</span>
+                        </span>
+                      </div>
+
+                      <h3 className="text-sm font-bold text-foreground tracking-tight">{space.name}</h3>
+                      {space.focus && (
+                        <p className="text-[11px] text-primary font-medium">Focus: {space.focus}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                        {space.description}
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-border/60 flex items-center gap-2">
+                      {space.isJoined ? (
+                        <button
+                          type="button"
+                          onClick={() => setActiveChatSpace({ id: space._id, name: space.name, focus: space.focus })}
+                          className="flex-1 text-xs font-bold py-2 px-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>Open Discussion</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleJoinSpace(space._id)}
+                          disabled={isJoiningSpaceId === space._id}
+                          className="flex-1 text-xs font-semibold py-2 px-3 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 border border-border transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          {isJoiningSpaceId === space._id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Plus className="w-3.5 h-3.5" />
+                          )}
+                          <span>Join Space</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Modal: Create Community Space */}
+        {showCreateSpaceModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs animate-in fade-in duration-200">
+            <div className="bg-card border border-border rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between pb-2 border-b border-border">
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <Users className="w-4 h-4 text-primary" />
+                  Create Campus Community Space
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateSpaceModal(false)}
+                  className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateSpace} className="space-y-3.5">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Space Name *</label>
+                  <input
+                    type="text"
+                    value={newSpaceForm.name}
+                    onChange={(e) => setNewSpaceForm((p) => ({ ...p, name: e.target.value }))}
+                    placeholder="e.g. Distributed Systems & Cloud Lab"
+                    required
+                    className="w-full px-3 py-2 rounded-lg bg-secondary/30 border border-border text-xs text-foreground focus:outline-hidden focus:border-primary"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-foreground">Industry / Domain *</label>
+                    <input
+                      type="text"
+                      value={newSpaceForm.industry}
+                      onChange={(e) => setNewSpaceForm((p) => ({ ...p, industry: e.target.value }))}
+                      placeholder="e.g. Cloud Computing"
+                      required
+                      className="w-full px-3 py-2 rounded-lg bg-secondary/30 border border-border text-xs text-foreground focus:outline-hidden focus:border-primary"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-foreground">Focus Area</label>
+                    <input
+                      type="text"
+                      value={newSpaceForm.focus}
+                      onChange={(e) => setNewSpaceForm((p) => ({ ...p, focus: e.target.value }))}
+                      placeholder="e.g. Kubernetes & Microservices"
+                      className="w-full px-3 py-2 rounded-lg bg-secondary/30 border border-border text-xs text-foreground focus:outline-hidden focus:border-primary"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Description *</label>
+                  <textarea
+                    rows={3}
+                    value={newSpaceForm.description}
+                    onChange={(e) => setNewSpaceForm((p) => ({ ...p, description: e.target.value }))}
+                    placeholder="Describe the mandate, faculty leads, and topic scope of this technical group..."
+                    required
+                    className="w-full px-3 py-2 rounded-lg bg-secondary/30 border border-border text-xs text-foreground focus:outline-hidden focus:border-primary"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateSpaceModal(false)}
+                    className="text-xs font-semibold px-4 py-2 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isCreatingSpace || !newSpaceForm.name.trim() || !newSpaceForm.description.trim()}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                  >
+                    {isCreatingSpace ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                    <span>Create Channel</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Real-time Community Chat View */}
+        {activeChatSpace && (
+          <CommunityChatView
+            spaceId={activeChatSpace.id}
+            spaceName={activeChatSpace.name}
+            focus={activeChatSpace.focus}
+            currentUserId={profile?._id || "institution"}
+            onClose={() => setActiveChatSpace(null)}
+          />
+        )}
+
 
         {/* Confirmation Modal for Recommending Opportunities */}
         {confirmRecommendModal && (

@@ -10,7 +10,7 @@
 PortalAcademia addresses the structural gap between university curricula and enterprise workforce demands. It eliminates unverified resumes, unmeasured skill claims, and isolated academic research through integrated subsystems:
 
 1. **Four-Pillar Role Subsystems**: Dedicated workspaces with role-locked navigation and tailored capabilities for **Student**, **Faculty**, **Institution**, and **Industry**.
-2. **Deterministic Credential Verification Gate**: Institutions cryptographically verify student certifications, research, and projects before they appear on enterprise talent pipelines.
+2. **Student-Centric Credential Showcase & Unified Campus Broadcasts**: Students directly manage and showcase certifications on their profiles without bureaucratic verification bottlenecks. Institutions broadcast announcements to enrolled students and affiliated faculty.
 3. **Unified Objective Skill Match & ATS Scoring Engine**: 5-category deterministic scoring (Skills, Verified Badges, Experience, Education, Formatting) with proof-of-separation parity between candidates.
 4. **Objective Skill Assessment Engine**: Standardized technical benchmark assessments yielding tamper-evident competency badges and verified skill tags with cumulative average-of-attempts retesting.
 5. **Contextual AI Career Guide**: LLaMA-3 / Groq-powered conversational mentor with dynamic profile context injection and storage-preserving TTL safeguards.
@@ -106,7 +106,7 @@ graph LR
     User["Authenticated Session"] --> RBAC{"RBAC Guard"}
     RBAC -->|student| StudentPortal["Student Dashboard\n• Opportunity Feed\n• ATS Resume Studio\n• Skill Assessments\n• Applications Tracker\n• Premium Tiers"]
     RBAC -->|faculty| FacultyPortal["Faculty Immersion Portal\n• Corporate Sabbaticals\n• FDP Programs\n• Curriculum Gap Analysis\n• Research Grants"]
-    RBAC -->|institution| InstPortal["Institution Admin Portal\n• Pending Credential Queue\n• Student & Alumni Directory\n• Market Telemetry\n• Endorsement Engine"]
+    RBAC -->|institution| InstPortal["Institution Admin Portal\n• Student & Alumni Directory\n• Campus Announcements\n• Community Spaces\n• Market Telemetry\n• Endorsement Engine"]
     RBAC -->|industry| IndPortal["Industry & Recruiter Console\n• Job & Internship Publishing\n• ATS Candidate Review\n• Open-Source Repositories\n• Certificate Issuance"]
 ```
 
