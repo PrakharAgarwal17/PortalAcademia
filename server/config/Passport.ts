@@ -44,7 +44,7 @@ passport.use(
                         provider: "google",
                         providerID: profile.id,
                         isVerified: true,
-                        isOnboarded: true,
+                        isOnboarded: false,
                     });
                 } else {
                     let needsSave = false;
@@ -54,26 +54,16 @@ passport.use(
                         user.isVerified = true;
                         needsSave = true;
                     }
-                    if (!user.isOnboarded) {
-                        user.isOnboarded = true;
-                        needsSave = true;
-                    }
                     if (needsSave) {
                         await user.save();
                     }
                 }
 
+                // If a profile exists in the DB, ensure user.isOnboarded is synced to true
                 const existingProfile = await profileModel.findOne({ userId: user._id });
-                if (!existingProfile) {
-                    const resolvedName: string = profile.displayName || (email ? email.split("@")[0] : "Scholar") || "Scholar";
-                    await profileModel.create({
-                        userId: user._id,
-                        category: "individual",
-                        accountType: "student",
-                        name: resolvedName,
-                        profileImage: profile.photos?.[0]?.value || "",
-                        image: profile.photos?.[0]?.value || "",
-                    });
+                if (existingProfile && !user.isOnboarded) {
+                    user.isOnboarded = true;
+                    await user.save();
                 }
 
                 return done(null, user);

@@ -8,6 +8,10 @@ import { API_BASE } from "@/lib/api";
 export default function DashboardRouter() {
   const { user } = useAppSelector((s) => s.auth);
 
+  if (user && !user.isOnboarded) {
+    return <Navigate to="/onboarding/select-type" replace />;
+  }
+
   const [accountType, setAccountType] = useState<string | null>(user?.role || null);
   const [isLoading, setIsLoading] = useState(!user?.role);
 

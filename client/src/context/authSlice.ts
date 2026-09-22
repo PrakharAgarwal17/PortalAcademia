@@ -72,7 +72,7 @@ export const checkAuthThunk = createAsyncThunk<
     const data = (await response.json()) as CheckAuthResponse;
 
     if (data.valid && data.user) {
-      if (!data.user.role) {
+      if (data.user.isOnboarded && !data.user.role) {
         try {
           const profileRes = await fetch(`${API_BASE}/api/profile/me`, {
             method: "GET",
@@ -87,9 +87,9 @@ export const checkAuthThunk = createAsyncThunk<
         } catch {
           // Fallback gracefully if profile lookup encounters network blip
         }
-      }
-      if (!data.user.role) {
-        data.user.role = "student";
+        if (!data.user.role) {
+          data.user.role = "student";
+        }
       }
     }
 

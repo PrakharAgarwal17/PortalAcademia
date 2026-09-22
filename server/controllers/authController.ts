@@ -179,22 +179,9 @@ export async function SignIn(
             });
         }
 
-        // Ensure profile exists and isOnboarded is set to true
-        let userProfile = await profileModel.findOne({ userId: searchEmail._id });
-        if (!userProfile) {
-            const resolvedName: string = String(searchEmail.email || "Scholar").split("@")[0] || "Scholar";
-            userProfile = await profileModel.create({
-                userId: searchEmail._id,
-                category: "individual",
-                accountType: "student",
-                name: resolvedName,
-            });
-            await userModel.findByIdAndUpdate(searchEmail._id, { isOnboarded: true });
-            searchEmail.isOnboarded = true;
-        } else if (!searchEmail.isOnboarded) {
-            await userModel.findByIdAndUpdate(searchEmail._id, { isOnboarded: true });
-            searchEmail.isOnboarded = true;
-        }
+        // Check if user has completed onboarding and has a profile
+        const userProfile = await profileModel.findOne({ userId: searchEmail._id });
+        const isOnboarded = Boolean(searchEmail.isOnboarded && userProfile);
 
         const { accesstoken, refreshtoken } = generateTokens(
             String(searchEmail._id),
@@ -205,13 +192,13 @@ export async function SignIn(
 
         return res.status(200).json({
             message: "Sign in successful",
-            isOnboarded: true,
+            isOnboarded,
             user: {
                 id: String(searchEmail._id),
                 email: searchEmail.email,
                 isVerified: searchEmail.isVerified,
-                isOnboarded: true,
-                role: userProfile.accountType || "student",
+                isOnboarded,
+                role: userProfile?.accountType || null,
                 isEmailVerified: Boolean(searchEmail.isEmailVerified),
             },
         });
@@ -460,24 +447,15 @@ export async function VerifyOtp(
         // OTP ko delete kar do
         OtpStorage.delete(normalizedEmail);
 
-        const resolvedName: string = String(createUser.email || "Scholar").split("@")[0] || "Scholar";
-        await profileModel.create({
-            userId: createUser._id,
-            category: "individual",
-            accountType: "student",
-            name: resolvedName,
-        });
-        await userModel.findByIdAndUpdate(createUser._id, { isOnboarded: true });
-
         return res.status(200).json({
             message: "User created successfully",
-            isOnboarded: true,
+            isOnboarded: false,
             user: {
                 id: String(createUser._id),
                 email: createUser.email,
                 isVerified: createUser.isVerified,
-                isOnboarded: true,
-                role: "student",
+                isOnboarded: false,
+                role: null,
                 isEmailVerified: false,
             },
         });
@@ -531,28 +509,15 @@ export function SignOut(
 // =========================
 
 async function buildUserSessionPayload(user: any) {
-    let userProfile = await profileModel.findOne({ userId: user._id });
-    if (!userProfile) {
-        const resolvedName: string = String(user.email || "Scholar").split("@")[0] || "Scholar";
-        userProfile = await profileModel.create({
-            userId: user._id,
-            category: "individual",
-            accountType: "student",
-            name: resolvedName,
-        });
-        await userModel.findByIdAndUpdate(user._id, { isOnboarded: true });
-        user.isOnboarded = true;
-    } else if (!user.isOnboarded) {
-        await userModel.findByIdAndUpdate(user._id, { isOnboarded: true });
-        user.isOnboarded = true;
-    }
+    const userProfile = await profileModel.findOne({ userId: user._id });
+    const isOnboarded = Boolean(user.isOnboarded && userProfile);
 
     return {
         id: String(user._id),
         email: user.email,
         isVerified: user.isVerified,
-        isOnboarded: true,
-        role: userProfile.accountType || "student",
+        isOnboarded,
+        role: userProfile?.accountType || null,
         isEmailVerified: Boolean(user.isEmailVerified),
     };
 }
@@ -730,20 +695,10 @@ export const googleSuccess = async (
             return res.redirect(`${frontendUrl}/auth?error=email_not_found`);
         }
 
-        // Ensure user has an initialized profile and is marked onboarded
-        let userProfile = await profileModel.findOne({ userId: user._id });
-        if (!userProfile) {
-            const resolvedName: string = (req.user as any)?.displayName || (email ? String(email).split("@")[0] : "Scholar") || "Scholar";
-            userProfile = await profileModel.create({
-                userId: user._id,
-                category: "individual",
-                accountType: "student",
-                name: resolvedName,
-                profileImage: (req.user as any)?.photos?.[0]?.value || "",
-                image: (req.user as any)?.photos?.[0]?.value || "",
-            });
-        }
-        await userModel.findByIdAndUpdate(user._id, { isOnboarded: true });
+        // Check if user has an existing profile and has completed onboarding
+        const userProfile = await profileModel.findOne({ userId: user._id });
+        const dbUser = await userModel.findById(user._id);
+        const isOnboarded = Boolean(dbUser?.isOnboarded && userProfile);
 
         // Generate JWT tokens and set httpOnly cookies with HTTPS/proxy awareness
         const { accesstoken, refreshtoken } = generateTokens(String(user._id), true);
@@ -756,8 +711,9 @@ export const googleSuccess = async (
             { expiresIn: "60s" }
         );
 
-        // Append ?auth=google&exchange=... so the frontend can immediately establish first-party cookies
-        return res.redirect(`${frontendUrl}/dashboard?auth=google&exchange=${exchangeToken}`);
+        // If user is already onboarded, send to dashboard; otherwise send to onboarding wizard
+        const redirectPath = isOnboarded ? "/dashboard" : "/onboarding/select-type";
+        return res.redirect(`${frontendUrl}${redirectPath}?auth=google&exchange=${exchangeToken}`);
 
     } catch (error) {
         console.error("Google Auth error:", error);
