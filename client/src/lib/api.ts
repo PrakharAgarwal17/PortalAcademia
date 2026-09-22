@@ -7,7 +7,14 @@
  */
 export function getApiBaseUrl(): string {
   const envUrl = import.meta.env.VITE_API_BASE_URL;
-  if (envUrl && typeof envUrl === "string" && envUrl.trim() !== "") {
+  // If explicitly set to a custom remote URL, use it unless it points directly to the
+  // Render backend, which should always go through the same-origin proxy to ensure first-party cookies.
+  if (
+    envUrl &&
+    typeof envUrl === "string" &&
+    envUrl.trim() !== "" &&
+    !envUrl.includes("portalacademia.onrender.com")
+  ) {
     return envUrl.replace(/\/+$/, "");
   }
 
@@ -20,7 +27,10 @@ export function getApiBaseUrl(): string {
     }
   }
 
-  return "http://localhost:3000";
+  // Same-origin relative path:
+  // - On Vercel: vercel.json rewrites /api/* to the Render backend
+  // - In Vite dev: vite.config.ts proxies /api to http://localhost:3000
+  return "";
 }
 
 export const API_BASE = getApiBaseUrl();

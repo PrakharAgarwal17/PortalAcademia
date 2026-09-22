@@ -25,8 +25,7 @@ import {
 import SkillBadge from "./SkillBadge";
 import SkillInput from "./SkillInput";
 import { cn } from "@/lib/utils";
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
+import { API_BASE } from "@/lib/api";
 
 export interface UserProfileData {
   _id?: string;

@@ -18,8 +18,7 @@ import { useTheme } from "@/context/theme";
 import { useAppDispatch } from "@/context/store";
 import { signOutThunk } from "@/context/authSlice";
 import { cn } from "@/lib/utils";
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
+import { API_BASE } from "@/lib/api";
 
 interface NotificationItem {
   _id: string;

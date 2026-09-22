@@ -33,8 +33,7 @@ import ProfileEditModal from "@/components/ProfileEditModal";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/context/store";
 import { openEditModal } from "@/context/profileSlice";
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
+import { API_BASE } from "@/lib/api";
 
 // Predefined high-quality Unsplash cover presets for academic/professional portfolios
 const BANNER_PRESETS = [

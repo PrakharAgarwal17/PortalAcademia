@@ -22,8 +22,7 @@ import {
 import { jsPDF } from "jspdf";
 import SkillBadge from "./SkillBadge";
 import { calculateAtsScore, type AtsScoreBreakdown } from "../utils/atsScoring";
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
+import { API_BASE } from "@/lib/api";
 
 export interface ResumeData {
   fullName: string;

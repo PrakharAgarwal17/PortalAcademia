@@ -61,7 +61,10 @@ app.use(cors({
     credentials: true
 }))
 
-const isProd = process.env.NODE_ENV === "production";
+const isProduction =
+    process.env.NODE_ENV === "production" ||
+    process.env.RENDER === "true" ||
+    Boolean(process.env.FRONTEND_URL?.startsWith("https://"));
 
 app.use(
   session({
@@ -70,9 +73,9 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: isProd,                           // HTTPS only in production
-      sameSite: isProd ? "none" : "lax",        // cross-site cookies for deployed env
-      maxAge: 10 * 60 * 1000,                   // 10 minutes (just for OAuth handshake)
+      secure: isProduction,                           // HTTPS only in production/proxies
+      sameSite: isProduction ? "none" : "lax",        // cross-site cookies for deployed env
+      maxAge: 10 * 60 * 1000,                         // 10 minutes (just for OAuth handshake)
     },
   })
 );

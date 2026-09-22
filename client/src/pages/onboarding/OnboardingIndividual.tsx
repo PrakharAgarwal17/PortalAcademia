@@ -25,12 +25,11 @@ import { checkAuthThunk } from "@/context/authSlice";
 import { useTheme } from "@/context/theme";
 import { cn } from "@/lib/utils";
 import SkillInput from "@/components/SkillInput";
+import { API_BASE } from "@/lib/api";
 
 // ============================================================
 // Constants & Types
 // ============================================================
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
 
 export type IndividualRole = "student" | "faculty";
 

@@ -4,8 +4,7 @@ import { useAppDispatch, useAppSelector } from "@/context/store";
 import { closeEditModal } from "@/context/profileSlice";
 import SkillInput from "@/components/SkillInput";
 import { HEADLINE_SUGGESTIONS, type ProfileData } from "@/pages/ProfilePage";
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
+import { API_BASE } from "@/lib/api";
 
 const BANNER_PRESETS = [
   {
