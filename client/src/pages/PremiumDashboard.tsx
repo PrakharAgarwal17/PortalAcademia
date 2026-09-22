@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Crown,
   Sparkles,
@@ -24,12 +25,14 @@ import {
   PhoneCall,
   AlertTriangle,
   Users,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Navbar from "@/components/Navbar";
-import MentorshipVideoCallModal from "@/components/MentorshipVideoCallModal";
+import MentorshipVideoCallModal, { forceStopAllHardwareMedia } from "@/components/MentorshipVideoCallModal";
 import MentorshipRatingModal from "@/components/MentorshipRatingModal";
 import MentorApplicationModal from "@/components/MentorApplicationModal";
+import MentorshipBookingModal from "@/components/MentorshipBookingModal";
 import CommunityChatView from "@/components/CommunityChatView";
 import { API_BASE } from "@/lib/api";
 
@@ -594,15 +597,164 @@ function CertificateModal({ contribution, studentName, onClose }: CertificateMod
   );
 }
 
+// ─── Mentorship Certificate Modal ─────────────────────────────────────────────
+
+interface MentorshipCertificateModalProps {
+  pairing: MentorshipPairing;
+  recipientName: string;
+  onClose: () => void;
+}
+
+function MentorshipCertificateModal({
+  pairing,
+  recipientName,
+  onClose,
+}: MentorshipCertificateModalProps) {
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const isMentor = pairing.isUserMentor;
+  const otherPerson = isMentor ? pairing.mentee : pairing.mentor;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 p-4">
+      <div className="bg-card rounded-md border border-border w-full max-w-xl shadow-2xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-muted/40">
+          <div className="flex items-center gap-2">
+            <Award className="w-4 h-4 text-emerald-500" />
+            <span className="text-xs font-semibold text-foreground">Verified Credential</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handlePrint}
+              className="p-1 rounded-sm text-muted-foreground hover:text-foreground hover:bg-secondary text-xs flex items-center gap-1 cursor-pointer"
+              title="Print Certificate"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1 rounded-sm text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Certificate Card Content */}
+        <div className="p-8 space-y-6 text-center bg-card border-b border-border">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-sm bg-secondary border border-border text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+            <Shield className="w-3 h-3 text-emerald-500" />
+            <span>PortalAcademia Senior Scholar Credential</span>
+          </div>
+
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold tracking-tight text-foreground font-sans">
+              {isMentor ? "Certificate of Mentorship Excellence" : "Certificate of Technical Mentorship Completion"}
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              This credential is awarded in recognition of academic and technical advising
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-bold text-foreground border-b border-border pb-1 inline-block min-w-[240px]">
+              {recipientName}
+            </h3>
+          </div>
+
+          <p className="text-xs text-foreground/80 max-w-md mx-auto leading-relaxed">
+            {isMentor ? (
+              <>
+                for demonstrated technical leadership and advising provided to{" "}
+                <span className="font-semibold text-foreground">{otherPerson?.name || "Junior Scholar"}</span> in{" "}
+                <span className="font-semibold text-foreground">{(pairing.topics || ["Software Engineering"]).join(", ")}</span>{" "}
+                logging <span className="font-semibold text-foreground">{pairing.totalCallDurationMinutes} minutes</span> of verified 1-on-1 collaboration.
+              </>
+            ) : (
+              <>
+                for successfully completing senior scholar technical advising with{" "}
+                <span className="font-semibold text-foreground">{otherPerson?.name || "Senior Mentor"}</span> in{" "}
+                <span className="font-semibold text-foreground">{(pairing.topics || ["Software Engineering"]).join(", ")}</span>{" "}
+                logging <span className="font-semibold text-foreground">{pairing.totalCallDurationMinutes} minutes</span> of verified collaboration.
+              </>
+            )}
+          </p>
+
+          <div className="pt-4 border-t border-border grid grid-cols-2 gap-4 text-left text-[11px]">
+            <div>
+              <span className="text-muted-foreground block text-[10px] font-mono uppercase">
+                Verification Date
+              </span>
+              <span className="font-mono text-foreground">
+                {pairing.completedAt ? formatDate(pairing.completedAt) : formatDate(pairing.startDate)}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-[10px] font-mono uppercase">
+                Advising Session
+              </span>
+              <span className="font-mono text-foreground">
+                {pairing.totalCallDurationMinutes} mins · {pairing.menteeRating ? `${pairing.menteeRating}★ Rating` : "Verified"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 py-3 bg-muted/20 flex items-center justify-between text-[11px] text-muted-foreground font-mono">
+          <span>ID: {(pairing.certificateId || pairing._id).slice(-12).toUpperCase()}</span>
+          <span className="text-emerald-500 flex items-center gap-1">
+            <Check className="w-3.5 h-3.5" /> Cryptographically Verified
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 type ActiveTab = "overview" | "opensource" | "mentors" | "communities" | "digest";
+type MentorSubTab = "directory" | "sessions" | "studio";
 
 export default function PremiumDashboard() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [membership, setMembership] = useState<MembershipStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const rawTab = searchParams.get("tab") as ActiveTab | null;
+  const activeTab: ActiveTab =
+    rawTab && ["overview", "opensource", "mentors", "communities", "digest"].includes(rawTab)
+      ? rawTab
+      : "overview";
+
+  const rawSub = searchParams.get("sub") as MentorSubTab | null;
+  const mentorSubTab: MentorSubTab =
+    rawSub && ["directory", "sessions", "studio"].includes(rawSub) ? rawSub : "directory";
+
+  const setActiveTab = (tab: ActiveTab) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", tab);
+      if (tab !== "mentors") {
+        next.delete("sub");
+      }
+      return next;
+    });
+  };
+
+  const setMentorSubTab = (sub: MentorSubTab) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", "mentors");
+      next.set("sub", sub);
+      return next;
+    });
+  };
+
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // Open source state
@@ -618,10 +770,13 @@ export default function PremiumDashboard() {
   const [myPairings, setMyPairings] = useState<MentorshipPairing[]>([]);
   const [isLoadingMentors, setIsLoadingMentors] = useState(false);
   const [mentorSearchQuery, setMentorSearchQuery] = useState("");
+  const [mentorTopicFilter, setMentorTopicFilter] = useState("all");
+  const [sessionRoleFilter, setSessionRoleFilter] = useState<"all" | "mentee" | "mentor">("all");
+  const [bookingMentor, setBookingMentor] = useState<MentorProfile | null>(null);
+  const [selectedMentorshipCert, setSelectedMentorshipCert] = useState<MentorshipPairing | null>(null);
   const [activeCallPairing, setActiveCallPairing] = useState<MentorshipPairing | null>(null);
   const [activeRatingPairing, setActiveRatingPairing] = useState<MentorshipPairing | null>(null);
   const [showMentorApplyModal, setShowMentorApplyModal] = useState(false);
-  const [bookingLoadingId, setBookingLoadingId] = useState<string | null>(null);
   const [mentorshipAlert, setMentorshipAlert] = useState<string | null>(null);
 
   // Community state
@@ -636,9 +791,18 @@ export default function PremiumDashboard() {
 
   // Derived mentor stats (computed from myPairings — no extra fetch)
   const mentorSessions = myPairings.filter((p) => p.isUserMentor);
+  const menteeSessions = myPairings.filter((p) => !p.isUserMentor);
   const satisfiedMentees = mentorSessions.filter((p) => p.menteeRating && p.menteeRating >= 4).length;
   const mentorCertsEarned = mentorSessions.filter((p) => p.certificateIssued).length;
   const activeMenteeSessions = mentorSessions.filter((p) => p.status === "active").length;
+  const totalMinutesAdvised = mentorSessions.reduce((acc, p) => acc + (p.totalCallDurationMinutes || 0), 0);
+
+  // Hardware safety: terminate any lingering camera/microphone streams on unmount
+  useEffect(() => {
+    return () => {
+      forceStopAllHardwareMedia();
+    };
+  }, []);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -780,14 +944,16 @@ export default function PremiumDashboard() {
       <div className="flex flex-1 overflow-hidden">
         {/* ── Sidebar ─────────────────────────────────────────────── */}
         <aside className="hidden lg:flex w-56 flex-col border-r border-border bg-card shrink-0">
-          <div className="px-4 py-3.5 border-b border-border bg-muted/30">
-            <div className="flex items-center gap-2">
-              <Crown className="w-4 h-4 text-amber-500" />
-              <div className="space-y-0.5">
-                <p className="text-xs font-semibold text-foreground tracking-tight leading-tight">
+          <div className="px-4 py-3.5 border-b border-border bg-muted/20">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-sm bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                <Crown className="w-3.5 h-3.5 text-amber-500" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-foreground tracking-tight leading-none truncate">
                   Premium Suite
                 </p>
-                <p className="text-[10px] text-muted-foreground font-mono">
+                <p className="text-[10px] text-muted-foreground font-mono mt-1 leading-none truncate">
                   Enterprise Tier
                 </p>
               </div>
@@ -806,7 +972,7 @@ export default function PremiumDashboard() {
                   className={cn(
                     "flex items-center gap-2 px-3 py-2 rounded-sm text-xs font-medium w-full text-left transition-colors cursor-pointer",
                     isActive
-                      ? "bg-primary text-primary-foreground font-semibold"
+                      ? "bg-secondary text-foreground font-semibold border-l-2 border-primary"
                       : isLocked
                       ? "text-muted-foreground/60 hover:bg-secondary/40"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary"
@@ -1301,13 +1467,15 @@ export default function PremiumDashboard() {
               </div>
             )}
 
-            {/* ── MENTORS TAB ──────────────────────────────────────── */}
+            {/* ── MENTORS TAB (SUB-PAGES: DIRECTORY, SESSIONS, STUDIO) ─── */}
             {activeTab === "mentors" && (
               <div className="space-y-6">
+                {/* Header with Title & Action */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-4">
                   <div>
-                    <h1 className="text-sm font-bold tracking-tight text-foreground uppercase">
-                      Senior Scholar &amp; Industry Advising
+                    <h1 className="text-sm font-bold tracking-tight text-foreground uppercase flex items-center gap-2">
+                      <GraduationCap className="w-4 h-4 text-primary" />
+                      <span>Senior Scholar &amp; Industry Advising</span>
                     </h1>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Direct WebRTC 1-on-1 audio/video calling, architecture critiques, and interview readiness.
@@ -1316,26 +1484,15 @@ export default function PremiumDashboard() {
                   <div className="flex items-center gap-2">
                     {profile?.isMentor ? (
                       <div className="flex items-center gap-2">
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex-wrap">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
                           <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                          <span>Registered Mentor</span>
-                          {satisfiedMentees > 0 && (
-                            <span className="text-[10px] font-mono opacity-80">
-                              · {satisfiedMentees} satisfied mentee{satisfiedMentees !== 1 ? "s" : ""}
-                            </span>
-                          )}
-                          {mentorCertsEarned > 0 && (
-                            <span className="text-[10px] font-mono opacity-80">
-                              · {mentorCertsEarned} cert{mentorCertsEarned !== 1 ? "s" : ""}
-                            </span>
-                          )}
+                          <span>Mentor Active (+20 ATS)</span>
                         </div>
                         <button
                           onClick={() => setShowMentorApplyModal(true)}
-                          className="px-3 py-1.5 rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                          className="px-2.5 py-1 rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
                         >
-                          <GraduationCap className="w-3.5 h-3.5 text-primary" />
-                          <span>Edit Bio &amp; Topics</span>
+                          <span>Edit Profile</span>
                         </button>
                       </div>
                     ) : (
@@ -1350,6 +1507,56 @@ export default function PremiumDashboard() {
                   </div>
                 </div>
 
+                {/* Sub-Navigation Tabs */}
+                <div className="flex items-center gap-1 border-b border-border text-xs">
+                  <button
+                    onClick={() => setMentorSubTab("directory")}
+                    className={cn(
+                      "px-3 py-2 border-b-2 font-medium transition-colors cursor-pointer flex items-center gap-1.5",
+                      mentorSubTab === "directory"
+                        ? "border-primary text-foreground font-semibold"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    <span>Mentor Directory</span>
+                  </button>
+                  <button
+                    onClick={() => setMentorSubTab("sessions")}
+                    className={cn(
+                      "px-3 py-2 border-b-2 font-medium transition-colors cursor-pointer flex items-center gap-1.5",
+                      mentorSubTab === "sessions"
+                        ? "border-primary text-foreground font-semibold"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>My Sessions</span>
+                    {myPairings.length > 0 && (
+                      <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-secondary border border-border text-foreground">
+                        {myPairings.length}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setMentorSubTab("studio")}
+                    className={cn(
+                      "px-3 py-2 border-b-2 font-medium transition-colors cursor-pointer flex items-center gap-1.5",
+                      mentorSubTab === "studio"
+                        ? "border-primary text-foreground font-semibold"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Mentor Studio</span>
+                    {profile?.isMentor && (
+                      <span className="ml-1 px-1.5 py-0.2 rounded-full text-[9px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold">
+                        +20 ATS
+                      </span>
+                    )}
+                  </button>
+                </div>
+
                 {mentorshipAlert && (
                   <div className="p-3 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-xs flex items-center justify-between text-emerald-700 dark:text-emerald-400">
                     <span className="font-semibold">{mentorshipAlert}</span>
@@ -1362,129 +1569,71 @@ export default function PremiumDashboard() {
                   </div>
                 )}
 
-                {/* My Active Pairings Section */}
-                {myPairings.length > 0 && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-mono">
-                        My Mentorship Sessions ({myPairings.length})
-                      </h2>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {myPairings.map((pairing) => {
-                        const otherPerson = pairing.isUserMentor ? pairing.mentee : pairing.mentor;
-                        const roleLabel = pairing.isUserMentor ? "Your Mentee" : "Your Mentor";
-                        return (
-                          <div
-                            key={pairing._id}
-                            className="p-4 rounded-md border border-border bg-card space-y-3 flex flex-col justify-between"
-                          >
-                            <div className="space-y-2">
-                              <div className="flex items-start justify-between gap-2">
-                                <div>
-                                  <span className="text-[10px] font-mono text-muted-foreground uppercase">
-                                    {roleLabel}
-                                  </span>
-                                  <h3 className="text-xs font-bold text-foreground">
-                                    {otherPerson?.name || "Participant"}
-                                  </h3>
-                                  <p className="text-[11px] text-muted-foreground">
-                                    {otherPerson?.headline || otherPerson?.institution || "PortalAcademia Scholar"}
-                                  </p>
-                                </div>
-                                <span
-                                  className={cn(
-                                    "text-[10px] font-mono uppercase font-semibold px-2 py-0.5 rounded-sm border",
-                                    pairing.status === "active"
-                                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                                      : pairing.status === "completed"
-                                      ? "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20"
-                                      : "bg-muted text-muted-foreground border-border"
-                                  )}
-                                >
-                                  {pairing.status}
-                                </span>
-                              </div>
-
-                              <div className="flex items-center gap-3 text-[11px] text-muted-foreground font-mono pt-1">
-                                <span className="flex items-center gap-1">
-                                  <Video className="w-3 h-3 text-primary" />
-                                  <span>{pairing.totalCallDurationMinutes} mins logged</span>
-                                </span>
-                                {pairing.menteeRating && (
-                                  <span className="flex items-center gap-1 text-amber-500">
-                                    <Star className="w-3 h-3 fill-amber-500" />
-                                    <span>{pairing.menteeRating}★ rated</span>
-                                  </span>
-                                )}
-                              </div>
-
-                              {pairing.topics && pairing.topics.length > 0 && (
-                                <div className="flex flex-wrap gap-1 pt-1">
-                                  {pairing.topics.map((t) => (
-                                    <span
-                                      key={t}
-                                      className="text-[9px] font-mono bg-secondary px-1.5 py-0.5 rounded-sm border border-border text-muted-foreground"
-                                    >
-                                      {t}
-                                    </span>
-                                  ))}
-                                </div>
+                {/* ── SUB-PAGE 1: DIRECTORY ─────────────────────────── */}
+                {mentorSubTab === "directory" && (
+                  <div className="space-y-4">
+                    {/* Filter bar: Search & Topic Chips */}
+                    <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
+                      {/* Topic Chips */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {[
+                          { id: "all", label: "All Specializations" },
+                          { id: "Distributed Systems", label: "Distributed Systems" },
+                          { id: "React", label: "React & Full-Stack" },
+                          { id: "Machine Learning", label: "AI & Transformers" },
+                          { id: "Cloud", label: "Cloud & DevOps" },
+                          { id: "Rust", label: "Compilers & Systems" },
+                        ].map((chip) => {
+                          const isSelected = mentorTopicFilter === chip.id;
+                          return (
+                            <button
+                              key={chip.id}
+                              onClick={() => setMentorTopicFilter(chip.id)}
+                              className={cn(
+                                "px-2.5 py-1 rounded-sm text-xs font-mono transition-colors cursor-pointer border",
+                                isSelected
+                                  ? "bg-secondary text-foreground font-semibold border-primary/40 shadow-xs"
+                                  : "bg-background text-muted-foreground border-border hover:bg-secondary/60 hover:text-foreground"
                               )}
-                            </div>
+                            >
+                              {chip.label}
+                            </button>
+                          );
+                        })}
+                      </div>
 
-                            <div className="pt-2 border-t border-border flex items-center justify-between gap-2">
-                              <button
-                                onClick={() => setActiveCallPairing(pairing)}
-                                className="flex-1 text-xs font-semibold py-2 rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                              >
-                                <Video className="w-3.5 h-3.5" />
-                                <span>Start Video Call</span>
-                              </button>
-
-                              {!pairing.isUserMentor && !pairing.menteeRating && (
-                                <button
-                                  onClick={() => setActiveRatingPairing(pairing)}
-                                  className="px-3 py-2 text-xs font-semibold rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors cursor-pointer"
-                                >
-                                  Review
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                      {/* Search Input */}
+                      <div className="relative w-full md:w-64 shrink-0">
+                        <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                          type="text"
+                          placeholder="Filter mentors by name, topic..."
+                          value={mentorSearchQuery}
+                          onChange={(e) => setMentorSearchQuery(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 text-xs bg-background border border-border rounded-sm text-foreground focus:outline-none focus:border-foreground/40"
+                        />
+                      </div>
                     </div>
-                  </div>
-                )}
 
-                {/* Browse Mentors */}
-                <div className="space-y-4 pt-2">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-mono">
-                      Browse Verified Scholars &amp; Mentors
-                    </h2>
-                    <div className="relative w-full sm:w-64">
-                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                      <input
-                        type="text"
-                        placeholder="Filter by skill, name, or topic..."
-                        value={mentorSearchQuery}
-                        onChange={(e) => setMentorSearchQuery(e.target.value)}
-                        className="w-full pl-8 pr-3 py-1.5 text-xs bg-background border border-border rounded-sm text-foreground focus:outline-none focus:border-foreground/40"
-                      />
-                    </div>
-                  </div>
-
-                  {isLoadingMentors ? (
-                    <div className="p-12 flex items-center justify-center">
-                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : (() => {
+                    {isLoadingMentors ? (
+                      <div className="p-12 flex items-center justify-center">
+                        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : (() => {
                       const currentUserId = (profile?.userId || profile?._id)?.toString();
                       const availableMentors = mentors
                         .filter((m) => !currentUserId || m.userId?.toString() !== currentUserId)
+                        .filter((m) => {
+                          if (mentorTopicFilter === "all") return true;
+                          const filterLower = mentorTopicFilter.toLowerCase();
+                          const matchesTopics = m.mentorTopics?.some((t) =>
+                            t.toLowerCase().includes(filterLower)
+                          );
+                          const matchesSkills = m.skills?.some((s) =>
+                            s.toLowerCase().includes(filterLower)
+                          );
+                          return matchesTopics || matchesSkills;
+                        })
                         .filter(
                           (m) =>
                             !mentorSearchQuery ||
@@ -1505,121 +1654,582 @@ export default function PremiumDashboard() {
                         return (
                           <div className="p-8 rounded-md border border-dashed border-border text-center space-y-2">
                             <p className="text-xs font-semibold text-foreground">
-                              {profile?.isMentor
-                                ? "No other verified mentors currently found"
-                                : "No active mentors found"}
+                              No verified mentors matching your filter
                             </p>
                             <p className="text-[11px] text-muted-foreground">
-                              {profile?.isMentor
-                                ? "Your mentor profile is published in the directory. Other peers and mentors will appear as they join."
-                                : "Be the first senior scholar to apply and mentor junior peers!"}
+                              Try clearing your search query or selecting "All Specializations".
                             </p>
-                            {!profile?.isMentor && (
-                              <button
-                                onClick={() => setShowMentorApplyModal(true)}
-                                className="px-3 py-1.5 text-xs font-semibold rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer inline-flex items-center gap-1.5 mt-2"
-                              >
-                                <GraduationCap className="w-3.5 h-3.5" />
-                                <span>Register as Mentor</span>
-                              </button>
-                            )}
+                            <button
+                              onClick={() => {
+                                setMentorSearchQuery("");
+                                setMentorTopicFilter("all");
+                              }}
+                              className="px-3 py-1 text-xs font-semibold rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors cursor-pointer inline-flex items-center gap-1.5 mt-2"
+                            >
+                              Reset Filters
+                            </button>
                           </div>
                         );
                       }
 
                       return (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          {availableMentors.map((m) => (
-                            <div
-                              key={m.userId}
-                              className="p-4 rounded-md border border-border bg-card flex flex-col justify-between gap-3 shadow-xs"
-                            >
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-mono uppercase text-muted-foreground">
-                                    Verified Mentor
-                                  </span>
-                                  <div className="flex items-center gap-1 text-[11px] font-mono text-amber-500">
-                                    <Star className="w-3 h-3 fill-amber-500" />
-                                    <span>{m.rating || 5.0}</span>
-                                    <span className="text-[10px] text-muted-foreground">
-                                      ({m.reviewCount || 0})
-                                    </span>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {availableMentors.map((m) => {
+                            // Check if student user already has an active session with this mentor
+                            const activePairingWithMentor = myPairings.find(
+                              (p) =>
+                                p.status === "active" &&
+                                !p.isUserMentor &&
+                                (p.mentor?.userId?.toString() === m.userId?.toString() ||
+                                  p.mentorId?.toString() === m.userId?.toString())
+                            );
+
+                            return (
+                              <div
+                                key={m.userId}
+                                className="p-4 rounded-md border border-border bg-card flex flex-col justify-between gap-3 shadow-xs"
+                              >
+                                <div className="space-y-2.5">
+                                  <div className="flex items-center justify-between">
+                                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm bg-secondary border border-border text-[10px] font-mono uppercase text-muted-foreground">
+                                      <Shield className="w-3 h-3 text-emerald-500" />
+                                      <span>Verified Mentor</span>
+                                    </div>
+                                    <div className="flex items-center gap-1 text-[11px] font-mono text-amber-500">
+                                      <Star className="w-3 h-3 fill-amber-500" />
+                                      <span>{m.rating || 5.0}</span>
+                                      <span className="text-[10px] text-muted-foreground">
+                                        ({m.reviewCount || 0})
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <h3 className="text-xs font-bold text-foreground">{m.name}</h3>
+                                    <p className="text-[11px] text-muted-foreground line-clamp-1">
+                                      {m.headline || m.institution || "PortalAcademia Scholar"}
+                                    </p>
+                                    {m.mentorBio && (
+                                      <p className="text-[11px] text-muted-foreground/90 mt-1 line-clamp-2 leading-relaxed">
+                                        {m.mentorBio}
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  <div className="flex flex-wrap gap-1 pt-0.5">
+                                    {(m.mentorTopics || m.skills || []).slice(0, 4).map((t) => (
+                                      <span
+                                        key={t}
+                                        className="text-[9px] font-mono bg-secondary px-1.5 py-0.5 rounded-sm border border-border text-muted-foreground"
+                                      >
+                                        {t}
+                                      </span>
+                                    ))}
                                   </div>
                                 </div>
 
-                                <div>
-                                  <h3 className="text-xs font-bold text-foreground">{m.name}</h3>
-                                  <p className="text-[11px] text-muted-foreground line-clamp-1">
-                                    {m.headline || m.institution || "Scholar"}
-                                  </p>
-                                  {m.mentorBio && (
-                                    <p className="text-[11px] text-muted-foreground/80 mt-1 line-clamp-2 leading-relaxed">
-                                      {m.mentorBio}
-                                    </p>
+                                <div className="pt-2 border-t border-border space-y-2">
+                                  {activePairingWithMentor ? (
+                                    <>
+                                      <div className="p-1.5 rounded-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold flex items-center justify-between">
+                                        <span className="flex items-center gap-1">
+                                          <CheckCircle2 className="w-3 h-3" />
+                                          <span>Active Advising Session</span>
+                                        </span>
+                                        <span className="font-mono text-[9px]">
+                                          {activePairingWithMentor.totalCallDurationMinutes}m logged
+                                        </span>
+                                      </div>
+                                      <button
+                                        onClick={() => setActiveCallPairing(activePairingWithMentor)}
+                                        className="w-full text-xs font-semibold py-2 rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                                      >
+                                        <Video className="w-3.5 h-3.5" />
+                                        <span>Join Video Call</span>
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        if (!isPremium) {
+                                          setShowPaymentModal(true);
+                                          return;
+                                        }
+                                        setBookingMentor(m);
+                                      }}
+                                      className="w-full text-xs font-semibold py-2 rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground hover:border-foreground/30 transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                                    >
+                                      <PhoneCall className="w-3.5 h-3.5 text-primary" />
+                                      <span>Request 1-on-1 Advising</span>
+                                    </button>
                                   )}
                                 </div>
-
-                                <div className="flex flex-wrap gap-1 pt-1">
-                                  {(m.mentorTopics || m.skills || []).slice(0, 4).map((t) => (
-                                    <span
-                                      key={t}
-                                      className="text-[9px] font-mono bg-secondary px-1.5 py-0.5 rounded-sm border border-border text-muted-foreground"
-                                    >
-                                      {t}
-                                    </span>
-                                  ))}
-                                </div>
                               </div>
-
-                              <button
-                                onClick={async () => {
-                                  if (!isPremium) {
-                                    setShowPaymentModal(true);
-                                    return;
-                                  }
-                                  setBookingLoadingId(m.userId);
-                                  try {
-                                    const res = await fetch(`${API_BASE}/api/mentorship/request`, {
-                                      method: "POST",
-                                      credentials: "include",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({
-                                        mentorUserId: m.userId,
-                                        focusArea: m.mentorTopics?.[0] || "Career & Architecture Advising",
-                                      }),
-                                    });
-                                    const data = await res.json();
-                                    if (data.success) {
-                                      setMentorshipAlert(
-                                        `Session confirmed with ${m.name}! Direct WebRTC video calling is now active.`
-                                      );
-                                      void fetchMentorshipData();
-                                    } else {
-                                      alert(data.message || "Failed to schedule session.");
-                                    }
-                                  } catch {
-                                    alert("Network error while booking mentorship.");
-                                  } finally {
-                                    setBookingLoadingId(null);
-                                  }
-                                }}
-                                disabled={bookingLoadingId === m.userId}
-                                className="w-full text-xs font-semibold py-2 rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
-                              >
-                                {bookingLoadingId === m.userId ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <PhoneCall className="w-3.5 h-3.5" />
-                                )}
-                                <span>Request 1-on-1 Advising</span>
-                              </button>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       );
                     })()}
-                </div>
+                  </div>
+                )}
+
+                {/* ── SUB-PAGE 2: MY SESSIONS ───────────────────────── */}
+                {mentorSubTab === "sessions" && (
+                  <div className="space-y-4">
+                    {/* Segmented Filter: All vs Received vs Given */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-1 bg-secondary/50 p-1 rounded-sm border border-border text-xs">
+                        <button
+                          onClick={() => setSessionRoleFilter("all")}
+                          className={cn(
+                            "px-3 py-1 rounded-xs font-medium transition-colors cursor-pointer",
+                            sessionRoleFilter === "all"
+                              ? "bg-card text-foreground font-semibold shadow-xs"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          All Sessions ({myPairings.length})
+                        </button>
+                        <button
+                          onClick={() => setSessionRoleFilter("mentee")}
+                          className={cn(
+                            "px-3 py-1 rounded-xs font-medium transition-colors cursor-pointer",
+                            sessionRoleFilter === "mentee"
+                              ? "bg-card text-foreground font-semibold shadow-xs"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          Advising Received ({menteeSessions.length})
+                        </button>
+                        <button
+                          onClick={() => setSessionRoleFilter("mentor")}
+                          className={cn(
+                            "px-3 py-1 rounded-xs font-medium transition-colors cursor-pointer",
+                            sessionRoleFilter === "mentor"
+                              ? "bg-card text-foreground font-semibold shadow-xs"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          Advising Given ({mentorSessions.length})
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={() => setMentorSubTab("directory")}
+                        className="px-3 py-1 text-xs font-semibold rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors cursor-pointer inline-flex items-center gap-1.5 self-start sm:self-auto"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        <span>Find New Mentor</span>
+                      </button>
+                    </div>
+
+                    {/* Filtered Sessions Grid */}
+                    {(() => {
+                      const displayedSessions = myPairings.filter((p) => {
+                        if (sessionRoleFilter === "mentee") return !p.isUserMentor;
+                        if (sessionRoleFilter === "mentor") return p.isUserMentor;
+                        return true;
+                      });
+
+                      if (displayedSessions.length === 0) {
+                        return (
+                          <div className="p-12 rounded-md border border-dashed border-border text-center space-y-3">
+                            <Video className="w-8 h-8 text-muted-foreground/60 mx-auto" />
+                            <div className="space-y-1">
+                              <p className="text-xs font-semibold text-foreground">
+                                No sessions recorded in this view
+                              </p>
+                              <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+                                {sessionRoleFilter === "mentor"
+                                  ? "You have not conducted advising sessions as a mentor yet. Check your Mentor Studio to view mentee requests."
+                                  : "You haven't requested 1-on-1 advising yet. Browse verified senior scholars to schedule a session."}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() =>
+                                sessionRoleFilter === "mentor"
+                                  ? setMentorSubTab("studio")
+                                  : setMentorSubTab("directory")
+                              }
+                              className="px-3 py-1.5 text-xs font-semibold rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer inline-flex items-center gap-1.5 mt-2"
+                            >
+                              <span>
+                                {sessionRoleFilter === "mentor"
+                                  ? "Open Mentor Studio"
+                                  : "Browse Mentor Directory"}
+                              </span>
+                            </button>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {displayedSessions.map((pairing) => {
+                            const otherPerson = pairing.isUserMentor ? pairing.mentee : pairing.mentor;
+                            const roleLabel = pairing.isUserMentor ? "Your Mentee" : "Your Mentor";
+                            return (
+                              <div
+                                key={pairing._id}
+                                className="p-4 rounded-md border border-border bg-card space-y-3 flex flex-col justify-between shadow-xs"
+                              >
+                                <div className="space-y-2.5">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                      <span className="text-[10px] font-mono text-muted-foreground uppercase">
+                                        {roleLabel}
+                                      </span>
+                                      <h3 className="text-xs font-bold text-foreground">
+                                        {otherPerson?.name || "PortalAcademia Scholar"}
+                                      </h3>
+                                      <p className="text-[11px] text-muted-foreground">
+                                        {otherPerson?.headline || otherPerson?.institution || "Verified Scholar"}
+                                      </p>
+                                    </div>
+                                    <span
+                                      className={cn(
+                                        "text-[10px] font-mono uppercase font-semibold px-2 py-0.5 rounded-sm border",
+                                        pairing.status === "active"
+                                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                                          : pairing.status === "completed"
+                                          ? "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20"
+                                          : "bg-muted text-muted-foreground border-border"
+                                      )}
+                                    >
+                                      {pairing.status}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground font-mono pt-0.5">
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="w-3 h-3 text-primary" />
+                                      <span>{pairing.totalCallDurationMinutes} mins logged</span>
+                                    </span>
+                                    {pairing.menteeRating && (
+                                      <span className="flex items-center gap-1 text-amber-500">
+                                        <Star className="w-3 h-3 fill-amber-500" />
+                                        <span>{pairing.menteeRating}★ rated</span>
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {pairing.notes && (
+                                    <div className="p-2 rounded-sm bg-secondary/40 border border-border text-[11px] text-muted-foreground leading-relaxed italic">
+                                      "{pairing.notes}"
+                                    </div>
+                                  )}
+
+                                  {pairing.topics && pairing.topics.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 pt-0.5">
+                                      {pairing.topics.map((t) => (
+                                        <span
+                                          key={t}
+                                          className="text-[9px] font-mono bg-secondary px-1.5 py-0.5 rounded-sm border border-border text-muted-foreground"
+                                        >
+                                          {t}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="pt-2 border-t border-border flex items-center justify-between gap-2">
+                                  {pairing.status === "active" && (
+                                    <button
+                                      onClick={() => setActiveCallPairing(pairing)}
+                                      className="flex-1 text-xs font-semibold py-2 rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                                    >
+                                      <Video className="w-3.5 h-3.5" />
+                                      <span>Start Video Call</span>
+                                    </button>
+                                  )}
+
+                                  {!pairing.isUserMentor && !pairing.menteeRating && (
+                                    <button
+                                      onClick={() => setActiveRatingPairing(pairing)}
+                                      className="px-3 py-2 text-xs font-semibold rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors cursor-pointer"
+                                    >
+                                      Rate Advising
+                                    </button>
+                                  )}
+
+                                  {pairing.certificateIssued && (
+                                    <button
+                                      onClick={() => setSelectedMentorshipCert(pairing)}
+                                      className="px-3 py-2 text-xs font-semibold rounded-sm bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 transition-colors cursor-pointer flex items-center gap-1.5"
+                                    >
+                                      <Award className="w-3.5 h-3.5" />
+                                      <span>View Certificate</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* ── SUB-PAGE 3: MENTOR STUDIO ─────────────────────── */}
+                {mentorSubTab === "studio" && (
+                  <div className="space-y-6">
+                    {/* Studio Header Card with 4 KPI Metrics */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="p-3.5 rounded-md border border-border bg-card space-y-1">
+                        <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                          Mentees Guided
+                        </span>
+                        <div className="text-xl font-bold font-mono text-foreground">
+                          {satisfiedMentees}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          Satisfied scholars (4-5★)
+                        </p>
+                      </div>
+
+                      <div className="p-3.5 rounded-md border border-border bg-card space-y-1">
+                        <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                          Total Advised Time
+                        </span>
+                        <div className="text-xl font-bold font-mono text-foreground flex items-baseline gap-1">
+                          <span>{totalMinutesAdvised}</span>
+                          <span className="text-xs text-muted-foreground font-sans">mins</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          Across {mentorSessions.length} total session{mentorSessions.length !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+
+                      <div className="p-3.5 rounded-md border border-border bg-card space-y-1">
+                        <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                          Average Rating
+                        </span>
+                        <div className="text-xl font-bold font-mono text-amber-500 flex items-center gap-1">
+                          <Star className="w-4 h-4 fill-amber-500" />
+                          <span>5.0</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          Verified mentee feedback
+                        </p>
+                      </div>
+
+                      <div className="p-3.5 rounded-md border border-emerald-500/20 bg-emerald-500/5 space-y-1">
+                        <span className="text-[10px] font-mono uppercase text-emerald-600 dark:text-emerald-400 font-semibold">
+                          ATS Score Boost
+                        </span>
+                        <div className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                          <TrendingUp className="w-4 h-4" />
+                          <span>+20 PTS</span>
+                        </div>
+                        <p className="text-[10px] text-emerald-700 dark:text-emerald-500">
+                          {profile?.isMentor ? "Active on recruiter profile" : "Available upon registration"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {!profile?.isMentor ? (
+                      /* Mentor Registration Callout */
+                      <div className="p-6 rounded-md border border-border bg-card space-y-4">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-sm bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                            <GraduationCap className="w-5 h-5 text-primary" />
+                          </div>
+                          <div className="space-y-1">
+                            <h2 className="text-sm font-bold text-foreground">
+                              Become a PortalAcademia Senior Scholar Mentor
+                            </h2>
+                            <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
+                              Senior scholars in their 3rd or 4th year can provide 1-on-1 technical advising, code reviews, and mock interviews to junior students. In return, your profile receives a permanent verified badge and <span className="font-semibold text-emerald-600 dark:text-emerald-400">+20 ATS boost points</span> on employer search results.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 flex items-center gap-3">
+                          <button
+                            onClick={() => setShowMentorApplyModal(true)}
+                            className="px-4 py-2 text-xs font-semibold rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
+                          >
+                            <GraduationCap className="w-3.5 h-3.5" />
+                            <span>Register as Senior Mentor (Free)</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Registered Mentor Studio Console */
+                      <div className="space-y-6">
+                        {/* Profile Summary Card */}
+                        <div className="p-4 rounded-md border border-border bg-card space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
+                            <div>
+                              <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                                Active Mentor Profile
+                              </span>
+                              <h2 className="text-xs font-bold text-foreground">{profile?.name}</h2>
+                              <p className="text-[11px] text-muted-foreground">
+                                {profile?.mentorBio || profile?.bio || "Senior Scholar Fellow"}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setShowMentorApplyModal(true)}
+                              className="px-3 py-1.5 text-xs font-semibold rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors cursor-pointer self-start sm:self-auto"
+                            >
+                              Update Bio &amp; Topics
+                            </button>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                              Advising Topics Offered
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {(profile?.mentorTopics || profile?.skills || [
+                                "System Design",
+                                "React 19",
+                                "Resume Review",
+                              ]).map((topic) => (
+                                <span
+                                  key={topic}
+                                  className="text-[10px] font-mono bg-secondary px-2 py-0.5 rounded-sm border border-border text-foreground"
+                                >
+                                  {topic}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Active Mentees Queue */}
+                        <div className="space-y-3">
+                          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-mono">
+                            Active Mentee Queue ({activeMenteeSessions})
+                          </h3>
+
+                          {mentorSessions.filter((p) => p.status === "active").length === 0 ? (
+                            <div className="p-6 rounded-md border border-dashed border-border text-center space-y-1 text-xs text-muted-foreground">
+                              <p className="font-semibold text-foreground">No active mentees currently in session</p>
+                              <p className="text-[11px]">
+                                Your profile is published in the Mentor Directory. New booking requests will appear here.
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {mentorSessions
+                                .filter((p) => p.status === "active")
+                                .map((pairing) => (
+                                  <div
+                                    key={pairing._id}
+                                    className="p-4 rounded-md border border-border bg-card space-y-3 flex flex-col justify-between"
+                                  >
+                                    <div className="space-y-2">
+                                      <div className="flex items-start justify-between">
+                                        <div>
+                                          <span className="text-[10px] font-mono text-muted-foreground uppercase">
+                                            Assigned Mentee
+                                          </span>
+                                          <h4 className="text-xs font-bold text-foreground">
+                                            {pairing.mentee?.name || "Student Scholar"}
+                                          </h4>
+                                          <p className="text-[11px] text-muted-foreground">
+                                            {pairing.mentee?.institution || "PortalAcademia Student"}
+                                          </p>
+                                        </div>
+                                        <span className="text-[10px] font-mono uppercase font-semibold px-2 py-0.5 rounded-sm bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                          Active
+                                        </span>
+                                      </div>
+
+                                      {pairing.notes && (
+                                        <p className="text-[11px] text-muted-foreground bg-secondary/30 p-2 rounded-sm border border-border italic">
+                                          "{pairing.notes}"
+                                        </p>
+                                      )}
+
+                                      <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground pt-1">
+                                        <Video className="w-3 h-3 text-primary" />
+                                        <span>{pairing.totalCallDurationMinutes} mins completed</span>
+                                      </div>
+                                    </div>
+
+                                    <div className="pt-2 border-t border-border">
+                                      <button
+                                        onClick={() => setActiveCallPairing(pairing)}
+                                        className="w-full text-xs font-semibold py-2 rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                                      >
+                                        <Video className="w-3.5 h-3.5" />
+                                        <span>Launch 1-on-1 Call</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Completed Advising & Reviews */}
+                        {mentorSessions.filter((p) => p.status === "completed").length > 0 && (
+                          <div className="space-y-3">
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-mono">
+                              Completed Mentorships &amp; Credentials ({mentorCertsEarned})
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {mentorSessions
+                                .filter((p) => p.status === "completed")
+                                .map((pairing) => (
+                                  <div
+                                    key={pairing._id}
+                                    className="p-4 rounded-md border border-border bg-card space-y-2.5 flex flex-col justify-between"
+                                  >
+                                    <div className="space-y-2">
+                                      <div className="flex items-start justify-between">
+                                        <div>
+                                          <h4 className="text-xs font-bold text-foreground">
+                                            {pairing.mentee?.name || "Student Scholar"}
+                                          </h4>
+                                          <p className="text-[11px] text-muted-foreground">
+                                            {pairing.mentee?.institution || "Student"}
+                                          </p>
+                                        </div>
+                                        {pairing.menteeRating && (
+                                          <div className="flex items-center gap-1 text-[11px] font-mono text-amber-500 font-bold">
+                                            <Star className="w-3.5 h-3.5 fill-amber-500" />
+                                            <span>{pairing.menteeRating}.0</span>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {pairing.menteeFeedback && (
+                                        <p className="text-[11px] text-foreground/80 bg-secondary/30 p-2 rounded-sm border border-border italic">
+                                          "{pairing.menteeFeedback}"
+                                        </p>
+                                      )}
+                                    </div>
+
+                                    {pairing.certificateIssued && (
+                                      <div className="pt-2 border-t border-border flex items-center justify-between">
+                                        <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                          <CheckCircle2 className="w-3 h-3" />
+                                          <span>Verified Credential Issued</span>
+                                        </span>
+                                        <button
+                                          onClick={() => setSelectedMentorshipCert(pairing)}
+                                          className="px-2.5 py-1 text-xs font-medium rounded-sm bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-colors cursor-pointer flex items-center gap-1"
+                                        >
+                                          <Award className="w-3 h-3 text-emerald-500" />
+                                          <span>View Certificate</span>
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1915,13 +2525,38 @@ export default function PremiumDashboard() {
           mentorName={activeCallPairing.mentor?.name || "Mentor"}
           menteeName={activeCallPairing.mentee?.name || "Mentee"}
           currentUserId={profile?.userId || profile?._id}
-          onClose={() => setActiveCallPairing(null)}
+          onClose={() => {
+            setActiveCallPairing(null);
+            forceStopAllHardwareMedia();
+          }}
           onCallEnded={(_durationMins) => {
+            forceStopAllHardwareMedia();
             void fetchMentorshipData();
             if (!activeCallPairing.isUserMentor) {
               setActiveRatingPairing(activeCallPairing);
             }
           }}
+        />
+      )}
+
+      {/* Dedicated Mentorship Booking Modal */}
+      <MentorshipBookingModal
+        mentor={bookingMentor}
+        isOpen={Boolean(bookingMentor)}
+        onClose={() => setBookingMentor(null)}
+        onSuccess={(_pairing, msg) => {
+          setMentorshipAlert(msg);
+          void fetchMentorshipData();
+          setMentorSubTab("sessions");
+        }}
+      />
+
+      {/* Mentorship Certificate Modal */}
+      {selectedMentorshipCert && (
+        <MentorshipCertificateModal
+          pairing={selectedMentorshipCert}
+          recipientName={profile?.name || "PortalAcademia Scholar"}
+          onClose={() => setSelectedMentorshipCert(null)}
         />
       )}
 

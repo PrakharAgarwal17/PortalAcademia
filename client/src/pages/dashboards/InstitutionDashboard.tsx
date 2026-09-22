@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Building2,
   CheckCircle2,
-  ExternalLink,
   Loader2,
   ShieldCheck,
   AlertTriangle,
@@ -24,9 +23,7 @@ import {
   MessageSquare,
   Send,
   Plus,
-  Radio,
   Clock,
-  Volume2,
 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
