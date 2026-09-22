@@ -45,6 +45,27 @@ const ICE_SERVERS: RTCIceServer[] = [
   },
 ];
 
+// Global media stream registry to guarantee complete hardware teardown
+const activeMediaStreams = new Set<MediaStream>();
+
+export function forceStopAllHardwareMedia() {
+  try {
+    activeMediaStreams.forEach((stream) => {
+      try {
+        stream.getTracks().forEach((track) => {
+          try {
+            track.stop();
+            track.enabled = false;
+          } catch {}
+        });
+      } catch {}
+    });
+    activeMediaStreams.clear();
+  } catch (err) {
+    console.error("forceStopAllHardwareMedia error:", err);
+  }
+}
+
 export default function MentorshipVideoCallModal({
   pairingId,
   mentorName,
@@ -109,6 +130,10 @@ export default function MentorshipVideoCallModal({
   // Stop all camera, mic, and screen tracks and clear element srcObjects
   const stopAllMediaTracks = useCallback(() => {
     try {
+      // 1. Terminate all globally registered media streams
+      forceStopAllHardwareMedia();
+
+      // 2. Terminate localStreamRef
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((track) => {
           try {
@@ -120,6 +145,8 @@ export default function MentorshipVideoCallModal({
         });
         localStreamRef.current = null;
       }
+
+      // 3. Terminate screenStreamRef
       if (screenStreamRef.current) {
         screenStreamRef.current.getTracks().forEach((track) => {
           try {
@@ -131,24 +158,67 @@ export default function MentorshipVideoCallModal({
         });
         screenStreamRef.current = null;
       }
+
+      // 4. Detach and stop any tracks on localVideoRef
       if (localVideoRef.current) {
         try {
+          if (localVideoRef.current.srcObject) {
+            const stream = localVideoRef.current.srcObject as MediaStream;
+            if (stream && stream.getTracks) {
+              stream.getTracks().forEach((t) => {
+                try {
+                  t.stop();
+                  t.enabled = false;
+                } catch {}
+              });
+            }
+          }
           localVideoRef.current.pause();
         } catch {}
         localVideoRef.current.srcObject = null;
       }
+
+      // 5. Detach and stop any tracks on remoteVideoRef
       if (remoteVideoRef.current) {
         try {
+          if (remoteVideoRef.current.srcObject) {
+            const stream = remoteVideoRef.current.srcObject as MediaStream;
+            if (stream && stream.getTracks) {
+              stream.getTracks().forEach((t) => {
+                try {
+                  t.stop();
+                  t.enabled = false;
+                } catch {}
+              });
+            }
+          }
           remoteVideoRef.current.pause();
         } catch {}
         remoteVideoRef.current.srcObject = null;
       }
-      // Revoke permissions if supported by browser
-      if (typeof navigator !== "undefined" && (navigator as any).permissions?.revoke) {
+
+      // 6. Explicitly stop all RTCRtpSenders on the peer connection
+      if (peerConnectionRef.current) {
         try {
-          (navigator as any).permissions.revoke({ name: "camera" }).catch(() => {});
-          (navigator as any).permissions.revoke({ name: "microphone" }).catch(() => {});
-        } catch {}
+          peerConnectionRef.current.getSenders().forEach((sender) => {
+            if (sender.track) {
+              try {
+                sender.track.stop();
+                sender.track.enabled = false;
+              } catch {}
+            }
+          });
+          peerConnectionRef.current.getReceivers().forEach((receiver) => {
+            if (receiver.track) {
+              try {
+                receiver.track.stop();
+                receiver.track.enabled = false;
+              } catch {}
+            }
+          });
+        } catch (e) {
+          console.error("Error stopping peer connection tracks:", e);
+        }
       }
     } catch (err) {
       console.error("Error in stopAllMediaTracks:", err);
@@ -299,6 +369,7 @@ export default function MentorshipVideoCallModal({
       }
 
       if (stream) {
+        activeMediaStreams.add(stream);
         localStreamRef.current = stream;
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
@@ -422,6 +493,7 @@ export default function MentorshipVideoCallModal({
     if (!isScreenSharing) {
       try {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        activeMediaStreams.add(screenStream);
         screenStreamRef.current = screenStream;
         const screenTrack = screenStream.getVideoTracks()[0];
 
