@@ -76,6 +76,22 @@ export function generateTokens(userId: string, rememberMe = false) {
     return { accesstoken, refreshtoken };
 }
 
+export function isRequestHttps(req?: Request): boolean {
+    if (process.env.NODE_ENV === "production" || process.env.RENDER === "true") {
+        return true;
+    }
+    if (req) {
+        if (req.secure) return true;
+        if (req.headers?.["x-forwarded-proto"] === "https") return true;
+        const origin = (req.headers?.origin || req.headers?.referer || "") as string;
+        if (origin.startsWith("https://")) return true;
+    }
+    if (process.env.FRONTEND_URL?.startsWith("https://")) {
+        return true;
+    }
+    return false;
+}
+
 export function setAuthCookies(
     res: Response,
     accesstoken: string,
@@ -83,11 +99,7 @@ export function setAuthCookies(
     rememberMe = false,
     req?: Request
 ) {
-    const isProd = process.env.NODE_ENV === "production";
-    const isHttps =
-        Boolean(req?.secure) ||
-        req?.headers?.["x-forwarded-proto"] === "https" ||
-        isProd;
+    const isHttps = isRequestHttps(req);
 
     const baseOptions = {
         httpOnly: true,
@@ -467,11 +479,11 @@ export function SignOut(
     res: Response
 ): Response {
     try {
-        const isProd = process.env.NODE_ENV === "production";
+        const isHttps = isRequestHttps(req);
         const clearOptions = {
             httpOnly: true,
-            secure: isProd,
-            sameSite: isProd ? ("none" as const) : ("lax" as const),
+            secure: isHttps,
+            sameSite: isHttps ? ("none" as const) : ("lax" as const),
             path: "/",
         };
 
@@ -692,9 +704,16 @@ export const googleSuccess = async (
         const { accesstoken, refreshtoken } = generateTokens(String(user._id), true);
         setAuthCookies(res, accesstoken, refreshtoken, true, req);
 
+        // Generate a short-lived (60s) single-use exchange token for cross-origin / incognito session establishment
+        const exchangeToken = jwt.sign(
+            { id: String(user._id), type: "oauth_exchange" },
+            getAccessSecret(),
+            { expiresIn: "60s" }
+        );
+
         // If user is already onboarded, send to dashboard; otherwise send to onboarding wizard
         const redirectPath = isOnboarded ? "/dashboard" : "/onboarding/select-type";
-        return res.redirect(`${frontendUrl}${redirectPath}?auth=google`);
+        return res.redirect(`${frontendUrl}${redirectPath}?auth=google&exchange=${exchangeToken}`);
 
     } catch (error) {
         console.error("Google Auth error:", error);
@@ -712,3 +731,51 @@ export const googleFailure = (
         message: "Google Authentication Failed",
     });
 };
+
+// =========================
+// OAuth Token Exchange
+// =========================
+
+export async function oauthExchange(
+    req: Request,
+    res: Response
+): Promise<Response> {
+    try {
+        const { exchangeToken } = req.body;
+        if (!exchangeToken || typeof exchangeToken !== "string") {
+            return res.status(400).json({ message: "Missing or invalid exchange token" });
+        }
+
+        let decoded: any;
+        try {
+            decoded = jwt.verify(exchangeToken, getAccessSecret());
+        } catch {
+            return res.status(401).json({ message: "Exchange token expired or invalid" });
+        }
+
+        if (decoded?.type !== "oauth_exchange" || !decoded?.id) {
+            return res.status(401).json({ message: "Invalid exchange token format" });
+        }
+
+        const user = await userModel
+            .findById(decoded.id)
+            .select("_id email isVerified isOnboarded isEmailVerified");
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Issue fresh tokens and set httpOnly cookies on the current origin
+        const tokens = generateTokens(String(user._id), true);
+        setAuthCookies(res, tokens.accesstoken, tokens.refreshtoken, true, req);
+
+        const userData = await buildUserSessionPayload(user);
+        return res.status(200).json({
+            valid: true,
+            user: userData,
+        });
+    } catch (err) {
+        console.error("OAuth exchange failed:", err);
+        return res.status(500).json({ message: "OAuth token exchange error" });
+    }
+}

@@ -27,8 +27,7 @@ import { searchSkillSuggestions, getSkillIcon } from "@/lib/skillIcons";
 import TestConfirmationModal from "@/components/TestConfirmationModal";
 import SkillTestRunnerModal from "@/components/SkillTestRunnerModal";
 import Navbar from "@/components/Navbar";
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
+import { API_BASE } from "@/lib/api";
 
 interface FacultyProfile {
   _id?: string;

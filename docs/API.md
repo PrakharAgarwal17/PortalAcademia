@@ -18,6 +18,7 @@
 | `POST` | `/api/auth/refresh` | Cookie | Explicitly exchanges valid `refreshtoken` for fresh `accesstoken`. |
 | `GET` | `/api/auth/google` | Public | Initiates Google OAuth 2.0 flow. |
 | `GET` | `/api/auth/google/callback`| Public | Google OAuth redirect callback; issues JWT cookies and redirects. |
+| `POST` | `/api/auth/oauth-exchange` | Public | Exchanges short-lived (60s) OAuth exchange token for first-party session cookies. |
 
 ### Sign In Request Payload
 ```json
@@ -26,6 +27,14 @@ POST /api/auth/signin
   "email": "student.test@portalacademia.ac.in",
   "password": "Password123!",
   "rememberMe": true
+}
+```
+
+### OAuth Exchange Request Payload
+```json
+POST /api/auth/oauth-exchange
+{
+  "exchangeToken": "eyJhbGciOiJIUzI1NiIs..."
 }
 ```
 

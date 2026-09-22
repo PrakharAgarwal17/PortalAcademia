@@ -188,16 +188,33 @@ function AppShell() {
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
     const isGoogleOAuthRedirect = searchParams.get("auth") === "google";
+    const exchangeToken = searchParams.get("exchange");
 
-    if (isGoogleOAuthRedirect) {
+    if (exchangeToken) {
+      // Clean up sensitive tokens from the URL immediately without reloading
+      window.history.replaceState({}, "", window.location.pathname);
+
+      // Exchange the temporary OAuth token via same-origin proxy to set first-party cookies
+      fetch(`${API_BASE}/api/auth/oauth-exchange`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ exchangeToken }),
+      })
+        .then(() => {
+          dispatch(checkAuthThunk());
+        })
+        .catch(() => {
+          dispatch(checkAuthThunk());
+        });
+    } else if (isGoogleOAuthRedirect) {
       // After a Google OAuth redirect, cookies take a moment to be committed
       // by the browser. A brief delay ensures Set-Cookie is fully processed
       // before we call checkAuth, avoiding a false "unauthenticated" state.
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, "", cleanUrl);
       const timer = setTimeout(() => {
         dispatch(checkAuthThunk());
-        // Clean up the query param from the URL without re-rendering
-        const cleanUrl = window.location.pathname;
-        window.history.replaceState({}, "", cleanUrl);
       }, 300);
       return () => clearTimeout(timer);
     } else {

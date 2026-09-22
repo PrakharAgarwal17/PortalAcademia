@@ -3,8 +3,7 @@ import { Briefcase, Clock, ArrowLeft, FileText, Sparkles, X, Printer, Download }
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { cn } from "@/lib/utils";
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
+import { API_BASE } from "@/lib/api";
 
 interface Application {
   _id: string;

@@ -186,11 +186,12 @@ export async function createOpportunity(req: Request, res: Response) {
 
         const finalCategory = (category || "internship").toString().toLowerCase().trim();
         const finalDomain = domain || "General Technology & Engineering";
+        const finalDeadline = deadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-        if (!title || !description || !finalCategory || !deadline) {
+        if (!title || !description || !finalCategory) {
             return res.status(400).json({
                 success: false,
-                message: "Missing mandatory fields: title, description, category, deadline are required.",
+                message: "Missing mandatory fields: title, description, and category are required.",
             });
         }
 
@@ -226,7 +227,7 @@ export async function createOpportunity(req: Request, res: Response) {
             stipendOrPrize: stipendOrPrize || "Certificate / Credits",
             requiredSkills: skillsArray,
             eligibility: eligibility || "Open to all qualified applicants.",
-            deadline,
+            deadline: finalDeadline,
             targetAudience: targetAudience || defaultTargetAudience,
             status: "active",
         });
@@ -245,11 +246,11 @@ export async function createOpportunity(req: Request, res: Response) {
             message: "Opportunity published successfully",
             data: newOpportunity,
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error("createOpportunity error:", error);
         return res.status(500).json({
             success: false,
-            message: "Failed to publish opportunity",
+            message: error?.message || "Failed to publish opportunity",
         });
     }
 }
