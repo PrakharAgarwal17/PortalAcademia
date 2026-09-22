@@ -5,8 +5,7 @@ import Navbar from "@/components/Navbar";
 import StudentTrendsPage from "@/pages/trends/StudentTrendsPage";
 import FacultyTrendsPage from "@/pages/trends/FacultyTrendsPage";
 import InstitutionTrendsPage from "@/pages/trends/InstitutionTrendsPage";
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
+import { API_BASE } from "@/lib/api";
 
 interface UserProfile {
   _id?: string;

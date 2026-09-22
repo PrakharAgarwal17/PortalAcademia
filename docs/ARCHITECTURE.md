@@ -229,23 +229,29 @@ Spins up local MongoDB 7 and Redis 7 services:
 docker compose up -d
 ```
 
-### Production Deployment Architecture
+### Production Deployment Architecture (Same-Origin Reverse Proxy)
+
+To eliminate browser third-party cookie blocking (notably in Chrome Incognito and Safari), production routes API traffic through the frontend domain via reverse proxy rewrites:
 
 ```
-Internet / DNS
+Browser (Incognito / Standard)
       │
       ▼
-Cloudflare CDN / DNS (SSL Termination, DDoS Protection)
+Client: Vercel SPA (https://portal-academia-phi.vercel.app)
       │
-      ├──► Client: Vercel / Netlify (Static Vite SPA)
-      │      • Base URL: https://portalacademia.ac.in
-      │      • Environment: VITE_API_BASE_URL=https://api.portalacademia.ac.in
+      ├──► UI Pages: Static Vite Bundle (index.html, assets)
       │
-      └──► Server: Render / Railway / AWS EC2 (Node.js Express 5 ESM)
-             • Base URL: https://api.portalacademia.ac.in
-             • MongoDB: MongoDB Atlas Replica Set (M0 / Dedicated)
-             • Redis: Upstash / Redis Cloud
+      └──► API Calls: /api/* (Same-Origin Reverse Proxy via vercel.json)
+             │
+             ▼
+           Server: Render (https://portalacademia.onrender.com/api/*)
+             • MongoDB Atlas Replica Set (M0 / Dedicated)
+             • Redis: Upstash / In-Memory Fallback
              • Media: Cloudinary CDN
+
+Cookie Scope: Cookies are issued and read under https://portal-academia-phi.vercel.app (First-Party)
+OAuth Exchange: Top-level OAuth redirects supply a 60s temporary exchange token, enabling the SPA
+to set first-party cookies via POST /api/auth/oauth-exchange.
 ```
 
 ### Cloudflare Tunnel Setup (Local to Public Demo)

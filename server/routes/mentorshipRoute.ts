@@ -10,13 +10,15 @@ import {
     reportMentorship,
     getMentorshipReports,
     updateMentorshipReportStatus,
+    generateMentorAssessment,
 } from "../controllers/mentorshipController.js";
 
 const router = Router();
 
-// Mentor discovery & application
+// Mentor discovery, application & AI assessment
 router.get("/mentors", isloggedIn, getMentors);
 router.post("/apply", isloggedIn, applyAsMentor);
+router.get("/generate-assessment", isloggedIn, generateMentorAssessment);
 
 // Mentorship pairing lifecycle
 router.post("/request", isloggedIn, requestMentorship);

@@ -22,8 +22,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
+import { API_BASE } from "@/lib/api";
 
 interface InstitutionProfile {
   _id?: string;

@@ -25,7 +25,9 @@ function getRefreshSecret(): string {
 
 export default function isloggedIn(req: Request, res: Response, next: NextFunction) {
     try {
-        const accessToken = req.cookies?.accesstoken;
+        const authHeader = req.headers.authorization;
+        const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : undefined;
+        const accessToken = req.cookies?.accesstoken || bearerToken;
         const refreshToken = req.cookies?.refreshtoken;
 
         if (accessToken) {

@@ -104,6 +104,8 @@ export interface IProfile extends Document {
     mentorTopics?: string[];
     mentorTermsAccepted?: boolean;
     mentorTermsAcceptedAt?: Date | null;
+    mentorTestScore?: number;
+    mentorTestPassedAt?: Date | null;
     atsBoostPoints?: number;
 
     createdAt: Date;
@@ -407,6 +409,14 @@ const profileSchema = new Schema<IProfile>(
             default: false,
         },
         mentorTermsAcceptedAt: {
+            type: Date,
+            default: null,
+        },
+        mentorTestScore: {
+            type: Number,
+            default: null,
+        },
+        mentorTestPassedAt: {
             type: Date,
             default: null,
         },

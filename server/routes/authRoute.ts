@@ -1,5 +1,5 @@
 import express from "express"
-import { SignIn, SignOut, SignUp, VerifyOtp, checkAuth, RefreshToken } from "../controllers/authController.js"
+import { SignIn, SignOut, SignUp, VerifyOtp, checkAuth, RefreshToken, oauthExchange } from "../controllers/authController.js"
 import passport from "passport";
 import { googleSuccess, googleFailure } from "../controllers/authController.js";
 
@@ -12,6 +12,7 @@ router.post("/SignOut", SignOut)
 router.post("/signout", SignOut)
 router.post("/checkAuth", checkAuth)
 router.get("/checkAuth", checkAuth)
+router.post("/oauth-exchange", oauthExchange)
 router.get("/google", (req, res, next) => {
     const originHeader = (req.headers.referer || req.headers.origin) as string | undefined;
     if (originHeader && (req.session as any)) {

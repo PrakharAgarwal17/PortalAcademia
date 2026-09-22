@@ -33,8 +33,7 @@ import { useTheme } from "@/context/theme";
 import { cn } from "@/lib/utils";
 import SkillBadge from "@/components/SkillBadge";
 import SkillInput from "@/components/SkillInput";
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
+import { API_BASE } from "@/lib/api";
 
 interface IndustryProfile {
   _id?: string;
@@ -1552,6 +1551,44 @@ export default function IndustryDashboard() {
                     onChange={(e) => setPublishForm((p) => ({ ...p, duration: e.target.value }))}
                     placeholder="e.g. 6 Months"
                     className="w-full text-xs p-2.5 rounded-lg bg-background border border-border text-foreground focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1.5">Engineering Domain</label>
+                  <input
+                    type="text"
+                    required
+                    value={publishForm.domain}
+                    onChange={(e) => setPublishForm((p) => ({ ...p, domain: e.target.value }))}
+                    placeholder="e.g. Full-Stack Systems, AI/ML, Cloud Infrastructure"
+                    className="w-full text-xs p-2.5 rounded-lg bg-background border border-border text-foreground focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1.5">Location / City</label>
+                  <input
+                    type="text"
+                    required
+                    value={publishForm.location}
+                    onChange={(e) => setPublishForm((p) => ({ ...p, location: e.target.value }))}
+                    placeholder="e.g. Bengaluru, KA or Remote"
+                    className="w-full text-xs p-2.5 rounded-lg bg-background border border-border text-foreground focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1.5">Application Deadline</label>
+                  <input
+                    type="date"
+                    required
+                    value={publishForm.deadline}
+                    min={new Date().toISOString().split("T")[0]}
+                    onChange={(e) => setPublishForm((p) => ({ ...p, deadline: e.target.value }))}
+                    className="w-full text-xs p-2.5 rounded-lg bg-background border border-border text-foreground focus:outline-none font-mono"
                   />
                 </div>
               </div>

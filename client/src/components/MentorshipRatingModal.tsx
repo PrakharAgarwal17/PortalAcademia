@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Star, Award, Loader2, X, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { API_BASE } from "@/lib/api";
 
 interface MentorshipRatingModalProps {
   pairingId: string;
@@ -21,8 +22,6 @@ export default function MentorshipRatingModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedMessage, setSubmittedMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,8 +44,8 @@ export default function MentorshipRatingModal({
       if (data.success) {
         setSubmittedMessage(
           data.certificateIssued
-            ? "Rating registered! Certificate of Appreciation & +20 ATS boost awarded to mentor."
-            : "Thank you! Your feedback has been recorded."
+            ? `Thank you! Your evaluation helped ${mentorName} earn a Certificate of Appreciation and a verified ATS boost on their scholar profile.`
+            : "Thank you! Your honest feedback has been recorded and will help maintain mentorship quality."
         );
         setTimeout(() => {
           onRatingSubmitted();
@@ -129,7 +128,7 @@ export default function MentorshipRatingModal({
               <div className="p-3 rounded-sm bg-secondary/50 border border-border flex items-start gap-2.5 text-[11px]">
                 <Award className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
                 <p className="text-muted-foreground leading-relaxed">
-                  Evaluations of <strong className="text-foreground">4.0 or higher</strong> on completed terms award the mentor an official <strong className="text-foreground">Certificate of Appreciation</strong> and a <strong className="text-foreground">+20 ATS Score</strong> profile boost.
+                  Evaluations of <strong className="text-foreground">4.0 or higher</strong> on completed sessions award the mentor an official <strong className="text-foreground">Certificate of Appreciation</strong> and a verified profile boost — recorded on their scholar credentials, not yours.
                 </p>
               </div>
 

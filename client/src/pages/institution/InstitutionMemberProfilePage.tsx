@@ -17,8 +17,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { cn } from "@/lib/utils";
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:3000";
+import { API_BASE } from "@/lib/api";
 
 interface MemberData {
   _id: string;
