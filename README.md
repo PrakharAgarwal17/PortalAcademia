@@ -67,7 +67,7 @@ All platform capabilities are fully implemented, verified, and operational (**�
 | **Contextual AI Career & Academic Guide** | ✅ **Live** | Groq-powered multi-turn career advisor with dynamic profile injection and chat history. |
 | **Institutional Campus Broadcasts & Scoped Directory** | ✅ **Live** | Targeted campus announcements (students/faculty) and alumni-scoped directory with IDOR protection (`testInstitutionScoping.ts`). |
 | **Peer Mentorship & WebRTC 1-on-1 Advising** | ✅ **Live** | Direct WebRTC audio/video calling, Socket.IO signaling, STUN/TURN integration, and hardware media track teardown protocol. |
-| **Open-Source GitHub Webhook Engine** | ✅ **Live** | SHA256 HMAC-verified webhook ingestion, merged PR contribution tracking, and tamper-evident certificate generation. |
+| **Open-Source PR Verification & Webhooks** | ✅ **Live** | Dual-channel contribution tracking: automated SHA256 HMAC webhooks and on-demand PR REST verification, validating destination repo and commit authorship against student profile. |
 | **Enterprise Technical Community Spaces** | ✅ **Live** | Real-time Socket.IO channel messaging with role authorization (Institution/Faculty/Industry free, Student via pass). |
 | **Razorpay Membership & Trial Tiers** | ✅ **Live** | Razorpay checkout integration, 7-day trial progression, and ₹200 / 30-day subscription pass management. |
 
@@ -84,7 +84,7 @@ All platform capabilities are fully implemented, verified, and operational (**�
 - ✅ **Market Trends & Skill Gap Diagnostics (`/trends/student`, `/trends/diagnosis`)**: Trajectory curves across 5 macro tech streams with candidate readiness percentages.
 - ✅ **Application Pipeline Tracker (`/applications`)**: Live visibility into submitted proposals and recruiter review statuses (`Under Review`, `Shortlisted`, `Interview`, `Offered`, `Rejected`).
 - ✅ **Senior Scholar Peer Mentorship (`/premium?tab=mentors`)**: Book 1-on-1 advisory sessions with verified 4th-year scholars featuring in-call notes, direct WebRTC audio/video calling, and complete hardware media teardown.
-- ✅ **Open-Source Contribution Hub (`/premium?tab=opensource`)**: Browse partner repositories, track merged pull requests via GitHub webhooks, and inspect tamper-evident achievement certificates.
+- ✅ **Open-Source Contribution Hub (`/premium?tab=opensource`)**: Connect verified GitHub developer identity, verify pull requests and commits merged into partner company repositories on demand, track merged contributions, and inspect tamper-evident achievement certificates.
 - ✅ **Razorpay Premium Subscription**: 7-day trial activation and ₹200 / 30-day passes unlocking advanced open-source repositories and enterprise community channels.
 
 ### 🔬 Faculty Immersion Workspace
@@ -389,6 +389,9 @@ PortalAcademia/
 PortalAcademia enforces a defense-in-depth architecture adhering to Indian statutory norms (including the **Digital Personal Data Protection Act 2023**):
 
 - **Stateless HttpOnly Session Cookies**: Authentication tokens (`accesstoken` with 15-minute expiry and `refreshtoken` with 7-to-30 day expiry) are set with `HttpOnly`, preventing JavaScript access and neutralizing XSS token theft.
+- **Decoupled Developer Verification**: GitHub OAuth 2.0 is decoupled from platform login/signup and restricted strictly to linking developer identity for PR verification, preventing unauthorized account creation vectors.
+- **API Rate Limiting & DoS Defense**: Redis-backed sliding-window rate limiters gate costly LLM operations, auth attempts, and public endpoints.
+- **Strict Input Sanitization & Allow-Lists**: NoSQL injection protection and explicit field allow-lists prevent parameter pollution and mass-assignment vulnerabilities.
 - **Automatic Token Rotation**: Middleware (`isloggedIn.ts`) transparently issues fresh short-lived access tokens from valid refresh tokens without interrupting user workflows.
 - **Cryptographic Password Hashing**: Passwords are saved with `bcrypt` (10 salt rounds) and excluded from responses.
 - **Strict Role-Based Access Control (RBAC)**: All sensitive routes execute `rbacMiddleware.ts` to block cross-role privilege escalation.
