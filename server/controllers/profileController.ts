@@ -4,6 +4,7 @@ import profileModel, { type IProfile } from "../models/profileModel.js";
 import userModel from "../models/userModel.js";
 import { uploadToCloudinary } from "../config/cloudinary.js";
 import { VerifiedEmailCache } from "./onboardingController.js";
+import { resolveAlumniStatus } from "../utils/alumniResolver.js";
 
 /**
  * POST /api/profile/avatar
@@ -77,9 +78,15 @@ export async function getMyProfile(req: Request, res: Response): Promise<Respons
             });
         }
 
+        const alumniInfo = resolveAlumniStatus(profile);
+        const profileObj = profile.toObject ? profile.toObject() : profile;
+        if (!profileObj.academicYear) {
+            profileObj.academicYear = alumniInfo.academicYear;
+        }
+
         return res.status(200).json({
             success: true,
-            profile,
+            profile: profileObj,
         });
     } catch (error: any) {
         console.error("Get profile error:", error);

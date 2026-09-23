@@ -527,8 +527,10 @@ export async function checkAuth(
     res: Response
 ): Promise<Response> {
     try {
-        const accesstoken = req.cookies?.accesstoken;
-        const refreshtoken = req.cookies?.refreshtoken;
+        const authHeader = req.headers.authorization;
+        const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
+        const accesstoken = req.cookies?.accesstoken || bearerToken;
+        const refreshtoken = req.cookies?.refreshtoken || (req.headers["x-refresh-token"] as string | undefined);
 
         // 1. First check accesstoken
         if (accesstoken) {
@@ -544,6 +546,11 @@ export async function checkAuth(
                         .select("_id email isVerified isOnboarded isEmailVerified");
 
                     if (user) {
+                        // Re-issue or establish first-party cookies if request came via bearer token or if refreshing
+                        if (bearerToken) {
+                            const tokens = generateTokens(String(user._id), true);
+                            setAuthCookies(res, tokens.accesstoken, tokens.refreshtoken, true, req);
+                        }
                         const userData = await buildUserSessionPayload(user);
                         return res.status(200).json({
                             valid: true,

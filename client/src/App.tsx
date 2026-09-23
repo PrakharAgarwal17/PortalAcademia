@@ -187,10 +187,17 @@ function AppShell() {
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
-    const isGoogleOAuthRedirect = searchParams.get("auth") === "google";
+    const token = searchParams.get("token");
     const exchangeToken = searchParams.get("exchange");
+    const isGoogleOAuthRedirect = searchParams.get("auth") === "google" || Boolean(token) || Boolean(exchangeToken);
 
-    if (exchangeToken) {
+    if (token) {
+      // Clean up sensitive tokens from the URL immediately without reloading
+      window.history.replaceState({}, "", window.location.pathname);
+      // Dispatch checkAuth with the bearer token to immediately establish the session
+      // and allow the server to issue same-origin first-party cookies via the Vercel proxy.
+      dispatch(checkAuthThunk(token));
+    } else if (exchangeToken) {
       // Clean up sensitive tokens from the URL immediately without reloading
       window.history.replaceState({}, "", window.location.pathname);
 

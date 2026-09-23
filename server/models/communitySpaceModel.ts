@@ -64,7 +64,7 @@ const communitySpaceSchema = new Schema<ICommunitySpace>(
         },
         allowedRoles: {
             type: [String],
-            default: ["student", "faculty", "industry"],
+            default: ["student", "faculty", "industry", "institution"],
         },
     },
     { timestamps: true }

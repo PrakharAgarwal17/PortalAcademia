@@ -1691,7 +1691,7 @@ export default function ProfilePage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground italic">No verified certificates uploaded yet.</p>
+                  <p className="text-xs text-muted-foreground italic">No certificates uploaded yet. Click Add Certificate to showcase your achievements.</p>
                 )}
               </div>
             )}

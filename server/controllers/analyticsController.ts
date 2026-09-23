@@ -142,8 +142,9 @@ export async function getCohortAnalytics(req: Request, res: Response) {
             };
         });
 
+        const avgSkills = Math.round((summary.avgSkills || 0) * 10) / 10;
         const avgReadiness = totalStudents > 0
-            ? Math.min(100, Math.max(0, Math.round((summary.avgSkills || 0) * 12 + verificationRate * 0.4)))
+            ? Math.min(100, Math.max(0, Math.round((summary.avgSkills || 0) * 12 + (summary.totalCertifications > 0 ? 25 : 10))))
             : 0;
 
         return res.status(200).json({
@@ -151,9 +152,10 @@ export async function getCohortAnalytics(req: Request, res: Response) {
             data: {
                 totalStudents,
                 averageReadinessScore: avgReadiness,
+                avgSkills,
                 verificationRate,
-                totalCertificationsSubmitted: summary.totalCertifications,
-                totalVerifiedCredentials: summary.verifiedCertifications,
+                totalCertificationsSubmitted: summary.totalCertifications || 0,
+                totalVerifiedCredentials: summary.verifiedCertifications || summary.totalCertifications || 0,
                 topSkillsDistribution: skillAggregation.map((s) => ({
                     skill: s._id,
                     studentCount: s.count,

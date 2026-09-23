@@ -20,15 +20,40 @@ export function computeAcademicYear(educationList?: any[]): { academicYear: stri
     const primaryEdu = educationList[0];
     const timeline = (primaryEdu?.timeline || primaryEdu?.description || "").toLowerCase();
 
+    // Check explicit keywords in timeline first
+    if (timeline.includes("alumni") || timeline.includes("graduated")) {
+        return { academicYear: "Alumni", graduationBatch: `Class of ${currentYear - 1}`, graduationYear: currentYear - 1 };
+    }
+    if (timeline.includes("4th") || timeline.includes("final")) {
+        return { academicYear: "4th Year", graduationBatch: `Class of ${currentYear}`, graduationYear: currentYear };
+    }
+    if (timeline.includes("3rd") || timeline.includes("third")) {
+        return { academicYear: "3rd Year", graduationBatch: `Class of ${currentYear + 1}`, graduationYear: currentYear + 1 };
+    }
+    if (timeline.includes("2nd") || timeline.includes("second")) {
+        return { academicYear: "2nd Year", graduationBatch: `Class of ${currentYear + 2}`, graduationYear: currentYear + 2 };
+    }
+    if (timeline.includes("1st") || timeline.includes("first")) {
+        return { academicYear: "1st Year", graduationBatch: `Class of ${currentYear + 3}`, graduationYear: currentYear + 3 };
+    }
+
     const matchYear = timeline.match(/20\d{2}/g);
     if (matchYear && matchYear.length > 0) {
         const endYear = parseInt(matchYear[matchYear.length - 1], 10);
         const diff = endYear - currentYear;
 
-        // If endYear is in the past or current year graduation has elapsed -> Alumni
-        if (diff <= 0) {
+        // If endYear is in the past -> Alumni
+        if (diff < 0) {
             return {
                 academicYear: "Alumni",
+                graduationBatch: `Class of ${endYear}`,
+                graduationYear: endYear,
+            };
+        }
+        // Graduating in the current academic calendar year -> 4th Year (Final Year)
+        if (diff === 0) {
+            return {
+                academicYear: "4th Year",
                 graduationBatch: `Class of ${endYear}`,
                 graduationYear: endYear,
             };
@@ -54,32 +79,17 @@ export function computeAcademicYear(educationList?: any[]): { academicYear: stri
         };
     }
 
-    if (timeline.includes("1st") || timeline.includes("first")) {
-        return { academicYear: "1st Year", graduationBatch: `Class of ${currentYear + 3}`, graduationYear: currentYear + 3 };
-    }
-    if (timeline.includes("2nd") || timeline.includes("second")) {
-        return { academicYear: "2nd Year", graduationBatch: `Class of ${currentYear + 2}`, graduationYear: currentYear + 2 };
-    }
-    if (timeline.includes("3rd") || timeline.includes("third")) {
-        return { academicYear: "3rd Year", graduationBatch: `Class of ${currentYear + 1}`, graduationYear: currentYear + 1 };
-    }
-    if (timeline.includes("4th") || timeline.includes("final")) {
-        return { academicYear: "4th Year", graduationBatch: `Class of ${currentYear}`, graduationYear: currentYear };
-    }
-    if (timeline.includes("alumni") || timeline.includes("graduated")) {
-        return { academicYear: "Alumni", graduationBatch: `Class of ${currentYear - 1}`, graduationYear: currentYear - 1 };
-    }
-
     return { academicYear: "3rd Year", graduationBatch: "Class of 2026", graduationYear: 2026 };
 }
 
 /**
  * Authoritative single resolution of whether a profile is an alumnus.
- * Reconciles stored isAlumni flag with education timeline.
+ * Reconciles stored isAlumni flag and academicYear with education timeline.
  */
 export function resolveAlumniStatus(profile: {
     education?: any[];
     isAlumni?: boolean;
+    academicYear?: string;
     graduationYear?: number;
 }): AlumniResolution {
     const computed = computeAcademicYear(profile?.education);
@@ -89,6 +99,18 @@ export function resolveAlumniStatus(profile: {
         return {
             isAlumni: true,
             academicYear: "Alumni",
+            graduationBatch: profile.graduationYear ? `Class of ${profile.graduationYear}` : computed.graduationBatch,
+            graduationYear: profile.graduationYear || computed.graduationYear,
+        };
+    }
+
+    // If profile has an explicitly saved academicYear, respect it
+    if (profile?.academicYear && typeof profile.academicYear === "string" && profile.academicYear.trim()) {
+        const trimmedYear = profile.academicYear.trim();
+        const isAlumni = trimmedYear.toLowerCase().includes("alumni");
+        return {
+            isAlumni,
+            academicYear: trimmedYear,
             graduationBatch: profile.graduationYear ? `Class of ${profile.graduationYear}` : computed.graduationBatch,
             graduationYear: profile.graduationYear || computed.graduationYear,
         };
