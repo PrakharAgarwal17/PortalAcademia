@@ -195,6 +195,10 @@ const authSlice = createSlice({
             isOnboarded: action.payload.user.isOnboarded,
             isEmailVerified: action.payload.user.isEmailVerified,
             role: action.payload.user.role,
+            githubId: action.payload.user.githubId,
+            githubUsername: action.payload.user.githubUsername,
+            githubAvatarUrl: action.payload.user.githubAvatarUrl,
+            githubProfileUrl: action.payload.user.githubProfileUrl,
           };
         } else {
           state.isAuthenticated = false;

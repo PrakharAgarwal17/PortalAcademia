@@ -196,9 +196,17 @@ function AppShell() {
       Boolean(token) ||
       Boolean(exchangeToken);
 
-    // Preserve non-sensitive navigation params such as tab
+    // Remove sensitive OAuth tokens while preserving the result status so the
+    // destination page can show the correct success/error notice.
+    const cleanParams = new URLSearchParams();
     const preserveTab = searchParams.get("tab");
-    const cleanUrl = preserveTab ? `${window.location.pathname}?tab=${preserveTab}` : window.location.pathname;
+    const githubStatus = searchParams.get("github");
+    const oauthError = searchParams.get("error");
+    if (preserveTab) cleanParams.set("tab", preserveTab);
+    if (githubStatus) cleanParams.set("github", githubStatus);
+    if (oauthError) cleanParams.set("error", oauthError);
+    const cleanQuery = cleanParams.toString();
+    const cleanUrl = cleanQuery ? `${window.location.pathname}?${cleanQuery}` : window.location.pathname;
 
     if (token) {
       // Clean up sensitive tokens from the URL immediately without reloading
