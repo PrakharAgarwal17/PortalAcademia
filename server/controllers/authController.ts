@@ -705,29 +705,22 @@ export const googleSuccess = async (
         const dbUser = await userModel.findById(user._id);
         const isOnboarded = Boolean(dbUser?.isOnboarded && userProfile);
 
-        const { accesstoken, refreshtoken } = generateTokens(String(user._id), true);
-
-        // Directly set cookies here instead of relying on exchange token
-        const isHttps = isRequestHttps(req);
-        const baseOptions = {
-            httpOnly: true,
-            secure: isHttps,
-            sameSite: isHttps ? ("none" as const) : ("lax" as const),
-            path: "/",
-        };
-
-        res.cookie("accesstoken", accesstoken, {
-            ...baseOptions,
-            maxAge: 15 * 60 * 1000, // 15 min
-        });
-
-        res.cookie("refreshtoken", refreshtoken, {
-            ...baseOptions,
-            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        });
+        // The OAuth callback runs on Render while the browser returns to the
+        // frontend origin. Do not set the session cookies here: those cookies
+        // would belong to the Render host and would not be sent by the
+        // frontend's same-origin API requests. Instead, pass a short-lived
+        // exchange token to the frontend, which posts it through the Vercel
+        // proxy and receives first-party session cookies there.
+        const exchangeToken = jwt.sign(
+            { id: String(user._id), type: "oauth_exchange" },
+            getAccessSecret(),
+            { expiresIn: "60s" }
+        );
 
         const redirectPath = isOnboarded ? "/dashboard" : "/onboarding/select-type";
-        return res.redirect(`${frontendUrl}${redirectPath}?auth=google`);
+        return res.redirect(
+            `${frontendUrl}${redirectPath}?auth=google&exchange=${encodeURIComponent(exchangeToken)}`
+        );
 
     } catch (error) {
         console.error("Google Auth error:", error);
