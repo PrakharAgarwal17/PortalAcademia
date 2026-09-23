@@ -1,5 +1,6 @@
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import crypto from "crypto";
+import passport from "passport";
 import userModel from "../models/userModel.js";
 import profileModel from "../models/profileModel.js";
 import bcrypt from "bcrypt";
@@ -713,6 +714,63 @@ interface GoogleUser {
     _id: string;
     email: string;
     isOnboarded?: boolean;
+}
+
+export function googleInitiate(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): void {
+    let frontendOrigin = process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
+    const originHeader = (req.headers.referer || req.headers.origin) as string | undefined;
+
+    if (originHeader) {
+        try {
+            const parsed = new URL(originHeader);
+            frontendOrigin = `${parsed.protocol}//${parsed.host}`;
+        } catch { }
+    }
+
+    const stateToken = jwt.sign(
+        { origin: frontendOrigin, timestamp: Date.now() },
+        getAccessSecret(),
+        { expiresIn: "15m" }
+    );
+
+    if (req.session) {
+        (req.session as any).frontendOrigin = frontendOrigin;
+    }
+
+    passport.authenticate("google", {
+        scope: ["profile", "email"],
+        state: stateToken,
+    })(req, res, next);
+}
+
+export function googleCallback(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): void {
+    passport.authenticate("google", (err: any, user: any, info: any) => {
+        let frontendOrigin = process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
+
+        if (req.query?.state) {
+            try {
+                const decoded = jwt.verify(req.query.state as string, getAccessSecret()) as any;
+                if (decoded?.origin) frontendOrigin = decoded.origin;
+            } catch { }
+        } else if ((req.session as any)?.frontendOrigin) {
+            frontendOrigin = (req.session as any).frontendOrigin;
+        }
+
+        if (err || !user) {
+            return res.redirect(`${frontendOrigin}/auth?error=google_auth_failed`);
+        }
+
+        req.user = user;
+        void googleSuccess(req, res);
+    })(req, res, next);
 }
 
 export const googleSuccess = async (

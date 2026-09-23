@@ -9,7 +9,8 @@ import {
     checkAuth,
     RefreshToken,
     oauthExchange,
-    googleSuccess,
+    googleInitiate,
+    googleCallback,
     googleFailure,
     githubSuccess,
     githubFailure,
@@ -30,55 +31,8 @@ router.get("/checkAuth", checkAuth);
 router.post("/oauth-exchange", oauthExchange);
 
 // ── Google OAuth 2.0 ────────────────────────────────────────────────────────
-router.get("/google", (req, res, next) => {
-    let frontendOrigin = process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
-    const originHeader = (req.headers.referer || req.headers.origin) as string | undefined;
-    if (originHeader) {
-        try {
-            const parsed = new URL(originHeader);
-            frontendOrigin = `${parsed.protocol}//${parsed.host}`;
-        } catch { }
-    }
-
-    const accessSecret = process.env.SECRET_ACCESS_TOKEN || process.env.JWT_PASS_KEY!;
-    const stateToken = jwt.sign(
-        { origin: frontendOrigin, timestamp: Date.now() },
-        accessSecret,
-        { expiresIn: "15m" }
-    );
-
-    if (req.session as any) {
-        (req.session as any).frontendOrigin = frontendOrigin;
-    }
-
-    passport.authenticate("google", {
-        scope: ["profile", "email"],
-        state: stateToken,
-    })(req, res, next);
-});
-
-router.get("/google/callback", (req, res, next) => {
-    passport.authenticate("google", (err: any, user: any, info: any) => {
-        let frontendOrigin = process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
-        if (req.query?.state) {
-            try {
-                const accessSecret = process.env.SECRET_ACCESS_TOKEN || process.env.JWT_PASS_KEY!;
-                const decoded = jwt.verify(req.query.state as string, accessSecret) as any;
-                if (decoded?.origin) frontendOrigin = decoded.origin;
-            } catch { }
-        } else if ((req.session as any)?.frontendOrigin) {
-            frontendOrigin = (req.session as any).frontendOrigin;
-        }
-
-        if (err || !user) {
-            console.error("[Google Callback Auth Failed]:", err || info);
-            return res.redirect(`${frontendOrigin}/auth?error=google_auth_failed`);
-        }
-
-        req.user = user;
-        return googleSuccess(req, res);
-    })(req, res, next);
-});
+router.get("/google", googleInitiate);
+router.get("/google/callback", googleCallback);
 
 router.get("/google/failure", googleFailure);
 
