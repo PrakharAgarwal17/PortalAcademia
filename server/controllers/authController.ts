@@ -722,11 +722,20 @@ export const googleSuccess = async (
     try {
         const user = req.user as GoogleUser;
 
-        const sessionOrigin = (req.session as any)?.frontendOrigin;
-        let frontendUrl = sessionOrigin || process.env.FRONTEND_URL || "http://localhost:5173";
+        let frontendUrl = process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
+        if (req.query?.state) {
+            try {
+                const decoded = jwt.verify(req.query.state as string, getAccessSecret()) as any;
+                if (decoded?.origin) {
+                    frontendUrl = decoded.origin;
+                }
+            } catch { }
+        } else if ((req.session as any)?.frontendOrigin) {
+            frontendUrl = (req.session as any).frontendOrigin;
+        }
 
         const originHeader = (req.headers.origin || req.headers.referer) as string | undefined;
-        if (!sessionOrigin && originHeader && frontendUrl.includes("localhost") && !originHeader.includes("localhost")) {
+        if (!req.query?.state && !(req.session as any)?.frontendOrigin && originHeader && frontendUrl.includes("localhost") && !originHeader.includes("localhost")) {
             try {
                 const parsed = new URL(originHeader);
                 frontendUrl = `${parsed.protocol}//${parsed.host}`;
@@ -765,7 +774,7 @@ export const googleSuccess = async (
 
     } catch (error) {
         console.error("Google Auth error:", error);
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const frontendUrl = process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
         return res.redirect(`${frontendUrl}/auth?error=server_error`);
     }
 };
@@ -773,11 +782,17 @@ export const googleSuccess = async (
 export const googleFailure = (
     req: Request,
     res: Response
-): Response => {
-    return res.status(401).json({
-        success: false,
-        message: "Google Authentication Failed",
-    });
+): void => {
+    let frontendUrl = process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
+    if (req.query?.state) {
+        try {
+            const decoded = jwt.verify(req.query.state as string, getAccessSecret()) as any;
+            if (decoded?.origin) frontendUrl = decoded.origin;
+        } catch { }
+    } else if ((req.session as any)?.frontendOrigin) {
+        frontendUrl = (req.session as any).frontendOrigin;
+    }
+    return res.redirect(`${frontendUrl}/auth?error=google_auth_failed`);
 };
 
 // =========================
@@ -846,18 +861,30 @@ export const githubSuccess = async (
     try {
         const user = req.user as GitHubUserSession;
 
-        const sessionOrigin = (req.session as any)?.frontendOrigin;
-        let frontendUrl = sessionOrigin || process.env.FRONTEND_URL || "http://localhost:5173";
+        let frontendUrl = process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
+        let returnTo = "/premium?tab=opensource";
+
+        if (req.query?.state) {
+            try {
+                const decoded = jwt.verify(req.query.state as string, getAccessSecret()) as any;
+                if (decoded?.origin) frontendUrl = decoded.origin;
+                if (decoded?.returnTo) returnTo = decoded.returnTo;
+            } catch { }
+        } else if ((req.session as any)?.frontendOrigin) {
+            frontendUrl = (req.session as any).frontendOrigin;
+            if ((req.session as any)?.returnTo) {
+                returnTo = (req.session as any).returnTo;
+            }
+        }
 
         const originHeader = (req.headers.origin || req.headers.referer) as string | undefined;
-        if (!sessionOrigin && originHeader && frontendUrl.includes("localhost") && !originHeader.includes("localhost")) {
+        if (!req.query?.state && !(req.session as any)?.frontendOrigin && originHeader && frontendUrl.includes("localhost") && !originHeader.includes("localhost")) {
             try {
                 const parsed = new URL(originHeader);
                 frontendUrl = `${parsed.protocol}//${parsed.host}`;
             } catch { }
         }
 
-        const returnTo = (req.session as any)?.returnTo || "/premium?tab=opensource";
         const separator = returnTo.includes("?") ? "&" : "?";
 
         if (!user || !user._id) {
@@ -873,12 +900,12 @@ export const githubSuccess = async (
         );
 
         return res.redirect(
-            `${frontendUrl}${returnTo}${separator}auth=github&exchange=${encodeURIComponent(exchangeToken)}&githubUsername=${encodeURIComponent(dbUser?.githubUsername || "")}`
+            `${frontendUrl}${returnTo}${separator}github=connected&auth=github&exchange=${encodeURIComponent(exchangeToken)}&githubUsername=${encodeURIComponent(dbUser?.githubUsername || "")}`
         );
 
     } catch (error) {
         console.error("GitHub Auth error:", error);
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const frontendUrl = process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
         return res.redirect(`${frontendUrl}/premium?tab=opensource&error=server_error`);
     }
 };
@@ -887,9 +914,22 @@ export const githubFailure = (
     req: Request,
     res: Response
 ): void => {
-    const sessionOrigin = (req.session as any)?.frontendOrigin;
-    const frontendUrl = sessionOrigin || process.env.FRONTEND_URL || "http://localhost:5173";
-    const returnTo = (req.session as any)?.returnTo || "/premium?tab=opensource";
+    let frontendUrl = process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
+    let returnTo = "/premium?tab=opensource";
+
+    if (req.query?.state) {
+        try {
+            const decoded = jwt.verify(req.query.state as string, getAccessSecret()) as any;
+            if (decoded?.origin) frontendUrl = decoded.origin;
+            if (decoded?.returnTo) returnTo = decoded.returnTo;
+        } catch { }
+    } else if ((req.session as any)?.frontendOrigin) {
+        frontendUrl = (req.session as any).frontendOrigin;
+        if ((req.session as any)?.returnTo) {
+            returnTo = (req.session as any).returnTo;
+        }
+    }
+
     const separator = returnTo.includes("?") ? "&" : "?";
     return res.redirect(`${frontendUrl}${returnTo}${separator}error=github_link_failed`);
 };

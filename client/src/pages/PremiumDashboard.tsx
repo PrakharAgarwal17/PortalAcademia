@@ -833,8 +833,16 @@ export default function PremiumDashboard() {
         next.delete("username");
         return next;
       });
-    } else if (ghError === "github_link_failed") {
-      setGithubNotice("Failed to link GitHub account. It may already be linked to another profile.");
+    } else if (ghError) {
+      if (ghError === "github_already_linked") {
+        setGithubNotice("This GitHub account is already linked to another PortalAcademia profile.");
+      } else if (ghError === "github_connect_requires_login") {
+        setGithubNotice("Please sign in first before linking your GitHub developer profile.");
+      } else if (ghError === "github_oauth_not_configured") {
+        setGithubNotice("GitHub Developer OAuth is not configured on this server environment.");
+      } else {
+        setGithubNotice("Failed to link GitHub account. Please try again or verify your account permissions.");
+      }
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         next.delete("error");

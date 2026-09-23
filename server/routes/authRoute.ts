@@ -1,4 +1,6 @@
-import express from "express"
+import express from "express";
+import jwt from "jsonwebtoken";
+import passport from "passport";
 import {
     SignIn,
     SignOut,
@@ -12,57 +14,90 @@ import {
     githubSuccess,
     githubFailure,
     unlinkGithub,
-} from "../controllers/authController.js"
-import passport from "passport";
+} from "../controllers/authController.js";
 import isloggedIn from "../middleware/isloggedIn.js";
 import { authLimiter } from "../middleware/rateLimiter.js";
 
-const router = express.Router()
+const router = express.Router();
 
-router.post("/signin", authLimiter, SignIn)
-router.post("/signup", authLimiter, SignUp)
-router.post("/verifyotp", authLimiter, VerifyOtp)
-router.post("/SignOut", SignOut)
-router.post("/signout", SignOut)
-router.post("/checkAuth", checkAuth)
-router.get("/checkAuth", checkAuth)
-router.post("/oauth-exchange", oauthExchange)
+router.post("/signin", authLimiter, SignIn);
+router.post("/signup", authLimiter, SignUp);
+router.post("/verifyotp", authLimiter, VerifyOtp);
+router.post("/SignOut", SignOut);
+router.post("/signout", SignOut);
+router.post("/checkAuth", checkAuth);
+router.get("/checkAuth", checkAuth);
+router.post("/oauth-exchange", oauthExchange);
+
+// ── Google OAuth 2.0 ────────────────────────────────────────────────────────
 router.get("/google", (req, res, next) => {
+    let frontendOrigin = process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
     const originHeader = (req.headers.referer || req.headers.origin) as string | undefined;
-    if (originHeader && (req.session as any)) {
+    if (originHeader) {
         try {
             const parsed = new URL(originHeader);
-            (req.session as any).frontendOrigin = `${parsed.protocol}//${parsed.host}`;
+            frontendOrigin = `${parsed.protocol}//${parsed.host}`;
         } catch { }
     }
-    passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
+
+    const accessSecret = process.env.SECRET_ACCESS_TOKEN || process.env.JWT_PASS_KEY!;
+    const stateToken = jwt.sign(
+        { origin: frontendOrigin, timestamp: Date.now() },
+        accessSecret,
+        { expiresIn: "15m" }
+    );
+
+    if (req.session as any) {
+        (req.session as any).frontendOrigin = frontendOrigin;
+    }
+
+    passport.authenticate("google", {
+        scope: ["profile", "email"],
+        state: stateToken,
+    })(req, res, next);
 });
 
-router.get("/google/callback", passport.authenticate("google", { failureRedirect: "/api/auth/google/failure" }), googleSuccess);
+router.get("/google/callback", (req, res, next) => {
+    passport.authenticate("google", (err: any, user: any, info: any) => {
+        let frontendOrigin = process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
+        if (req.query?.state) {
+            try {
+                const accessSecret = process.env.SECRET_ACCESS_TOKEN || process.env.JWT_PASS_KEY!;
+                const decoded = jwt.verify(req.query.state as string, accessSecret) as any;
+                if (decoded?.origin) frontendOrigin = decoded.origin;
+            } catch { }
+        } else if ((req.session as any)?.frontendOrigin) {
+            frontendOrigin = (req.session as any).frontendOrigin;
+        }
+
+        if (err || !user) {
+            console.error("[Google Callback Auth Failed]:", err || info);
+            return res.redirect(`${frontendOrigin}/auth?error=google_auth_failed`);
+        }
+
+        req.user = user;
+        return googleSuccess(req, res);
+    })(req, res, next);
+});
 
 router.get("/google/failure", googleFailure);
 
-import jwt from "jsonwebtoken";
-
 // ── GitHub OAuth 2.0 (Developer Identity & PR Verification) ─────────────────
 router.get("/github", (req, res, next) => {
-    if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
-        const origin = (req.session as any)?.frontendOrigin || process.env.FRONTEND_URL || "http://localhost:5173";
-        return res.redirect(`${origin}/auth?error=github_oauth_not_configured`);
+    let frontendOrigin = process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
+    const originHeader = (req.headers.referer || req.headers.origin) as string | undefined;
+    if (originHeader) {
+        try {
+            const parsed = new URL(originHeader);
+            frontendOrigin = `${parsed.protocol}//${parsed.host}`;
+        } catch { }
     }
 
-    const originHeader = (req.headers.referer || req.headers.origin) as string | undefined;
-    if (req.session as any) {
-        if (originHeader) {
-            try {
-                const parsed = new URL(originHeader);
-                (req.session as any).frontendOrigin = `${parsed.protocol}//${parsed.host}`;
-            } catch { }
-        }
-        if (req.query.returnTo && typeof req.query.returnTo === "string") {
-            (req.session as any).returnTo = req.query.returnTo;
-        }
+    if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
+        return res.redirect(`${frontendOrigin}/premium?tab=opensource&error=github_oauth_not_configured`);
     }
+
+    const returnTo = typeof req.query.returnTo === "string" ? req.query.returnTo : "/premium?tab=opensource";
 
     // GitHub OAuth is strictly for developer identity & PR verification, not platform login.
     // The user MUST have an active authenticated session to link their GitHub account.
@@ -70,8 +105,8 @@ router.get("/github", (req, res, next) => {
     const refreshToken = req.cookies?.refreshtoken;
     let authenticatedUserId: string | null = null;
 
-    const accessSecret = process.env.SECRET_ACCESS_TOKEN || process.env.JWT_PASS_KEY;
-    const refreshSecret = process.env.SECRET_REFRESH_TOKEN || process.env.JWT_REFRESH_KEY || process.env.JWT_PASS_KEY;
+    const accessSecret = process.env.SECRET_ACCESS_TOKEN || process.env.JWT_PASS_KEY!;
+    const refreshSecret = process.env.SECRET_REFRESH_TOKEN || process.env.JWT_REFRESH_KEY || process.env.JWT_PASS_KEY!;
 
     if (accessToken && accessSecret) {
         try {
@@ -87,28 +122,80 @@ router.get("/github", (req, res, next) => {
         } catch { }
     }
 
-    if (!authenticatedUserId) {
-        const origin = (req.session as any)?.frontendOrigin || process.env.FRONTEND_URL || "http://localhost:5173";
-        return res.redirect(`${origin}/auth?error=github_connect_requires_login`);
+    // Support passing auth token via query parameter (e.g. from single-page app cross-domain redirects)
+    if (!authenticatedUserId && typeof req.query.token === "string" && accessSecret) {
+        try {
+            const decoded = jwt.verify(req.query.token, accessSecret) as any;
+            authenticatedUserId = decoded.id || decoded.userId || null;
+        } catch { }
     }
+
+    if (!authenticatedUserId) {
+        return res.redirect(`${frontendOrigin}/auth?error=github_connect_requires_login`);
+    }
+
+    // Generate signed, tamper-proof state containing user ID, origin, and return target
+    const stateToken = jwt.sign(
+        {
+            userId: authenticatedUserId,
+            origin: frontendOrigin,
+            returnTo,
+            action: "link_github",
+            timestamp: Date.now(),
+        },
+        accessSecret,
+        { expiresIn: "15m" }
+    );
 
     if (req.session as any) {
         (req.session as any).linkUserId = authenticatedUserId;
+        (req.session as any).frontendOrigin = frontendOrigin;
+        (req.session as any).returnTo = returnTo;
     }
 
-    passport.authenticate("github", { scope: ["user:email", "read:user"] })(req, res, next);
+    passport.authenticate("github", {
+        scope: ["user:email", "read:user"],
+        state: stateToken,
+    })(req, res, next);
 });
 
 router.get("/github/callback", (req, res, next) => {
-    if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
-        const origin = (req.session as any)?.frontendOrigin || process.env.FRONTEND_URL || "http://localhost:5173";
-        return res.redirect(`${origin}/auth?error=github_oauth_not_configured`);
+    let frontendOrigin = process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
+    let returnTo = "/premium?tab=opensource";
+
+    if (req.query?.state) {
+        try {
+            const accessSecret = process.env.SECRET_ACCESS_TOKEN || process.env.JWT_PASS_KEY!;
+            const decoded = jwt.verify(req.query.state as string, accessSecret) as any;
+            if (decoded?.origin) frontendOrigin = decoded.origin;
+            if (decoded?.returnTo) returnTo = decoded.returnTo;
+        } catch { }
+    } else if ((req.session as any)?.frontendOrigin) {
+        frontendOrigin = (req.session as any).frontendOrigin;
+        if ((req.session as any)?.returnTo) {
+            returnTo = (req.session as any).returnTo;
+        }
     }
-    passport.authenticate("github", { failureRedirect: "/api/auth/github/failure" })(req, res, next);
-}, githubSuccess);
+
+    const sep = returnTo.includes("?") ? "&" : "?";
+
+    if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
+        return res.redirect(`${frontendOrigin}${returnTo}${sep}error=github_oauth_not_configured`);
+    }
+
+    passport.authenticate("github", (err: any, user: any, info: any) => {
+        if (err || !user) {
+            console.error("[GitHub Callback Auth Failed]:", err || info);
+            const errorParam = info?.message || "github_link_failed";
+            return res.redirect(`${frontendOrigin}${returnTo}${sep}error=${encodeURIComponent(errorParam)}`);
+        }
+        req.user = user;
+        return githubSuccess(req, res);
+    })(req, res, next);
+});
 
 router.get("/github/failure", githubFailure);
 
 router.post("/github/unlink", isloggedIn, unlinkGithub);
 
-export default router
+export default router;
