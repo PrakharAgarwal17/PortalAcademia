@@ -1,7 +1,8 @@
 import type { Request, Response } from "express";
+import crypto from "crypto";
 import mongoose from "mongoose";
 import nodemailer from "nodemailer";
-import { getCache, setCache } from "../config/redisClient.js";
+import { getCache, setCache, deleteCache } from "../config/redisClient.js";
 import userModel from "../models/userModel.js";
 import profileModel from "../models/profileModel.js";
 
@@ -10,6 +11,7 @@ interface OnboardingOtpData {
     otp: number;
     email: string;
     expiresAt: number;
+    attempts: number;
 }
 
 const OnboardingOtpMap = new Map<string, OnboardingOtpData>();
@@ -460,7 +462,7 @@ export async function sendVerificationOtp(req: Request, res: Response): Promise<
         }
 
         const normalizedEmail = email.toLowerCase().trim();
-        const otp = Math.floor(100000 + Math.random() * 900000);
+        const otp = crypto.randomInt(100000, 1000000);
 
         const { email: senderEmail, password: senderPassword } = getEmailCredentials();
 
@@ -501,11 +503,15 @@ export async function sendVerificationOtp(req: Request, res: Response): Promise<
             `,
         });
 
-        OnboardingOtpMap.set(normalizedEmail, {
+        const otpEntry: OnboardingOtpData = {
             otp,
             email: normalizedEmail,
             expiresAt: Date.now() + 10 * 60 * 1000, // 10 mins validity
-        });
+            attempts: 0,
+        };
+
+        OnboardingOtpMap.set(normalizedEmail, otpEntry);
+        await setCache(`onboarding_otp:${normalizedEmail}`, otpEntry, 600);
 
         return res.status(200).json({
             success: true,
@@ -530,7 +536,11 @@ export async function verifyOnboardingOtp(req: Request, res: Response): Promise<
         }
 
         const normalizedEmail = email.toLowerCase().trim();
-        const data = OnboardingOtpMap.get(normalizedEmail);
+
+        let data = await getCache<OnboardingOtpData>(`onboarding_otp:${normalizedEmail}`);
+        if (!data) {
+            data = OnboardingOtpMap.get(normalizedEmail) || null;
+        }
 
         if (!data) {
             return res.status(400).json({
@@ -539,8 +549,19 @@ export async function verifyOnboardingOtp(req: Request, res: Response): Promise<
             });
         }
 
+        // Lockout check
+        if ((data.attempts || 0) >= 5) {
+            OnboardingOtpMap.delete(normalizedEmail);
+            await deleteCache(`onboarding_otp:${normalizedEmail}`);
+            return res.status(429).json({
+                verified: false,
+                message: "Too many failed attempts. Verification token invalidated. Please request a new OTP.",
+            });
+        }
+
         if (Date.now() > data.expiresAt) {
             OnboardingOtpMap.delete(normalizedEmail);
+            await deleteCache(`onboarding_otp:${normalizedEmail}`);
             return res.status(400).json({
                 verified: false,
                 message: "Verification OTP has expired. Please request a new code.",
@@ -548,14 +569,19 @@ export async function verifyOnboardingOtp(req: Request, res: Response): Promise<
         }
 
         if (Number(otp) !== data.otp) {
+            data.attempts = (data.attempts || 0) + 1;
+            OnboardingOtpMap.set(normalizedEmail, data);
+            await setCache(`onboarding_otp:${normalizedEmail}`, data, Math.max(1, Math.round((data.expiresAt - Date.now()) / 1000)));
+
             return res.status(400).json({
                 verified: false,
-                message: "Incorrect OTP entered",
+                message: `Incorrect OTP entered. ${5 - data.attempts} attempt(s) remaining.`,
             });
         }
 
         // Clean up OTP on success
         OnboardingOtpMap.delete(normalizedEmail);
+        await deleteCache(`onboarding_otp:${normalizedEmail}`);
 
         const userId = req.userId;
         if (userId && mongoose.Types.ObjectId.isValid(userId)) {

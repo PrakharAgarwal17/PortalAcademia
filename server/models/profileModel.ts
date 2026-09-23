@@ -97,6 +97,8 @@ export interface IProfile extends Document {
     // Professional links
     linkedin?: string;
     github?: string;
+    githubUsername?: string;
+    githubAvatarUrl?: string;
 
     // Peer Mentorship fields
     isMentor?: boolean;
@@ -379,6 +381,17 @@ const profileSchema = new Schema<IProfile>(
         github: {
             type: String,
             trim: true,
+            default: "",
+        },
+
+        githubUsername: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+
+        githubAvatarUrl: {
+            type: String,
             default: "",
         },
 

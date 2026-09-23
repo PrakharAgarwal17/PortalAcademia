@@ -115,18 +115,22 @@ router.post(
             }
 
             const originalName = file.originalname || "resume.pdf";
-            const isPdf = file.mimetype === "application/pdf" || originalName.toLowerCase().endsWith(".pdf");
-            const isDocx =
-                file.mimetype.includes("word") ||
-                originalName.toLowerCase().endsWith(".docx") ||
-                file.mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-            if (!isPdf && !isDocx) {
+            // Magic-byte signature verification (prevent MIME-spoofed executable uploads)
+            const isBufferPdf = file.buffer.length >= 4 &&
+                file.buffer[0] === 0x25 && file.buffer[1] === 0x50 && file.buffer[2] === 0x44 && file.buffer[3] === 0x46; // %PDF
+            const isBufferDocx = file.buffer.length >= 4 &&
+                file.buffer[0] === 0x50 && file.buffer[1] === 0x4B && file.buffer[2] === 0x03 && file.buffer[3] === 0x04; // PK.. (ZIP)
+
+            if (!isBufferPdf && !isBufferDocx) {
                 return res.status(400).json({
                     success: false,
-                    message: "Unsupported file type. Please upload a valid PDF (.pdf) or Word document (.docx).",
+                    message: "Invalid file content. Uploaded file does not match a valid PDF or DOCX binary signature.",
                 });
             }
+
+            const isPdf = isBufferPdf;
+            const isDocx = isBufferDocx;
 
             // Max file size: 5MB
             if (file.size > 5 * 1024 * 1024) {

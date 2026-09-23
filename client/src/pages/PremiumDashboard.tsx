@@ -26,8 +26,12 @@ import {
   AlertTriangle,
   Users,
   TrendingUp,
+  GitPullRequest,
+  Unlink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAppDispatch, useAppSelector } from "@/context/store";
+import { checkAuthThunk } from "@/context/authSlice";
 import Navbar from "@/components/Navbar";
 import MentorshipVideoCallModal, { forceStopAllHardwareMedia } from "@/components/MentorshipVideoCallModal";
 import MentorshipRatingModal from "@/components/MentorshipRatingModal";
@@ -765,6 +769,18 @@ export default function PremiumDashboard() {
   const [ossSearchQuery, setOssSearchQuery] = useState("");
   const [selectedCert, setSelectedCert] = useState<StudentContribution | null>(null);
 
+  // Redux & GitHub PR Verification State
+  const dispatch = useAppDispatch();
+  const authUser = useAppSelector((state) => state.auth.user);
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
+  const [verifyProjectId, setVerifyProjectId] = useState("");
+  const [verifyPrUrl, setVerifyPrUrl] = useState("");
+  const [isVerifyingPr, setIsVerifyingPr] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [verifySuccess, setVerifySuccess] = useState<string | null>(null);
+  const [isUnlinkingGithub, setIsUnlinkingGithub] = useState(false);
+  const [githubNotice, setGithubNotice] = useState<string | null>(null);
+
   // Mentorship state
   const [mentors, setMentors] = useState<MentorProfile[]>([]);
   const [myPairings, setMyPairings] = useState<MentorshipPairing[]>([]);
@@ -803,6 +819,96 @@ export default function PremiumDashboard() {
       forceStopAllHardwareMedia();
     };
   }, []);
+
+  // Listen for GitHub OAuth return query parameters
+  useEffect(() => {
+    const ghStatus = searchParams.get("github");
+    const ghError = searchParams.get("error");
+    if (ghStatus === "connected") {
+      setGithubNotice("GitHub account linked successfully! Your commits and merged PRs are now verified.");
+      dispatch(checkAuthThunk());
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("github");
+        next.delete("username");
+        return next;
+      });
+    } else if (ghError === "github_link_failed") {
+      setGithubNotice("Failed to link GitHub account. It may already be linked to another profile.");
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("error");
+        return next;
+      });
+    }
+  }, [searchParams, dispatch, setSearchParams]);
+
+  const handleVerifyPr = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyProjectId || !verifyPrUrl.trim()) {
+      setVerifyError("Please select a partner repository and provide the Pull Request URL.");
+      return;
+    }
+    setIsVerifyingPr(true);
+    setVerifyError(null);
+    setVerifySuccess(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/opensource/verify-pr`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          projectId: verifyProjectId,
+          prUrl: verifyPrUrl.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setVerifyError(data.message || "Failed to verify pull request.");
+      } else {
+        setVerifySuccess(data.message || "Pull request verified and recorded successfully!");
+        setVerifyPrUrl("");
+        await fetchOpenSourceData();
+        setTimeout(() => {
+          setIsVerifyModalOpen(false);
+          setVerifySuccess(null);
+        }, 2200);
+      }
+    } catch {
+      setVerifyError("Network error while verifying pull request. Please try again.");
+    } finally {
+      setIsVerifyingPr(false);
+    }
+  };
+
+  const handleUnlinkGithub = async () => {
+    if (
+      !window.confirm(
+        "Are you sure you want to disconnect your GitHub account? Pull requests will no longer be attributed until you reconnect."
+      )
+    ) {
+      return;
+    }
+    setIsUnlinkingGithub(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/github/unlink`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (res.ok) {
+        dispatch(checkAuthThunk());
+        setGithubNotice("GitHub account disconnected.");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setGithubNotice(data.message || "Failed to unlink GitHub account.");
+      }
+    } catch {
+      setGithubNotice("Failed to unlink GitHub account.");
+    } finally {
+      setIsUnlinkingGithub(false);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -1277,6 +1383,123 @@ export default function PremiumDashboard() {
                   <PremiumLockedBanner onUpgrade={() => setShowPaymentModal(true)} />
                 ) : (
                   <>
+                    {/* GitHub Verification Notice banner */}
+                    {githubNotice && (
+                      <div
+                        role="alert"
+                        className="p-3 rounded-md border border-primary/30 bg-primary/10 text-xs font-medium text-foreground flex items-center justify-between gap-2"
+                      >
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                          <span>{githubNotice}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setGithubNotice(null)}
+                          className="text-[10px] text-muted-foreground hover:text-foreground font-mono"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Developer GitHub Identity & Verification Card */}
+                    <div className="p-4 rounded-lg border border-border bg-card shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      {authUser?.githubUsername ? (
+                        <div className="flex items-center gap-3">
+                          {authUser.githubAvatarUrl ? (
+                            <img
+                              src={authUser.githubAvatarUrl}
+                              alt={authUser.githubUsername || "GitHub"}
+                              className="w-10 h-10 rounded-full border border-border object-cover shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-md bg-secondary flex items-center justify-center shrink-0 border border-border text-foreground font-mono font-bold text-xs">
+                              GH
+                            </div>
+                          )}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h2 className="text-xs font-semibold text-foreground">Verified Developer</h2>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-sm bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 font-semibold">
+                                <CheckCircle2 className="w-3 h-3" />
+                                @{authUser.githubUsername}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                              Pull requests authored by <strong>@{authUser.githubUsername}</strong> on partner company repositories are automatically eligible for verification and credential issuance.
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-md bg-secondary/80 flex items-center justify-center shrink-0 border border-border text-foreground">
+                            <GitPullRequest className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h2 className="text-xs font-semibold text-foreground">GitHub Developer Verification</h2>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-sm bg-muted text-muted-foreground border border-border font-medium">
+                                Not Connected
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-0.5 max-w-xl leading-relaxed">
+                              Connect your GitHub account to verify merged pull requests against partner company repositories. We verify that the author of merged pull requests matches your GitHub identity before awarding platform credentials.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {authUser?.githubUsername ? (
+                          <>
+                            <button
+                              type="button"
+                              id="open-verify-pr-btn"
+                              onClick={() => {
+                                setIsVerifyModalOpen(true);
+                                setVerifyError(null);
+                                setVerifySuccess(null);
+                              }}
+                              className="text-xs font-semibold px-3.5 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
+                            >
+                              <GitPullRequest className="w-3.5 h-3.5" />
+                              <span>Verify Pull Request</span>
+                            </button>
+                            <button
+                              type="button"
+                              id="unlink-github-btn"
+                              onClick={handleUnlinkGithub}
+                              disabled={isUnlinkingGithub}
+                              className="text-xs font-medium px-2.5 py-2 rounded-md border border-border bg-background hover:bg-muted text-muted-foreground hover:text-destructive transition-colors inline-flex items-center gap-1 cursor-pointer"
+                              title="Disconnect GitHub account"
+                            >
+                              <Unlink className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Disconnect</span>
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            id="connect-github-btn"
+                            onClick={() => {
+                              window.location.href = `${API_BASE}/api/auth/github?returnTo=/premium?tab=opensource`;
+                            }}
+                            className="text-xs font-semibold px-4 py-2 rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors inline-flex items-center gap-2 cursor-pointer shadow-sm"
+                          >
+                            <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0 fill-current" aria-hidden>
+                              <path
+                                fillRule="evenodd"
+                                clipRule="evenodd"
+                                d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                              />
+                            </svg>
+                            <span>Connect GitHub</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
                     {/* My Tracked Contributions Section */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between border-b border-border pb-2">
@@ -1462,6 +1685,116 @@ export default function PremiumDashboard() {
                         </div>
                       )}
                     </div>
+
+                    {/* Verify Pull Request Modal */}
+                    {isVerifyModalOpen && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+                        <div className="w-full max-w-md rounded-lg border border-border bg-card p-5 shadow-lg space-y-4">
+                          <div className="flex items-center justify-between pb-3 border-b border-border">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-sm bg-primary/10 text-primary flex items-center justify-center font-mono">
+                                <GitPullRequest className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <h3 className="text-xs font-bold text-foreground">Verify Merged Pull Request</h3>
+                                <p className="text-[10px] text-muted-foreground">Confirm your contribution to claim platform credentials</p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsVerifyModalOpen(false);
+                                setVerifyError(null);
+                                setVerifySuccess(null);
+                              }}
+                              className="text-muted-foreground hover:text-foreground text-xs p-1"
+                            >
+                              ✕
+                            </button>
+                          </div>
+
+                          {verifyError && (
+                            <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium flex items-start gap-2">
+                              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                              <span>{verifyError}</span>
+                            </div>
+                          )}
+
+                          {verifySuccess && (
+                            <div className="p-3 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium flex items-start gap-2">
+                              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                              <span>{verifySuccess}</span>
+                            </div>
+                          )}
+
+                          <form onSubmit={handleVerifyPr} className="space-y-3">
+                            <div>
+                              <label className="block text-[11px] font-semibold text-foreground mb-1">
+                                Target Partner Repository *
+                              </label>
+                              <select
+                                value={verifyProjectId}
+                                onChange={(e) => setVerifyProjectId(e.target.value)}
+                                className="w-full text-xs px-3 py-2 rounded-md bg-background border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                required
+                              >
+                                <option value="">Select registered partner project...</option>
+                                {ossProjects.map((p) => (
+                                  <option key={p._id} value={p._id}>
+                                    {p.title} ({p.companyName} — {p.repoFullName})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-semibold text-foreground mb-1">
+                                GitHub Pull Request URL *
+                              </label>
+                              <input
+                                type="url"
+                                placeholder="https://github.com/organization/repository/pull/12"
+                                value={verifyPrUrl}
+                                onChange={(e) => setVerifyPrUrl(e.target.value)}
+                                className="w-full text-xs px-3 py-2 rounded-md bg-background border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+                                required
+                              />
+                              <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                                The PR must already be merged into the repository. The commit/PR author must match your verified handle: <strong className="text-foreground">@{authUser?.githubUsername}</strong>.
+                              </p>
+                            </div>
+
+                            <div className="pt-2 flex items-center justify-end gap-2 border-t border-border">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsVerifyModalOpen(false);
+                                  setVerifyError(null);
+                                  setVerifySuccess(null);
+                                }}
+                                className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-muted text-foreground transition-colors cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={isVerifyingPr || !verifyProjectId || !verifyPrUrl.trim()}
+                                className="text-xs font-semibold px-4 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer inline-flex items-center gap-1.5"
+                              >
+                                {isVerifyingPr ? (
+                                  <>
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    <span>Verifying with GitHub…</span>
+                                  </>
+                                ) : (
+                                  "Verify & Record Contribution"
+                                )}
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </div>

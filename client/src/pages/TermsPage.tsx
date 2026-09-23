@@ -7,7 +7,6 @@ import {
   Sun,
   Moon,
   Code2,
-  Bot,
   Building2,
   Award,
   AlertTriangle,
@@ -20,9 +19,10 @@ import {
   Video,
   Mail,
   UserCheck,
-  Shield,
   X,
   Briefcase,
+  CreditCard,
+  Ban,
 } from "lucide-react";
 import { useTheme } from "@/context/theme";
 import { cn } from "@/lib/utils";
@@ -39,28 +39,28 @@ interface TermsSection {
 
 export default function TermsPage() {
   const { theme, toggleTheme } = useTheme();
-  const [activeSectionId, setActiveSectionId] = useState<string>("institutional-governance");
+  const [activeSectionId, setActiveSectionId] = useState<string>("acceptance-ecosystem");
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedSectionId, setCopiedSectionId] = useState<string | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   const sections: TermsSection[] = [
     {
-      id: "institutional-governance",
+      id: "acceptance-ecosystem",
       number: "1.0",
-      title: "Acceptance of Terms & Four-Pillar Ecosystem Governance",
+      title: "Acceptance of Terms & Four-Pillar Role Obligations",
       icon: Building2,
       badge: "Core Agreement",
-      summary: "Contractual framework across Students, Faculty, Higher Education Institutions, and Corporate Recruiters.",
+      summary: "Contractual obligations partitioned across Students, Faculty, AISHE Institutions, and Corporate Partners.",
       content: (
         <div className="space-y-4">
           <p className="leading-relaxed">
-            By accessing, creating an account, or interacting with the PortalAcademia platform (the "Platform"), you agree to comply with and be bound by these Terms and Conditions. PortalAcademia operates as an objective, verified intermediary bridging academic talent, institutional governance, and corporate workforce requisitions.
+            By accessing, creating an account, or interacting with PortalAcademia (the "Platform"), you agree to comply with and be bound by these Terms and Conditions. PortalAcademia operates as an objective, verified intermediary bridging academic talent, institutional governance, and corporate workforce requisitions.
           </p>
           <p className="leading-relaxed">
-            Platform operational scopes are strictly partitioned across four verified stakeholder pillars:
+            Because each stakeholder role possesses distinct capabilities and responsibilities, specific contractual obligations apply per role:
           </p>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
             <div className="p-3.5 rounded-sm bg-card border border-border space-y-1.5 shadow-2xs">
               <span className="font-mono font-bold text-xs text-foreground flex items-center gap-1.5">
@@ -68,17 +68,17 @@ export default function TermsPage() {
                 Pillar 1: Student Scholars
               </span>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Subject to strict academic integrity, honest skill benchmarking, authentic portfolio representation, and peer advising ethics.
+                Must supply authentic academic records, genuine portfolio artifacts, and take assessments independently without automated solvers or unauthorized assistance. Respectful, professional conduct is mandatory during all 1-on-1 mentorship video sessions.
               </p>
             </div>
 
             <div className="p-3.5 rounded-sm bg-card border border-border space-y-1.5 shadow-2xs">
               <span className="font-mono font-bold text-xs text-foreground flex items-center gap-1.5">
                 <Award className="w-3.5 h-3.5 text-primary" />
-                Pillar 2: Faculty & Mentors
+                Pillar 2: Faculty &amp; Mentors
               </span>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Authorized to endorse student competencies, publish research immersion opportunities, and validate course syllabus mappings.
+                Must accurately represent academic designations and departmental affiliations. Faculty agree to endorse student competencies impartially, maintain academic rigor in research immersion postings, and provide constructive pedagogical guidance.
               </p>
             </div>
 
@@ -88,7 +88,7 @@ export default function TermsPage() {
                 Pillar 3: Academic Institutions
               </span>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Required to maintain valid All India Survey on Higher Education (AISHE) accreditation codes and exercise Placement Cell (TPO) oversight.
+                Must maintain a valid All India Survey on Higher Education (AISHE) code. Training &amp; Placement Cells (TPOs) are obligated to exercise reasonable diligence when reviewing and approving student credentials and campus announcements.
               </p>
             </div>
 
@@ -98,7 +98,7 @@ export default function TermsPage() {
                 Pillar 4: Corporate Partners
               </span>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Permitted to publish legitimate, verified career requisitions and evaluate assessed student candidates without automated spamming.
+                Must publish genuine, funded job and internship requisitions with clear compensation guidelines. Partners agree to respect student intellectual property on open-source repositories and evaluate assessed candidates based strictly on merit.
               </p>
             </div>
           </div>
@@ -106,12 +106,12 @@ export default function TermsPage() {
       ),
     },
     {
-      id: "code-ownership",
+      id: "code-ip-ownership",
       number: "2.0",
       title: "100% Student Code & Artifact Intellectual Property",
       icon: Code2,
       badge: "Irrevocable IP",
-      summary: "Students retain full, unencumbered intellectual property rights over all code and portfolio submissions.",
+      summary: "Students retain full, unencumbered intellectual property rights over all code, portfolios, and project submissions.",
       content: (
         <div className="space-y-4">
           <div className="p-4 rounded-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 space-y-1.5">
@@ -120,190 +120,278 @@ export default function TermsPage() {
               Foundational Guarantee: Unencumbered Student Intellectual Property
             </span>
             <p className="text-xs leading-relaxed">
-              PortalAcademia claims zero intellectual property rights, commercial licenses, or proprietary ownership over student source code, algorithmic submissions, GitHub repositories, or research whitepapers submitted to the platform.
+              PortalAcademia claims zero proprietary ownership, commercial licenses, or patent rights over student source code, algorithmic submissions, GitHub repositories, or research whitepapers submitted to or created through the platform.
             </p>
           </div>
 
           <ul className="list-disc pl-5 space-y-2 text-xs sm:text-sm text-muted-foreground">
             <li>
-              <strong className="text-foreground font-medium">Sole Exclusive Ownership:</strong> All code written in skill tests, hackathons, open source contributions, or uploaded to candidate portfolios remains the 100% sole exclusive property of the authoring student or scholar.
+              <strong className="text-foreground font-medium">Sole Exclusive Ownership:</strong> All code authored in standardized skill assessments, hackathons, open-source pull requests, or uploaded to candidate portfolios remains the 100% sole exclusive property of the authoring student or scholar.
             </li>
             <li>
               <strong className="text-foreground font-medium">Limited Testing License:</strong> By submitting code to automated skill assessments or test runners, you grant PortalAcademia only a temporary, non-exclusive license to execute, test, and analyze the code for automated competency scoring and plagiarism detection.
             </li>
             <li>
-              <strong className="text-foreground font-medium">Corporate Challenge Exceptions:</strong> If a student chooses to participate in an industry-sponsored proprietary challenge, intellectual property terms follow the explicit contest rules agreed to prior to enrollment.
+              <strong className="text-foreground font-medium">Open-Source Contributions:</strong> Contributions to enterprise open-source repositories registered on PortalAcademia remain governed by the public open-source license declared by the repository (e.g., MIT, Apache 2.0). Industry partners receive rights strictly as permitted under that open-source license.
             </li>
           </ul>
         </div>
       ),
     },
     {
-      id: "assessment-integrity",
+      id: "credential-liability",
       number: "3.0",
-      title: "Standardized Skill Assessments & Proctoring Integrity",
-      icon: Award,
-      badge: "Calibrated Tests",
-      summary: "Rules governing automated test runners, timed benchmarks, and anti-cheating enforcement.",
+      title: "Credential Auditing & Institutional Verification Liability Disclaimer",
+      icon: ShieldCheck,
+      badge: "Verification Disclaimer",
+      summary: "PortalAcademia provides verification infrastructure; institutional placement cells hold auditing accountability.",
       content: (
         <div className="space-y-4">
           <p className="leading-relaxed">
-            PortalAcademia operates standardized, calibrated skill assessment modules (<code className="font-mono text-primary bg-secondary px-1.5 py-0.5 rounded-xs text-[11px]">SkillTestRunner</code>) calibrated against industry hiring bars:
+            PortalAcademia provides tamper-evident digital credentialing and deterministic ATS scoring infrastructure. However, the authenticity of uploaded physical certificates, transcripts, and external achievements relies on institutional review:
           </p>
 
-          <ul className="list-disc pl-5 space-y-2 text-xs sm:text-sm text-muted-foreground">
-            <li>
-              <strong className="text-foreground font-medium">Proctoring & Timing Integrity:</strong> Assessment sessions are timed and monitored for tab-switching, unauthorized script injections, and collaborative tampering.
-            </li>
-            <li>
-              <strong className="text-foreground font-medium">Prohibition on Automated Solvers:</strong> Using AI scrapers, reverse-engineered test bank dumps, or automated bots to complete skill assessments is strictly prohibited.
-            </li>
-            <li>
-              <strong className="text-foreground font-medium">Score Invalidation & Revocation:</strong> PortalAcademia and affiliated institutional administrators reserve the right to revoke verified badges or invalidate test scores if irregular submission patterns are detected.
-            </li>
-          </ul>
-        </div>
-      ),
-    },
-    {
-      id: "ai-usage-policy",
-      number: "4.0",
-      title: "Contextual AI Career Guide Acceptable Use Policy",
-      icon: Bot,
-      badge: "Advisory Only",
-      summary: "AI Counselor provides strategic roadmaps & deficit analysis; code script generation is strictly prohibited.",
-      content: (
-        <div className="space-y-4">
-          <p className="leading-relaxed">
-            Our AI Career Counselor workspace utilizes high-speed Groq LLM inference to offer personalized career roadmaps and deficit breakdowns. Users must comply with the following boundaries:
-          </p>
-
-          <div className="p-3.5 rounded-sm bg-secondary/40 border border-border space-y-2">
-            <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5 text-primary" />
-              Prohibition on Complete Code Generation
+          <div className="p-3.5 rounded-sm bg-secondary/40 border border-border space-y-2 text-xs leading-relaxed text-muted-foreground">
+            <span className="font-semibold text-foreground block">
+              Institutional Verification Disclaimer
             </span>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              As notified on the workspace interface, the AI Guide is strictly configured to provide strategic advice, interview topics, and concept explanations. It must not be prompted to generate complete project code, homework assignments, or test answers.
-            </p>
+            Verification approvals are executed directly by college Placement and Training Officers (TPOs) or authorized issuing organizations. PortalAcademia does not independently examine original paper documents, physical university registers, or external notarizations. PortalAcademia expressly disclaims liability for fraudulent documents, forged credentials, or misleading representations that pass institutional approval.
           </div>
 
           <ul className="list-disc pl-5 space-y-2 text-xs sm:text-sm text-muted-foreground">
             <li>
-              <strong className="text-foreground font-medium">Advisory Telemetry Only:</strong> AI-generated match percentages, career advice, and deficit warnings represent probabilistic models and should be considered recommendations, not contractual hiring guarantees.
+              <strong className="text-foreground font-medium">Badge Revocation &amp; Score Recalculation:</strong> If a credential is subsequently determined to be fraudulent, forged, or issued in error, PortalAcademia reserves the absolute right to revoke the verified badge, deduct corresponding points from the candidate's ATS score, and notify affiliated institutions.
             </li>
             <li>
-              <strong className="text-foreground font-medium">Compliance Logging:</strong> Inquiries submitted to the AI system are recorded with user identifiers in <code className="font-mono text-[11px] bg-secondary text-foreground px-1 py-0.5 rounded">aiLogModel</code> to detect misuse and ensure platform academic integrity.
+              <strong className="text-foreground font-medium">Fraud Sanctions:</strong> Submitting falsified certificates, fake university roll numbers, or forged employer recommendation letters constitutes a material violation of these Terms and will result in immediate permanent account termination.
             </li>
           </ul>
         </div>
       ),
     },
     {
-      id: "mentorship-protocols",
+      id: "acceptable-use",
+      number: "4.0",
+      title: "Platform Acceptable Use Policy & Anti-Abuse Standards",
+      icon: Ban,
+      badge: "Zero Tolerance",
+      summary: "Prohibited conduct: automated scraping, AI prompt injection, assessment cheating, ghost postings, and harassment.",
+      content: (
+        <div className="space-y-4">
+          <p className="leading-relaxed">
+            To preserve academic integrity and a safe professional ecosystem, users agree never to engage in any of the following prohibited activities:
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div className="p-3 rounded-sm bg-card border border-border space-y-1">
+              <span className="font-bold text-destructive flex items-center gap-1.5 font-mono">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                1. Automated Scraping &amp; Extraction
+              </span>
+              <p className="text-muted-foreground leading-relaxed">
+                Using web scrapers, bots, automated crawlers, or unauthorized scripts to extract candidate profiles, recruiter directories, assessment test banks, or salary telemetry.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-sm bg-card border border-border space-y-1">
+              <span className="font-bold text-destructive flex items-center gap-1.5 font-mono">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                2. AI Career Guide Abuse
+              </span>
+              <p className="text-muted-foreground leading-relaxed">
+                Attempting prompt injection, jailbreaking, or exploiting the Groq LLM interface to generate malicious code, spam, academic assessment answers, or off-topic commercial content.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-sm bg-card border border-border space-y-1">
+              <span className="font-bold text-destructive flex items-center gap-1.5 font-mono">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                3. Assessment Tampering
+              </span>
+              <p className="text-muted-foreground leading-relaxed">
+                Collaborative cheating during timed assessments, sharing examination answer keys, reverse-engineering test suites, or using browser automation extensions to falsify competency scores.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-sm bg-card border border-border space-y-1">
+              <span className="font-bold text-destructive flex items-center gap-1.5 font-mono">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                4. Fraudulent &amp; Ghost Listings
+              </span>
+              <p className="text-muted-foreground leading-relaxed">
+                Publishing fictitious job postings, multi-level marketing positions, unpaid requisitions disguised as paid roles, or collecting candidate resumes without legitimate hiring intent.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-sm bg-card border border-border space-y-1">
+              <span className="font-bold text-destructive flex items-center gap-1.5 font-mono">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                5. Video Mentorship Misconduct
+              </span>
+              <p className="text-muted-foreground leading-relaxed">
+                Harassment, stalking, vulgarity, unauthorized session recording, or soliciting off-platform private payments during 1-on-1 WebRTC peer mentorship calls.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-sm bg-card border border-border space-y-1">
+              <span className="font-bold text-destructive flex items-center gap-1.5 font-mono">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                6. Identity Impersonation
+              </span>
+              <p className="text-muted-foreground leading-relaxed">
+                Registering under someone else's identity, misrepresenting university enrollment, forging institutional AISHE accreditation, or claiming fraudulent corporate domains.
+              </p>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "payment-premium",
       number: "5.0",
-      title: "Senior Scholar Mentorship & 1-on-1 Advising Protocols",
-      icon: Video,
-      badge: "Peer Advising",
-      summary: "Professional standards, WebRTC etiquette, and +20 ATS boost integrity for verified senior mentors.",
+      title: "Premium Membership, Free Trial & Razorpay Payment Terms",
+      icon: CreditCard,
+      badge: "₹200 / 30 Days",
+      summary: "Razorpay subscription billing, non-refundable terms, no recurring surprise charges, and expiration handling.",
       content: (
         <div className="space-y-4">
           <p className="leading-relaxed">
-            Senior scholars (3rd and 4th year students or alumni) may register as peer mentors to conduct 1-on-1 video advising, architecture reviews, and mock interviews:
+            PortalAcademia offers student scholars optional tier progression to unlock specialized open-source repositories, 1-on-1 peer mentorship scheduling, and priority recruiter indexing:
           </p>
+
+          <div className="p-3.5 rounded-sm bg-secondary/40 border border-border space-y-2 text-xs leading-relaxed text-muted-foreground">
+            <span className="font-semibold text-foreground block">
+              Transparent Subscription Model
+            </span>
+            <ul className="list-disc pl-5 space-y-1.5 text-foreground/90 font-mono text-[11px]">
+              <li><strong className="text-primary">7-Day Free Trial:</strong> Available once per verified student account. Activates instantly without upfront credit card requirements.</li>
+              <li><strong className="text-primary">Flat ₹200 / 30-Day Pass:</strong> Fixed membership processed securely via Razorpay Software Private Limited.</li>
+              <li><strong className="text-primary">Zero Auto-Debit Surprises:</strong> Subscriptions do not automatically renew or auto-charge your payment method. Access automatically expires after 30 days unless manually renewed.</li>
+            </ul>
+          </div>
 
           <ul className="list-disc pl-5 space-y-2 text-xs sm:text-sm text-muted-foreground">
             <li>
-              <strong className="text-foreground font-medium">Professional Conduct:</strong> Both mentors and mentees must maintain respectful, constructive, and inclusive professional communication during all WebRTC audio/video sessions.
+              <strong className="text-foreground font-medium">Non-Refundable Policy:</strong> Because premium access activates instantly upon successful payment verification and unlocks immediate digital capabilities, payments are strictly non-refundable once processed for that billing cycle.
             </li>
             <li>
-              <strong className="text-foreground font-medium">ATS Boost Authenticity:</strong> Senior mentors earn a permanent +20 ATS score boost on employer search algorithms upon completing verified advising sessions with satisfied mentee reviews. Attempts to fabricate session duration or trade false ratings will result in immediate loss of mentor privileges.
+              <strong className="text-foreground font-medium">Subscription Lapse &amp; Continuity:</strong> When a premium subscription expires, previously earned verified certificates, assessment badges, and completed mentorship ratings remain permanently saved on your profile. However, scheduling new mentorship sessions, participating in private community spaces, and accessing active premium open-source repositories will require renewing your pass.
             </li>
             <li>
-              <strong className="text-foreground font-medium">Media Privacy:</strong> Recording 1-on-1 WebRTC sessions without explicit bilateral written consent is strictly prohibited.
+              <strong className="text-foreground font-medium">Payment Data Security:</strong> All payment transactions are executed directly within Razorpay's PCI-DSS compliant checkout frame. PortalAcademia never stores your card number, CVV, or banking credentials.
             </li>
           </ul>
         </div>
       ),
     },
     {
-      id: "institutional-verification",
+      id: "mentorship-honor-code",
       number: "6.0",
-      title: "Credential Auditing & TPO Endorsement Gate",
-      icon: ShieldCheck,
-      badge: "AISHE Verified",
-      summary: "University placement officers verify uploaded credentials before granting verified badges.",
+      title: "Senior Peer Mentorship, Mentor Honor Code & Disclaimers",
+      icon: Video,
+      badge: "Mentor Honor Code",
+      summary: "100% free advising pledge, zero off-platform solicitation, +20 ATS boost integrity, and misconduct sanctions.",
       content: (
         <div className="space-y-4">
           <p className="leading-relaxed">
-            To prevent credential fraud and diploma inflation, PortalAcademia integrates an institutional audit gate:
+            The Senior Scholar Mentorship workspace enables 4th-year students and alumni to advise junior scholars via encrypted 1-on-1 WebRTC video sessions. All participating mentors are legally bound by the <strong>Mentor Honor Code</strong>:
           </p>
+
+          <div className="p-4 rounded-sm bg-card border border-border space-y-2 text-xs shadow-2xs">
+            <span className="font-bold text-foreground font-mono text-xs block">
+              The PortalAcademia Mentor Honor Code
+            </span>
+            <ul className="list-disc pl-5 space-y-1.5 text-muted-foreground">
+              <li><strong className="text-foreground">100% Free Senior Advising:</strong> Mentorship on PortalAcademia is an educational service for scholars. Mentors are strictly prohibited from soliciting, negotiating, or accepting offline compensation (cash, UPI, gifts, cryptocurrency) from mentees.</li>
+              <li><strong className="text-foreground">Academic Honesty &amp; Non-Ghostwriting:</strong> Mentors guide, review architecture, and explain concepts using Socratic methods. Mentors must never write graded coursework code for mentees or complete assignments on their behalf.</li>
+              <li><strong className="text-foreground">Psychological Safety &amp; Empathy:</strong> Sessions must maintain constructive, encouraging, and harassment-free dialogue.</li>
+            </ul>
+          </div>
 
           <ul className="list-disc pl-5 space-y-2 text-xs sm:text-sm text-muted-foreground">
             <li>
-              <strong className="text-foreground font-medium">Placement Cell Audit Responsibility:</strong> Institutional administrators (TPOs) must review candidate proof URLs, issuer certificates, and roll number affiliations before approving verified credentials.
+              <strong className="text-foreground font-medium">Peer Guidance Disclaimer:</strong> Mentorship sessions constitute peer-to-peer educational guidance and do not represent formal institutional tutoring, legal counsel, or guaranteed employment outcomes.
             </li>
             <li>
-              <strong className="text-foreground font-medium">Endorsed Campus Opportunities:</strong> Higher education institutions may endorse select marketplace listings. Endorsed listings receive prioritized distribution to that institution's student cohort.
+              <strong className="text-foreground font-medium">+20 ATS Boost Integrity:</strong> Mentors receive a +20 ATS score profile boost only after completing a verified term meeting statutory integrity gates (&ge; 21 days timeline or &ge; 2 sessions lasting &ge; 30 mins) and receiving satisfactory ratings (&ge; 4.0). Fabricating session duration or colluding to inflate reviews will result in permanent disqualification.
             </li>
             <li>
-              <strong className="text-foreground font-medium">Fraud Sanctions:</strong> Submitting fabricated credentials or falsified university affiliations will trigger permanent platform blacklisting and formal notification to the affiliated university Dean.
+              <strong className="text-foreground font-medium">In-Call Misconduct Reporting:</strong> Participants can file real-time misconduct reports during any call. If an administrative investigation substantiates misconduct (<code className="font-mono text-[11px] bg-secondary text-destructive px-1 py-0.5 rounded">action_taken</code>), the offending party's mentor status is permanently revoked and the incident is reported to their affiliated institution.
             </li>
           </ul>
         </div>
       ),
     },
     {
-      id: "recruiter-standards",
+      id: "limitation-liability",
       number: "7.0",
-      title: "Corporate Partner Requisitions & Fair Hiring Standards",
-      icon: Briefcase,
-      badge: "Fair Requisitions",
-      summary: "Verified employer listings, prohibition of ghost postings, and ethical candidate engagement.",
+      title: "Limitation of Liability & Employment Disclaimer",
+      icon: Scale,
+      badge: "No Job Guarantee",
+      summary: "Platform disclaims employment guarantees, recruiter hiring decisions, and AI counseling absolute accuracy.",
       content: (
         <div className="space-y-4">
           <p className="leading-relaxed">
-            Corporate partners utilizing PortalAcademia for talent acquisition and hackathon sponsorship agree to transparent hiring standards:
+            PortalAcademia is an academia-industry collaboration and skill benchmarking technology platform. We are not an employment agency, job consultancy, or hiring contractor:
           </p>
+
+          <div className="p-3.5 rounded-sm bg-secondary/40 border border-border space-y-2 text-xs leading-relaxed text-muted-foreground">
+            <span className="font-semibold text-foreground block">
+              Explicit Disclaimer of Employment Guarantees
+            </span>
+            PortalAcademia does not guarantee that using the platform, completing skill assessments, achieving high ATS scores, or consulting the AI Career Guide will result in job offers, internship placements, interview callbacks, or specific compensation levels. Final hiring decisions rest solely in the independent discretion of participating corporate partners.
+          </div>
 
           <ul className="list-disc pl-5 space-y-2 text-xs sm:text-sm text-muted-foreground">
             <li>
-              <strong className="text-foreground font-medium">Legitimate Requisitions:</strong> All posted jobs and internships must represent genuine, funded requisitions with clear compensation guidelines. Ghost postings and misleading multi-level marketing positions are prohibited.
+              <strong className="text-foreground font-medium">No Liability for Third-Party Actions:</strong> PortalAcademia is not responsible or liable for the conduct, hiring practices, interview delays, or contractual breaches of any employer, recruiter, or academic institution using the platform.
             </li>
             <li>
-              <strong className="text-foreground font-medium">Non-Discrimination:</strong> Candidate evaluation must be based exclusively on verified skills, assessment badges, and academic qualifications without bias.
+              <strong className="text-foreground font-medium">AI Career Advice Disclaimer:</strong> Inferences and skill gap roadmaps generated by the Groq AI Guide represent probabilistic informational models and should not be relied upon as certified career, educational, or legal advice.
+            </li>
+            <li>
+              <strong className="text-foreground font-medium">Platform Availability:</strong> While we endeavor to maintain high availability, PortalAcademia is provided on an "as-is" and "as-available" basis without warranties of uninterrupted uptime or error-free operation.
             </li>
           </ul>
         </div>
       ),
     },
     {
-      id: "sanctions-liability",
+      id: "termination-sanctions",
       number: "8.0",
-      title: "Prohibited Conduct, Termination & Dispute Jurisdiction",
+      title: "Account Suspension, Termination & Statutory Jurisdiction",
       icon: AlertTriangle,
       badge: "Statutory Law",
-      summary: "Zero tolerance for harassment, data scraping, or malicious disruption; Indian legal jurisdiction.",
+      summary: "Immediate termination grounds, dispute resolution, and jurisdiction under Indian statutory law.",
       content: (
         <div className="space-y-4">
           <p className="leading-relaxed">
-            Users are strictly prohibited from engaging in unauthorized automated data scraping, credential sharing, denial of service attacks, or distributing fraudulent hiring listings.
+            PortalAcademia reserves the right to immediately suspend or permanently terminate user accounts that violate these Terms or threaten platform safety:
           </p>
 
-          <div className="p-4 rounded-sm bg-card border border-border space-y-2 text-xs">
+          <ul className="list-disc pl-5 space-y-2 text-xs sm:text-sm text-muted-foreground">
+            <li>
+              <strong className="text-foreground font-medium">Immediate Termination Grounds:</strong> Falsifying academic credentials, engaging in WebRTC session harassment, automated scraping of candidate databases, publishing fraudulent jobs, or attempting to compromise server infrastructure.
+            </li>
+            <li>
+              <strong className="text-foreground font-medium">Effect of Termination:</strong> Upon termination, your right to access the platform terminates immediately. Verified credentials associated with fraudulent submissions will be invalidated.
+            </li>
+          </ul>
+
+          <div className="p-4 rounded-sm bg-card border border-border space-y-2 text-xs shadow-2xs">
             <span className="font-mono text-muted-foreground uppercase text-[10px] block font-bold">
               Legal Jurisdiction &amp; Dispute Resolution
             </span>
             <p className="text-muted-foreground leading-relaxed">
-              These Terms are governed by and construed in accordance with the laws of India, including the Information Technology Act 2000 and the Digital Personal Data Protection Act 2023. Any dispute arising out of or in connection with these Terms shall be subject to the exclusive jurisdiction of the competent courts in Mumbai/New Delhi, India.
+              These Terms shall be governed by and construed in accordance with the laws of the Republic of India, including the Information Technology Act 2000 and the Digital Personal Data Protection Act 2023. Any dispute arising out of or relating to these Terms shall be subject to the exclusive jurisdiction of the competent courts in Mumbai or New Delhi, India.
             </p>
             <div className="pt-2 flex items-center gap-2">
               <span className="text-muted-foreground">Formal Legal Notices:</span>
               <a
-                href="mailto:legal@portalacademia.edu"
+                href="mailto:legal@portalacademia.ac.in"
                 className="font-mono text-primary font-medium hover:underline"
               >
-                legal@portalacademia.edu
+                legal@portalacademia.ac.in
               </a>
             </div>
           </div>
@@ -370,17 +458,16 @@ export default function TermsPage() {
 
   return (
     <>
-      <title>Terms and Conditions of Service — PortalAcademia</title>
+      <title>Terms &amp; Conditions — PortalAcademia</title>
       <meta
         name="description"
-        content="PortalAcademia comprehensive terms governing 100% student code ownership, Groq AI counselor policies, AISHE verification standards, and assessment integrity."
+        content="PortalAcademia statutory terms of service governing multi-stakeholder roles, 100% student IP ownership, Razorpay memberships, and verified credential liability."
       />
 
       <div className="min-h-screen flex flex-col bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary">
         {/* ── Top Header Navigation Bar ──────────────────────────────── */}
         <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur-xs print:hidden">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-            {/* Left: Breadcrumb / Logo */}
             <div className="flex items-center gap-3 min-w-0">
               <Link
                 to="/"
@@ -396,11 +483,10 @@ export default function TermsPage() {
               </Link>
               <span className="text-muted-foreground/60 text-xs hidden sm:inline">/</span>
               <span className="text-xs font-mono font-medium text-muted-foreground truncate">
-                Legal &amp; Governance
+                Legal &amp; Terms
               </span>
             </div>
 
-            {/* Center: Legal Suite Document Switcher */}
             <div className="hidden md:flex items-center gap-1 bg-secondary/60 p-1 rounded-sm border border-border text-xs">
               <Link
                 to="/privacy"
@@ -417,9 +503,14 @@ export default function TermsPage() {
               >
                 FAQ
               </Link>
+              <Link
+                to="/knowledge-base"
+                className="px-3 py-1 rounded-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Knowledge Base
+              </Link>
             </div>
 
-            {/* Right: Actions */}
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -436,7 +527,6 @@ export default function TermsPage() {
                 id="terms-theme-toggle-btn"
                 onClick={toggleTheme}
                 aria-label="Toggle dark mode"
-                title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
                 className="w-8 h-8 rounded-sm border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
               >
                 {theme === "dark" ? (
@@ -464,12 +554,12 @@ export default function TermsPage() {
               <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
                 <span className="inline-flex items-center gap-1.5 text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-xs font-semibold">
                   <FileText className="w-3 h-3" />
-                  LEGAL SPECIFICATION &amp; USER AGREEMENT
+                  STATUTORY TERMS OF SERVICE
                 </span>
                 <span className="text-muted-foreground">•</span>
-                <span className="text-muted-foreground">REVISION 3.2.0</span>
+                <span className="text-muted-foreground">REVISION 3.3.0</span>
                 <span className="text-muted-foreground">•</span>
-                <span className="text-muted-foreground">EFFECTIVE: SEPTEMBER 2026</span>
+                <span className="text-muted-foreground">IT ACT 2000 &amp; DPDP ACT ALIGNED</span>
               </div>
 
               <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-foreground">
@@ -477,67 +567,102 @@ export default function TermsPage() {
               </h1>
 
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-3xl">
-                Contractual framework governing 100% student code ownership, standardized skill assessments, four-pillar ecosystem roles, and verified campus placement integrity.
+                Legally binding agreement establishing student intellectual property guarantees, credential verification responsibilities, Razorpay memberships, and ethical peer mentorship standards.
               </p>
             </div>
 
-            {/* Executive Key Commitments Bento Strip */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+            {/* Plain-Language Terms Summary Panel */}
+            <div className="p-4 sm:p-5 rounded-md border border-border bg-card/90 shadow-sm space-y-3">
+              <div className="flex items-center justify-between border-b border-border/80 pb-2">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-primary" />
+                  <span className="font-mono font-bold text-xs uppercase text-foreground">
+                    Terms at a Glance (Plain-Language Summary)
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-xs bg-primary/10 border border-primary/20 text-primary font-semibold">
+                  Key Takeaways
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-muted-foreground leading-relaxed">
+                <div className="space-y-1">
+                  <strong className="text-foreground block font-mono text-[11px]">1. 100% Student Code IP</strong>
+                  <p>
+                    You retain complete, exclusive ownership of your code, algorithms, repositories, and resumes. We never claim proprietary rights to your work.
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <strong className="text-foreground block font-mono text-[11px]">2. Verification &amp; Liability</strong>
+                  <p>
+                    Colleges and placement cells audit and approve credentials. We provide the scoring engine but do not guarantee hiring offers or employment outcomes.
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <strong className="text-foreground block font-mono text-[11px]">3. Free Senior Mentorship</strong>
+                  <p>
+                    Senior peer mentorship is 100% free under our Honor Code. Demanding or offering off-platform private payments leads to an immediate permanent ban.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Core Commitments Bento Strip */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-1">
               <div className="p-3 rounded-sm bg-card border border-border space-y-1 shadow-2xs">
                 <span className="text-[10px] font-mono uppercase text-muted-foreground font-semibold flex items-center gap-1">
                   <Code2 className="w-3 h-3 text-emerald-500" />
-                  Code Ownership
+                  IP Protection
                 </span>
-                <p className="text-xs font-bold text-foreground">100% Student Owned</p>
+                <p className="text-xs font-bold text-foreground">100% Student Code IP</p>
                 <p className="text-[10px] text-muted-foreground leading-snug">
-                  You retain all IP rights to all code, algorithms, and repositories.
+                  Zero claim on your algorithms, repos, or project solutions.
                 </p>
               </div>
 
               <div className="p-3 rounded-sm bg-card border border-border space-y-1 shadow-2xs">
                 <span className="text-[10px] font-mono uppercase text-muted-foreground font-semibold flex items-center gap-1">
-                  <Building2 className="w-3 h-3 text-emerald-500" />
-                  Governance
+                  <CreditCard className="w-3 h-3 text-emerald-500" />
+                  Fair Payments
                 </span>
-                <p className="text-xs font-bold text-foreground">Four-Pillar Model</p>
+                <p className="text-xs font-bold text-foreground">₹200 / 30 Days (No Auto-Renew)</p>
                 <p className="text-[10px] text-muted-foreground leading-snug">
-                  Strictly partitioned roles for Students, Faculty, Colleges, and Industry.
+                  Flat pass via Razorpay; no surprise auto-debits on expiration.
                 </p>
               </div>
 
               <div className="p-3 rounded-sm bg-card border border-border space-y-1 shadow-2xs">
                 <span className="text-[10px] font-mono uppercase text-muted-foreground font-semibold flex items-center gap-1">
-                  <Award className="w-3 h-3 text-emerald-500" />
-                  Test Integrity
+                  <Video className="w-3 h-3 text-emerald-500" />
+                  Honor Code
                 </span>
-                <p className="text-xs font-bold text-foreground">Standardized Bar</p>
+                <p className="text-xs font-bold text-foreground">100% Free Peer Advising</p>
                 <p className="text-[10px] text-muted-foreground leading-snug">
-                  Automated test runners with proctoring and anti-cheating protections.
+                  Senior mentorship is educational; off-platform solicitation is banned.
                 </p>
               </div>
 
               <div className="p-3 rounded-sm bg-card border border-border space-y-1 shadow-2xs">
                 <span className="text-[10px] font-mono uppercase text-muted-foreground font-semibold flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                  Accreditation
+                  <Scale className="w-3 h-3 text-emerald-500" />
+                  Clear Scope
                 </span>
-                <p className="text-xs font-bold text-foreground">AISHE Campus Gate</p>
+                <p className="text-xs font-bold text-foreground">No Employment Guarantee</p>
                 <p className="text-[10px] text-muted-foreground leading-snug">
-                  University placement cells (TPOs) audit all verified credentials.
+                  Objective skill matching tool; recruiters make final hiring calls.
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ── Main Two-Column Reading Area ─────────────────────────── */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 flex-1 w-full">
+        {/* ── Two-Column Layout (TOC + Main Content) ────────────────── */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* ── Sticky Left Navigation Sidebar (Desktop) ─────────── */}
+            {/* ── Left Sidebar (TOC) ─────────────────────────────────── */}
             <aside className="hidden lg:block lg:col-span-4 sticky top-20 space-y-4 print:hidden">
-              <div className="p-4 rounded-sm bg-card border border-border space-y-3.5 shadow-2xs">
+              <div className="p-4 rounded-sm bg-card border border-border space-y-3 shadow-2xs">
                 <div className="flex items-center justify-between border-b border-border pb-2.5">
-                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-mono">
+                  <span className="text-xs font-bold uppercase tracking-wider text-foreground font-mono">
                     Table of Contents
                   </span>
                   <span className="text-[10px] font-mono text-muted-foreground">
@@ -550,7 +675,7 @@ export default function TermsPage() {
                   <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="text"
-                    placeholder="Search terms & clauses..."
+                    placeholder="Search terms &amp; clauses..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-7 pr-7 py-1 text-xs bg-background border border-border rounded-xs text-foreground focus:outline-none focus:border-foreground/40 placeholder:text-muted-foreground/60"
@@ -597,20 +722,20 @@ export default function TermsPage() {
                 </nav>
               </div>
 
-              {/* Legal Council Quick Contact Card */}
+              {/* Legal Council Support Card */}
               <div className="p-3.5 rounded-sm bg-muted/30 border border-border space-y-2 text-xs">
                 <span className="font-mono text-[10px] uppercase font-bold text-muted-foreground block">
-                  Office of Legal Affairs
+                  Legal Compliance Desk
                 </span>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Questions regarding contracts, enterprise sponsorship, or IP ownership?
+                  Questions regarding contractual terms or enterprise licensing?
                 </p>
                 <a
-                  href="mailto:legal@portalacademia.edu"
+                  href="mailto:legal@portalacademia.ac.in"
                   className="inline-flex items-center gap-1.5 text-xs font-mono font-medium text-primary hover:underline"
                 >
                   <Mail className="w-3.5 h-3.5" />
-                  <span>legal@portalacademia.edu</span>
+                  <span>legal@portalacademia.ac.in</span>
                 </a>
               </div>
             </aside>
@@ -622,7 +747,7 @@ export default function TermsPage() {
                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
-                  placeholder="Search terms & clauses..."
+                  placeholder="Search terms &amp; clauses..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-8 pr-8 py-2 text-xs bg-card border border-border rounded-sm text-foreground focus:outline-none focus:border-foreground/40"
@@ -640,9 +765,9 @@ export default function TermsPage() {
 
               {filteredSections.length === 0 ? (
                 <div className="p-12 rounded-sm border border-dashed border-border text-center space-y-2">
-                  <p className="text-xs font-semibold text-foreground">No clauses matched "{searchQuery}"</p>
+                  <p className="text-xs font-semibold text-foreground">No terms matched "{searchQuery}"</p>
                   <p className="text-[11px] text-muted-foreground">
-                    Try searching for terms like "code", "assessment", "mentorship", "Groq", or "AISHE".
+                    Try searching for terms like "IP", "mentorship", "liability", "refund", or "acceptable use".
                   </p>
                   <button
                     type="button"
@@ -661,7 +786,6 @@ export default function TermsPage() {
                       id={sec.id}
                       className="p-6 rounded-sm bg-card border border-border space-y-4 shadow-2xs scroll-mt-24"
                     >
-                      {/* Clause Title & Quick Copy Link */}
                       <div className="flex items-start justify-between gap-3 border-b border-border/80 pb-3.5">
                         <div className="space-y-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -678,7 +802,6 @@ export default function TermsPage() {
                           </h2>
                         </div>
 
-                        {/* Copy Link Button */}
                         <button
                           type="button"
                           onClick={() => copySectionLink(sec.id)}
@@ -693,12 +816,10 @@ export default function TermsPage() {
                         </button>
                       </div>
 
-                      {/* Clause Summary */}
                       <p className="text-xs text-muted-foreground font-mono bg-muted/30 px-3 py-1.5 rounded-xs border-l-2 border-primary">
                         {sec.summary}
                       </p>
 
-                      {/* Clause Detailed Body */}
                       <div className="text-xs sm:text-sm text-foreground/90 leading-relaxed pt-1">
                         {sec.content}
                       </div>
@@ -712,16 +833,20 @@ export default function TermsPage() {
                 <div className="flex items-center gap-3 text-muted-foreground flex-wrap">
                   <span className="font-medium text-foreground">Related Governance:</span>
                   <Link to="/privacy" className="text-primary hover:underline font-mono">
-                    Privacy Policy &amp; Telemetry
+                    Privacy Policy
+                  </Link>
+                  <span>•</span>
+                  <Link to="/knowledge-base" className="text-primary hover:underline font-mono">
+                    Knowledge Base
                   </Link>
                   <span>•</span>
                   <Link to="/faq" className="text-primary hover:underline font-mono">
-                    FAQ &amp; Platform Guidelines
+                    FAQ
                   </Link>
                 </div>
                 <div className="flex items-center gap-1.5 text-muted-foreground font-mono text-[11px]">
                   <Scale className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Information Technology Act 2000 &amp; DPDP 2023</span>
+                  <span>IT Act 2000 &amp; DPDP Act Aligned</span>
                 </div>
               </div>
             </main>
@@ -731,8 +856,24 @@ export default function TermsPage() {
         {/* ── Minimal Swiss Footer ─────────────────────────────────── */}
         <footer className="py-6 px-4 sm:px-6 border-t border-border bg-card mt-auto print:border-none print:py-2">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground font-mono">
-            <span>© {new Date().getFullYear()} PortalAcademia. All rights reserved.</span>
-            <span>Academic Integrity &amp; Statutory Legal Framework</span>
+            <span>© {new Date().getFullYear()} PortalAcademia. Four-Pillar Legal Governance Specification.</span>
+            <div className="flex items-center gap-4">
+              <Link to="/terms" className="hover:text-foreground transition-colors">
+                Terms
+              </Link>
+              <span>•</span>
+              <Link to="/privacy" className="hover:text-foreground transition-colors">
+                Privacy
+              </Link>
+              <span>•</span>
+              <Link to="/knowledge-base" className="hover:text-foreground transition-colors">
+                Knowledge Base
+              </Link>
+              <span>•</span>
+              <Link to="/faq" className="hover:text-foreground transition-colors">
+                FAQ
+              </Link>
+            </div>
           </div>
         </footer>
       </div>

@@ -87,7 +87,7 @@ function GoogleButton({ label }: { label: string }) {
       id={`google-${label.toLowerCase().replace(/\s+/g, "-")}-btn`}
       type="button"
       onClick={handleGoogleLogin}
-      className="w-full flex items-center justify-center gap-2 h-9 px-4 text-xs font-medium rounded-md border border-border bg-background hover:bg-muted text-foreground transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      className="w-full flex items-center justify-center gap-2 h-9 px-3 text-xs font-medium rounded-md border border-border bg-background hover:bg-muted text-foreground transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
     >
       <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" aria-hidden>
         <path
@@ -111,6 +111,8 @@ function GoogleButton({ label }: { label: string }) {
     </button>
   );
 }
+
+
 
 // ============================================================
 // Or Divider
@@ -533,7 +535,7 @@ function SignInForm() {
 
       <OrDivider />
 
-      <GoogleButton label="Continue with Google Workspace" />
+      <GoogleButton label="Continue with Google" />
     </form>
   );
 }
@@ -784,7 +786,7 @@ function SignUpForm() {
 
         <OrDivider />
 
-        <GoogleButton label="Continue with Google Workspace" />
+        <GoogleButton label="Continue with Google" />
       </form>
 
       <OtpModal
@@ -807,9 +809,25 @@ export default function AuthPage() {
   const { isAuthenticated, user, isInitialized } = useAppSelector((s) => s.auth);
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
+  const [urlMessage, setUrlMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
+    const errorParam = searchParams.get("error");
+    if (errorParam === "github_connect_requires_login") {
+      setUrlMessage(
+        "GitHub accounts are used for verifying open-source pull requests. Please log in with your institutional credentials or Google first to connect GitHub."
+      );
+    } else if (errorParam === "github_oauth_not_configured") {
+      setUrlMessage("GitHub developer verification is not configured on this server environment.");
+    } else if (errorParam === "google_auth_failed") {
+      setUrlMessage("Google authentication encountered an issue. Please try again or sign in with your email.");
+    } else if (errorParam === "email_not_found") {
+      setUrlMessage("No registered account found with that email address. Please register first.");
+    } else if (errorParam) {
+      setUrlMessage(`Authentication notification: ${errorParam.replace(/_/g, " ")}`);
+    }
+
     if (searchParams.get("switch") === "true") {
       dispatch(signOutThunk());
       return;
@@ -965,6 +983,25 @@ export default function AuthPage() {
                 Auth Gateway
               </span>
             </div>
+
+            {urlMessage && (
+              <div
+                role="alert"
+                className="mb-4 flex items-start gap-2 rounded-md border border-primary/30 bg-primary/10 p-3 text-xs text-foreground font-medium"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0 text-primary mt-0.5" />
+                <div className="flex-1">
+                  <p>{urlMessage}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setUrlMessage(null)}
+                  className="text-muted-foreground hover:text-foreground text-[10px] uppercase font-mono ml-1"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             {/* Direct Tabs Toggle */}
             <div className="w-full h-8 mb-5 rounded-md bg-muted p-0.5 grid grid-cols-2">

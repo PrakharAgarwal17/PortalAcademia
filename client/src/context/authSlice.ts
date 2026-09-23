@@ -14,6 +14,10 @@ export interface AuthUser {
   isVerified: boolean;
   isOnboarded: boolean;
   isEmailVerified?: boolean;
+  githubId?: string | null;
+  githubUsername?: string | null;
+  githubAvatarUrl?: string | null;
+  githubProfileUrl?: string | null;
 }
 
 interface AuthState {
@@ -35,6 +39,10 @@ interface CheckAuthResponse {
     isVerified: boolean;
     isOnboarded: boolean;
     isEmailVerified?: boolean;
+    githubId?: string | null;
+    githubUsername?: string | null;
+    githubAvatarUrl?: string | null;
+    githubProfileUrl?: string | null;
   };
 }
 

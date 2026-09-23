@@ -7,11 +7,12 @@ import {
 } from "../controllers/applicationController.js";
 import isloggedIn from "../middleware/isloggedIn.js";
 import { isPublisher } from "../middleware/rbacMiddleware.js";
+import { applicationLimiter } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
 
 // Student / Faculty submits application
-router.post("/", isloggedIn, applyToOpportunity);
+router.post("/", isloggedIn, applicationLimiter, applyToOpportunity);
 
 // Applicant views their active applications
 router.get("/my-applications", isloggedIn, getMyApplications);

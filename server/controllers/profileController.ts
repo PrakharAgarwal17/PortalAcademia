@@ -156,11 +156,19 @@ export async function createOrUpdateProfile(req: Request, res: Response): Promis
             github,
         } = req.body;
 
+        // Retrieve existing profile first to verify state and protect immutable fields
+        const existingProfile = await profileModel.findOne({ userId: new mongoose.Types.ObjectId(userId) });
+
         // Build clean update object, only updating fields that are provided
         const updateData: Partial<IProfile> = {};
 
         if (category !== undefined) updateData.category = category;
-        if (accountType !== undefined) updateData.accountType = accountType;
+        // Role cannot be overwritten if profile already exists with an accountType
+        if (accountType !== undefined) {
+            if (!existingProfile || !existingProfile.accountType) {
+                updateData.accountType = accountType;
+            }
+        }
         if (name !== undefined) updateData.name = name;
         if (headline !== undefined) updateData.headline = headline;
 
@@ -175,9 +183,6 @@ export async function createOrUpdateProfile(req: Request, res: Response): Promis
         if (bio !== undefined) updateData.bio = bio;
         if (location !== undefined) updateData.location = location;
         if (website !== undefined) updateData.website = website;
-
-        // Retrieve existing profile to verify email continuity
-        const existingProfile = await profileModel.findOne({ userId: new mongoose.Types.ObjectId(userId) });
 
         // Calculate authenticated college email verification state:
         // A user's institutional email is ONLY marked verified if:
@@ -201,8 +206,56 @@ export async function createOrUpdateProfile(req: Request, res: Response): Promis
         if (institutionEmail !== undefined) updateData.institutionEmail = institutionEmail.trim();
         updateData.isEmailVerified = verifiedStatus;
         if (education !== undefined && Array.isArray(education)) updateData.education = education;
-        if (certifications !== undefined && Array.isArray(certifications)) updateData.certifications = certifications;
-        if (pastExperience !== undefined && Array.isArray(pastExperience)) updateData.pastExperience = pastExperience;
+
+        // Clean certifications: prevent client from injecting isVerified: true or fake verifiers
+        if (certifications !== undefined && Array.isArray(certifications)) {
+            const existingCerts = existingProfile?.certifications || [];
+            updateData.certifications = certifications.map((c: any) => {
+                const existing = c._id ? (existingCerts as any).id(c._id) : null;
+                const isContentUnchanged = existing &&
+                    existing.isVerified &&
+                    existing.title === c.title &&
+                    existing.issuer === c.issuer &&
+                    existing.credentialUrl === c.credentialUrl &&
+                    existing.upload === c.upload;
+
+                return {
+                    title: c.title,
+                    issuer: c.issuer,
+                    credentialUrl: c.credentialUrl,
+                    upload: c.upload,
+                    isVerified: Boolean(isContentUnchanged),
+                    verifiedBy: isContentUnchanged ? existing.verifiedBy : undefined,
+                    verifiedAt: isContentUnchanged ? existing.verifiedAt : undefined,
+                    verificationNotes: isContentUnchanged ? existing.verificationNotes : undefined,
+                };
+            }) as any;
+        }
+
+        // Clean pastExperience: prevent client from self-verifying experiences
+        if (pastExperience !== undefined && Array.isArray(pastExperience)) {
+            const existingExps = existingProfile?.pastExperience || [];
+            updateData.pastExperience = pastExperience.map((e: any) => {
+                const existing = e._id ? (existingExps as any).id(e._id) : null;
+                const isContentUnchanged = existing &&
+                    existing.isVerified &&
+                    existing.title === e.title &&
+                    existing.organization === e.organization &&
+                    existing.uploadImage === e.uploadImage;
+
+                return {
+                    title: e.title,
+                    organization: e.organization,
+                    uploadImage: e.uploadImage,
+                    duration: e.duration,
+                    description: e.description,
+                    isVerified: Boolean(isContentUnchanged),
+                    verifiedBy: isContentUnchanged ? existing.verifiedBy : undefined,
+                    verifiedAt: isContentUnchanged ? existing.verifiedAt : undefined,
+                };
+            }) as any;
+        }
+
         if (skills !== undefined && Array.isArray(skills)) updateData.skills = skills;
 
         // Faculty
@@ -278,9 +331,26 @@ export async function getProfileById(req: Request, res: Response): Promise<Respo
             return res.status(404).json({ message: "Profile not found" });
         }
 
+        // Mask PII / sensitive contact fields if viewer is not the profile owner
+        const isOwner = req.userId && profile.userId && profile.userId.toString() === req.userId;
+        const profileObj: any = profile.toObject ? profile.toObject() : { ...profile };
+
+        if (!isOwner) {
+            delete profileObj.contact;
+            delete profileObj.officialEmail;
+            if (profileObj.institutionEmail) {
+                const parts = profileObj.institutionEmail.split("@");
+                profileObj.institutionEmail = `${parts[0].slice(0, 2)}***@${parts[1] || ""}`;
+            }
+            if (profileObj.workEmail) {
+                const parts = profileObj.workEmail.split("@");
+                profileObj.workEmail = `${parts[0].slice(0, 2)}***@${parts[1] || ""}`;
+            }
+        }
+
         return res.status(200).json({
             success: true,
-            profile,
+            profile: profileObj,
         });
     } catch (error: any) {
         console.error("Get profile by id error:", error);

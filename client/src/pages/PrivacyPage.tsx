@@ -24,6 +24,10 @@ import {
   UserCheck,
   ShieldCheck,
   X,
+  CreditCard,
+  Cloud,
+  Globe,
+  FileText,
 } from "lucide-react";
 import { useTheme } from "@/context/theme";
 import { cn } from "@/lib/utils";
@@ -58,7 +62,7 @@ export default function PrivacyPage() {
           <p className="leading-relaxed">
             PortalAcademia gathers and processes personal and professional data strictly to deliver talent gap analysis, skill assessments, verified mentorship, and authenticated hiring pathways. Data collection is compartmentalized across our four ecosystem pillars:
           </p>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
             <div className="p-3.5 rounded-sm bg-card border border-border space-y-1.5 shadow-2xs">
               <div className="flex items-center justify-between">
@@ -79,7 +83,7 @@ export default function PrivacyPage() {
               <div className="flex items-center justify-between">
                 <span className="font-mono font-bold text-xs text-foreground flex items-center gap-1.5">
                   <Building2 className="w-3.5 h-3.5 text-primary" />
-                  Pillar 2: Faculty & Senior Mentors
+                  Pillar 2: Faculty &amp; Senior Mentors
                 </span>
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-xs bg-secondary border border-border text-muted-foreground">
                   Academic
@@ -120,47 +124,58 @@ export default function PrivacyPage() {
               </p>
             </div>
           </div>
+
+          <div className="pt-2 space-y-2">
+            <span className="font-semibold text-xs text-foreground block">
+              Additional Feature-Specific Data Telemetry
+            </span>
+            <ul className="list-disc pl-5 space-y-1.5 text-xs text-muted-foreground">
+              <li>
+                <strong className="text-foreground font-medium">Open-Source GitHub Contributions:</strong> When participating in enterprise open-source repositories, our system receives GitHub webhook payloads containing your GitHub username, PR number, PR title, commit identifiers, and merge status via SHA256 HMAC verification.
+              </li>
+              <li>
+                <strong className="text-foreground font-medium">Community Discussion Spaces:</strong> Messages, files, and membership status in enterprise community discussion spaces (<code className="font-mono text-[11px] bg-secondary text-primary px-1 py-0.5 rounded">/dashboard/community</code>) are visible to all verified participants within that space and are not private communications.
+              </li>
+            </ul>
+          </div>
         </div>
       ),
     },
     {
       id: "ai-processing",
       number: "2.0",
-      title: "AI Processing & Groq LLM Inference Governance",
+      title: "AI Career Guide & Groq LLM Inference Governance",
       icon: Bot,
-      badge: "Zero Code Gen",
-      summary: "How AI models (Qwen, GPT-OSS, Compound-Mini) process student career queries with zero code generation.",
+      badge: "7-Day TTL Storage",
+      summary: "Groq Cloud LLM inference boundaries, payload minimization, and 7-day automated conversation pruning.",
       content: (
         <div className="space-y-4">
           <p className="leading-relaxed">
-            PortalAcademia operates a contextual AI Career Guide workspace powered by high-speed Groq Cloud LLM endpoints. We maintain strict privacy and academic integrity boundaries for all automated inferences:
+            PortalAcademia operates a contextual AI Career Guide workspace powered by Groq Cloud API inference endpoints running Meta's LLaMA-3.3 70B architecture. We maintain strict privacy and data minimization boundaries for all automated inferences:
           </p>
 
           <div className="p-3.5 rounded-sm bg-secondary/40 border border-border space-y-2">
             <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
               <Shield className="w-3.5 h-3.5 text-primary" />
-              Ephemeral Model Inference Stack
+              Inference Data Pipeline &amp; Provider Policy
             </span>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Inference requests are routed to high-performance candidate models including{" "}
-              <code className="font-mono text-primary bg-secondary px-1.5 py-0.5 rounded-xs text-[11px]">qwen/qwen3.8-27b</code>,{" "}
-              <code className="font-mono text-primary bg-secondary px-1.5 py-0.5 rounded-xs text-[11px]">openai/gpt-oss-120b</code>, and{" "}
-              <code className="font-mono text-primary bg-secondary px-1.5 py-0.5 rounded-xs text-[11px]">groq/compound-mini</code>, with seamless failover to our deterministic local telemetry reasoning engine (<code className="font-mono text-primary bg-secondary px-1.5 py-0.5 rounded-xs text-[11px]">local-expert-rag</code>).
+              Inference queries are transmitted over encrypted TLS connections to Groq Cloud API endpoints located in the United States. Under Groq's standard commercial API data terms, customer prompt inputs are processed ephemerally and are not utilized to train foundation models. Passwords, session tokens, and academic transcripts are never sent to external AI compute endpoints.
             </p>
           </div>
 
           <ul className="list-disc pl-5 space-y-2 text-xs sm:text-sm text-muted-foreground">
             <li>
-              <strong className="text-foreground font-medium">Payload Minimization:</strong> Only the immediate career query, the preceding 6 conversation turns, and anonymized skill deficit indices are transmitted. Passwords, biometric identifiers, and raw academic transcripts are never sent to external LLM providers.
+              <strong className="text-foreground font-medium">Payload Minimization:</strong> Requests transmit only the candidate's immediate career question, the preceding 6 conversation turns, and anonymized skill deficit vectors required to contextualize advice.
             </li>
             <li>
-              <strong className="text-foreground font-medium">Zero Model Training on User Data:</strong> By explicit enterprise agreement with our inference compute providers, queries transmitted through PortalAcademia are ephemeral and are never retained, logged, or utilized to train future public foundation models.
+              <strong className="text-foreground font-medium">Strict 7-Day MongoDB TTL Log Expiration:</strong> All conversational AI telemetry is recorded in our internal <code className="font-mono text-primary bg-secondary px-1.5 py-0.5 rounded-xs text-[11px]">AiLog</code> collection with an automatic native MongoDB TTL index (<code className="font-mono text-primary bg-secondary px-1.5 py-0.5 rounded-xs text-[11px]">expireAfterSeconds: 604800</code>). After exactly 7 days, conversation records are automatically deleted from database storage.
             </li>
             <li>
-              <strong className="text-foreground font-medium">Code Generation Prohibition:</strong> By platform policy and system prompt enforcement, the AI Counselor provides guidance, deficit breakdowns, and interview prep, but is strictly restricted from generating executable source code or answers to skill assessments.
+              <strong className="text-foreground font-medium">Storage Safety Pruning:</strong> To prevent database saturation, automatic batch pruning (<code className="font-mono text-primary bg-secondary px-1.5 py-0.5 rounded-xs text-[11px]">pruneIfThresholdExceeded</code>) discards historical logs if aggregate telemetry exceeds storage safety quotas.
             </li>
             <li>
-              <strong className="text-foreground font-medium">Audit Telemetry:</strong> Prompts, response text, model identification, token metrics, and latency are securely logged in our MongoDB telemetry store for academic integrity auditing and model monitoring.
+              <strong className="text-foreground font-medium">Academic Integrity Constraints:</strong> The AI Guide system prompt explicitly prohibits the generation of graded assignment code, assessment answers, or plagiarized artifacts.
             </li>
           </ul>
         </div>
@@ -172,37 +187,37 @@ export default function PrivacyPage() {
       title: "WebRTC 1-on-1 Advising & Hardware Teardown Protocol",
       icon: Video,
       badge: "P2P Encrypted",
-      summary: "Direct peer-to-peer WebRTC video calling with mandatory hardware track termination.",
+      summary: "Peer-to-peer audio/video streaming, zero server-side recording, and guaranteed camera/mic hardware release.",
       content: (
         <div className="space-y-4">
           <p className="leading-relaxed">
-            PortalAcademia provides direct WebRTC 1-on-1 audio, video, and screen-sharing sessions between verified senior scholars and junior student mentees. We enforce stringent privacy controls over local hardware devices:
+            PortalAcademia features a 1-on-1 peer mentorship engine connecting junior scholars with verified 4th-year senior mentors. Sessions run via browser-native WebRTC peer-to-peer streaming with strict device-level privacy safeguards:
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="p-3 rounded-sm bg-card border border-border space-y-1">
+            <div className="p-3.5 rounded-sm bg-card border border-border space-y-1.5 shadow-2xs">
               <span className="font-mono font-bold text-xs text-foreground flex items-center gap-1.5">
                 <Lock className="w-3.5 h-3.5 text-emerald-500" />
-                End-to-End Media Encryption
+                Zero Server-Side Media Recording
               </span>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Video and audio streams flow directly peer-to-peer (P2P) between participants via DTLS-SRTP encryption. Raw media packets are never routed through or stored on PortalAcademia application servers.
+                Audio, video, and screen-sharing packets stream directly between participants via DTLS-SRTP encryption. Relays via Google STUN or Metered TURN are utilized strictly for NAT traversal; media packets are never recorded, tapped, or stored on PortalAcademia application servers.
               </p>
             </div>
 
-            <div className="p-3 rounded-sm bg-card border border-border space-y-1">
+            <div className="p-3.5 rounded-sm bg-card border border-border space-y-1.5 shadow-2xs">
               <span className="font-mono font-bold text-xs text-foreground flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                Guaranteed Hardware Release
+                Deterministic Hardware Track Teardown
               </span>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                When a video session concludes or the modal unmounts, all active camera, microphone, and display media tracks are explicitly halted and detached from browser memory, ensuring hardware indicator LEDs immediately extinguish.
+                When a video session concludes, our <code className="font-mono text-[11px] bg-secondary text-primary px-1 py-0.5 rounded">forceStopAllHardwareMedia()</code> protocol traverses all active media tracks across video elements, peer connections, and global stream registries, forcing hardware indicator lights (webcam and microphone LEDs) to extinguish immediately.
               </p>
             </div>
           </div>
 
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Signaling servers record only high-level call telemetry (session start time, completion timestamp, logged duration in minutes, and optional mentee feedback ratings) necessary for issuing verifiable mentorship credentials and calculating ATS profile boosts.
+            Our signaling servers log high-level metadata only: session start timestamp, completion timestamp, logged duration in minutes, and optional mentee feedback ratings. This metadata is strictly required to enforce term completion integrity gates and award verified +20 ATS profile boosts.
           </p>
         </div>
       ),
@@ -210,70 +225,143 @@ export default function PrivacyPage() {
     {
       id: "authentication-security",
       number: "4.0",
-      title: "Authentication, Session Cookies & Cryptographic Storage",
+      title: "Authentication, Session Cookies & Storage Architecture",
       icon: KeyRound,
       badge: "HttpOnly Cookies",
-      summary: "HttpOnly cookie session architecture with zero localStorage JWT vulnerability.",
+      summary: "HttpOnly SameSite session tokens, bcrypt hashing, and transparent disclosure of ongoing security controls.",
       content: (
         <div className="space-y-4">
           <p className="leading-relaxed">
-            PortalAcademia implements defense-in-depth architectural security to eliminate client-side token exposure and credential interception:
+            PortalAcademia implements a standards-compliant session and authentication architecture designed to minimize token exposure and prevent client-side credential tampering:
           </p>
 
-          <div className="p-3.5 rounded-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 space-y-1">
-            <span className="font-mono font-bold text-xs flex items-center gap-1.5">
-              <Lock className="w-3.5 h-3.5" />
-              Defense-in-Depth Cookie Architecture
+          <div className="p-3.5 rounded-sm bg-secondary/40 border border-border space-y-1.5 text-xs text-muted-foreground">
+            <span className="font-mono font-bold text-xs text-foreground flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5 text-primary" />
+              Cookie Disclosure &amp; Scope
             </span>
-            <p className="text-xs leading-relaxed">
-              Authentication tokens are stored exclusively in encrypted, <code className="font-mono text-[11px] bg-secondary text-primary px-1.5 py-0.5 rounded-xs">HttpOnly</code>, <code className="font-mono text-[11px] bg-secondary text-primary px-1.5 py-0.5 rounded-xs">SameSite=Lax</code> cookies. Tokens are inaccessible to client-side JavaScript, protecting users against cross-site scripting (XSS) session hijacking.
+            <p className="leading-relaxed">
+              We use strictly necessary functional session cookies. PortalAcademia does not deploy third-party advertising cookies, marketing trackers, or cross-site tracking pixels:
             </p>
+            <ul className="list-disc pl-5 space-y-1 pt-1 text-foreground/90 font-mono text-[11px]">
+              <li><code className="text-primary font-bold">accesstoken</code> (15-min lifespan): Stateless HttpOnly JWT used for authenticated API calls.</li>
+              <li><code className="text-primary font-bold">refreshtoken</code> (7-day or 30-day lifespan): HttpOnly token used for seamless session rotation.</li>
+            </ul>
           </div>
 
           <ul className="list-disc pl-5 space-y-2 text-xs sm:text-sm text-muted-foreground">
             <li>
-              <strong className="text-foreground font-medium">Bcrypt Password Salting:</strong> User credentials are cryptographically salted and hashed using bcrypt with adaptive cost factors prior to database persistence. Plaintext passwords are never logged, cached, or stored.
+              <strong className="text-foreground font-medium">Bcrypt Password Hashing:</strong> Passwords are cryptographically salted and hashed using bcrypt (10 rounds) prior to database persistence. Plaintext credentials are never written to disk or logs.
             </li>
             <li>
-              <strong className="text-foreground font-medium">Enforced TLS 1.3 Transport:</strong> All data in transit between client browsers and API endpoints is encrypted using Transport Layer Security (TLS 1.3) with mandatory CORS origin verification.
+              <strong className="text-foreground font-medium">Zero LocalStorage Credentials:</strong> Authentication tokens and sensitive session tokens are never stored in browser <code className="font-mono text-[11px] bg-secondary text-foreground px-1 py-0.5 rounded">localStorage</code> or <code className="font-mono text-[11px] bg-secondary text-foreground px-1 py-0.5 rounded">sessionStorage</code>, mitigating script-based token harvesting.
             </li>
             <li>
-              <strong className="text-foreground font-medium">Zero LocalStorage Credentials:</strong> Neither JWT access tokens, session identifiers, nor sensitive profile metadata are ever placed in browser <code className="font-mono text-[11px] bg-secondary text-foreground px-1 py-0.5 rounded">localStorage</code> or <code className="font-mono text-[11px] bg-secondary text-foreground px-1 py-0.5 rounded">sessionStorage</code>.
+              <strong className="text-foreground font-medium">Security Posture Disclosure:</strong> While core session authentication relies on HttpOnly cookies and TLS 1.3 transport, the platform operates under a continuous security remediation roadmap. Secondary safeguards (including enhanced sliding-window rate limiting on OTP routes, fine-grained CSP headers, and automated vulnerability scanning) are actively being hardened.
             </li>
           </ul>
         </div>
       ),
     },
     {
-      id: "visibility-sharing",
+      id: "processors-infrastructure",
       number: "5.0",
-      title: "Recruiter Discovery & Zero Commercial Data Brokerage",
-      icon: Eye,
-      badge: "No Data Sales",
-      summary: "Zero commercial data selling; corporate access granted solely via explicit application or open discovery.",
+      title: "Third-Party Data Processors & Infrastructure Hosting",
+      icon: Cloud,
+      badge: "Named Processors",
+      summary: "Full disclosure of Cloudinary (media), Razorpay (payments), MongoDB Atlas (AWS Mumbai), and Groq Cloud (AI).",
       content: (
         <div className="space-y-4">
           <p className="leading-relaxed">
-            PortalAcademia operates under a strict <strong className="text-foreground">Zero Third-Party Data Monetization</strong> policy. Student candidate telemetry is never sold to marketing brokers or ad networks. Corporate recruiters can view student profiles only under specific authorized conditions:
+            To provide robust enterprise functionality, PortalAcademia contracts with trusted third-party infrastructure providers that act as data processors under contractual data protection terms:
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="p-3.5 rounded-sm bg-card border border-border space-y-1.5 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="font-mono font-bold text-xs text-foreground flex items-center gap-1.5">
+                  <Cloud className="w-3.5 h-3.5 text-primary" />
+                  Cloudinary Ltd.
+                </span>
+                <span className="text-[10px] font-mono text-muted-foreground">Media &amp; CDN</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Utilized exclusively for optimized storage and delivery of uploaded profile pictures, resume documents (PDF, DOCX), and institutional credential verification media. Files are accessed via secure HTTPS URLs.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-sm bg-card border border-border space-y-1.5 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="font-mono font-bold text-xs text-foreground flex items-center gap-1.5">
+                  <CreditCard className="w-3.5 h-3.5 text-primary" />
+                  Razorpay Software Pvt. Ltd.
+                </span>
+                <span className="text-[10px] font-mono text-muted-foreground">Payment Gateway</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Processes credit/debit card, UPI, and net banking payments for Premium Scholar subscriptions. PortalAcademia collects and stores only the Razorpay order ID, payment ID, and subscription expiration date. PortalAcademia never collects or stores raw credit card numbers or banking PINs.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-sm bg-card border border-border space-y-1.5 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="font-mono font-bold text-xs text-foreground flex items-center gap-1.5">
+                  <Database className="w-3.5 h-3.5 text-primary" />
+                  MongoDB Atlas (AWS Mumbai)
+                </span>
+                <span className="text-[10px] font-mono text-muted-foreground">Primary Database</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Primary application database clusters are deployed within the <strong>AWS Asia Pacific (Mumbai / ap-south-1)</strong> region, ensuring primary student and institutional data is stored within the territory of India in alignment with DPDP Act sovereignty guidelines.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-sm bg-card border border-border space-y-1.5 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="font-mono font-bold text-xs text-foreground flex items-center gap-1.5">
+                  <Bot className="w-3.5 h-3.5 text-primary" />
+                  Groq Cloud Inc.
+                </span>
+                <span className="text-[10px] font-mono text-muted-foreground">AI Compute</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Processes real-time inference queries for the AI Career Guide. Data is processed ephemerally on US-based cloud inference infrastructure without persistent retention or model training by Groq.
+              </p>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "visibility-sharing",
+      number: "6.0",
+      title: "Recruiter Discovery & Zero Commercial Data Brokerage",
+      icon: Eye,
+      badge: "No Data Sales",
+      summary: "Candidate telemetry is never sold to marketing brokers; corporate access is strictly gated.",
+      content: (
+        <div className="space-y-4">
+          <p className="leading-relaxed">
+            PortalAcademia operates under an absolute <strong className="text-foreground">Zero Third-Party Data Monetization</strong> policy. Student candidate telemetry is never sold, leased, or traded to marketing brokers, data aggregators, or ad networks. Corporate recruiters access candidate profiles exclusively under three transparent workflows:
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-3 rounded-sm bg-card border border-border space-y-1">
               <span className="font-mono font-bold text-xs text-foreground">1. Direct Application</span>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                When a candidate applies to a verified job or internship listing, the posting recruiter receives their verified profile, match score, and assessment badges.
+                When you apply to a published job or internship listing, the posting recruiter receives your verified profile, resume artifact, match score, and assessment badges.
               </p>
             </div>
             <div className="p-3 rounded-sm bg-card border border-border space-y-1">
               <span className="font-mono font-bold text-xs text-foreground">2. Talent Discovery</span>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                If discoverability is enabled, verified recruiters can review candidate competency matrices and verified skill scores.
+                If discoverability is enabled, verified corporate recruiters can review candidate competency matrices and verified skill scores.
               </p>
             </div>
             <div className="p-3 rounded-sm bg-card border border-border space-y-1">
-              <span className="font-mono font-bold text-xs text-foreground">3. Institutional Seal</span>
+              <span className="font-mono font-bold text-xs text-foreground">3. Institutional Endorsement</span>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Placement officers (TPOs) may endorse select candidates, attaching an official verified seal to student requisitions.
+                College placement officers (TPOs) may endorse select candidates, attaching an official verified seal to student requisitions.
               </p>
             </div>
           </div>
@@ -282,24 +370,24 @@ export default function PrivacyPage() {
     },
     {
       id: "dpdp-compliance",
-      number: "6.0",
-      title: "DPDP Act 2023 Compliance & Data Subject Rights",
+      number: "7.0",
+      title: "DPDP Act 2023 Compliance, Sovereign Rights & Age Policy",
       icon: FileCheck2,
-      badge: "Statutory Rights",
-      summary: "Full compliance with India's Digital Personal Data Protection Act 2023, including right to correction and erasure.",
+      badge: "DPDP Aligned",
+      summary: "Full compliance with India's Digital Personal Data Protection Act 2023, data portability, erasure, and youth policy.",
       content: (
         <div className="space-y-4">
           <p className="leading-relaxed">
-            In alignment with India's <strong>Digital Personal Data Protection Act (DPDP Act, 2023)</strong> and international academic data governance standards, PortalAcademia guarantees all users sovereign rights over their digital identity:
+            In compliance with India's <strong>Digital Personal Data Protection Act (DPDP Act, 2023)</strong> and international academic privacy principles, PortalAcademia guarantees all users sovereign control over their digital identity:
           </p>
 
           <div className="space-y-2.5">
             <div className="p-3 rounded-sm bg-card border border-border flex items-start gap-3">
               <Check className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
               <div>
-                <span className="text-xs font-bold text-foreground">Right to Access & Data Portability</span>
+                <span className="text-xs font-bold text-foreground">Right to Access &amp; Data Portability</span>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  Request an export of your complete profile history, verified skill achievements, and AI consultation logs in machine-readable JSON format.
+                  Request a complete archive of your profile data, verified skill badges, application records, and AI consultation logs in machine-readable JSON format.
                 </p>
               </div>
             </div>
@@ -307,9 +395,9 @@ export default function PrivacyPage() {
             <div className="p-3 rounded-sm bg-card border border-border flex items-start gap-3">
               <Check className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
               <div>
-                <span className="text-xs font-bold text-foreground">Right to Correction & Rectification</span>
+                <span className="text-xs font-bold text-foreground">Right to Correction &amp; Rectification</span>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  Modify inaccurate profile details, uploaded certification links, or contact preferences directly via your account settings.
+                  Update inaccurate profile details, uploaded certification credentials, or contact preferences directly via your profile settings.
                 </p>
               </div>
             </div>
@@ -319,7 +407,7 @@ export default function PrivacyPage() {
               <div>
                 <span className="text-xs font-bold text-foreground">Right to Permanent Erasure ("Right to be Forgotten")</span>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  Initiate permanent account deletion and purging of non-regulatory telemetry records by emailing our Data Protection Officer at <span className="font-mono text-primary font-medium">privacy@portalacademia.edu</span>.
+                  Request permanent account deletion and purging of non-regulatory telemetry records by emailing our Data Protection Officer at <span className="font-mono text-primary font-medium">dpo@portalacademia.ac.in</span>.
                 </p>
               </div>
             </div>
@@ -329,17 +417,26 @@ export default function PrivacyPage() {
               <div>
                 <span className="text-xs font-bold text-foreground">Consent Withdrawal</span>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  You may withdraw consent for recruiter talent discovery or email digest notifications at any time with immediate effect.
+                  You may withdraw consent for recruiter talent discovery or email notification dispatches at any time with immediate effect.
                 </p>
               </div>
             </div>
+          </div>
+
+          <div className="p-3.5 rounded-sm bg-muted/40 border border-border space-y-1 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground block">
+              Higher Education Eligibility &amp; Policy on Minors
+            </span>
+            <p className="leading-relaxed">
+              PortalAcademia is designed for students enrolled in recognized higher education institutions, polytechnics, and universities, who are typically 18 years of age or older. Students under the age of 18 enrolled in university bridge or diploma programs must access the platform with institutional or parental/guardian consent. PortalAcademia does not knowingly collect personal data from children under 13.
+            </p>
           </div>
         </div>
       ),
     },
     {
       id: "institutional-governance",
-      number: "7.0",
+      number: "8.0",
       title: "Institutional Telemetry & AISHE Accreditation Governance",
       icon: Building2,
       badge: "Regulatory",
@@ -361,7 +458,7 @@ export default function PrivacyPage() {
     },
     {
       id: "dpo-grievance",
-      number: "8.0",
+      number: "9.0",
       title: "Data Protection Officer & Statutory Grievance Redressal",
       icon: Mail,
       badge: "72h SLA",
@@ -378,7 +475,7 @@ export default function PrivacyPage() {
                 <span className="font-mono text-muted-foreground uppercase text-[10px] block">
                   Office of the Data Protection Officer
                 </span>
-                <p className="font-semibold text-foreground mt-0.5">PortalAcademia Trust & Safety Council</p>
+                <p className="font-semibold text-foreground mt-0.5">PortalAcademia Trust &amp; Safety Council</p>
                 <p className="text-muted-foreground">Technology Innovation Hub, IIT Bombay Research Park</p>
                 <p className="text-muted-foreground">Powai, Mumbai, Maharashtra 400076, India</p>
               </div>
@@ -388,10 +485,10 @@ export default function PrivacyPage() {
                     Direct Email Redressal
                   </span>
                   <a
-                    href="mailto:dpo@portalacademia.edu"
+                    href="mailto:dpo@portalacademia.ac.in"
                     className="font-mono font-medium text-primary hover:underline"
                   >
-                    dpo@portalacademia.edu
+                    dpo@portalacademia.ac.in
                   </a>
                 </div>
                 <div>
@@ -468,7 +565,7 @@ export default function PrivacyPage() {
 
   return (
     <>
-      <title>Privacy Policy & Telemetry Governance — PortalAcademia</title>
+      <title>Privacy Policy &amp; Telemetry Governance — PortalAcademia</title>
       <meta
         name="description"
         content="PortalAcademia comprehensive data governance specification covering DPDP Act 2023 compliance, Groq LLM inference, HttpOnly session tokens, and student IP protection."
@@ -478,7 +575,6 @@ export default function PrivacyPage() {
         {/* ── Top Header Navigation Bar ──────────────────────────────── */}
         <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur-xs print:hidden">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-            {/* Left: Breadcrumb / Logo */}
             <div className="flex items-center gap-3 min-w-0">
               <Link
                 to="/"
@@ -498,7 +594,6 @@ export default function PrivacyPage() {
               </span>
             </div>
 
-            {/* Center: Legal Suite Document Switcher */}
             <div className="hidden md:flex items-center gap-1 bg-secondary/60 p-1 rounded-sm border border-border text-xs">
               <span className="px-3 py-1 rounded-xs font-semibold bg-card text-foreground shadow-2xs">
                 Privacy Policy
@@ -515,9 +610,14 @@ export default function PrivacyPage() {
               >
                 FAQ
               </Link>
+              <Link
+                to="/knowledge-base"
+                className="px-3 py-1 rounded-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Knowledge Base
+              </Link>
             </div>
 
-            {/* Right: Actions */}
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -565,7 +665,7 @@ export default function PrivacyPage() {
                   STATUTORY TELEMETRY SPECIFICATION
                 </span>
                 <span className="text-muted-foreground">•</span>
-                <span className="text-muted-foreground">REVISION 3.2.0</span>
+                <span className="text-muted-foreground">REVISION 3.3.0</span>
                 <span className="text-muted-foreground">•</span>
                 <span className="text-muted-foreground">DPDP ACT (INDIA) 2023 ALIGNED</span>
               </div>
@@ -579,8 +679,43 @@ export default function PrivacyPage() {
               </p>
             </div>
 
+            {/* Plain-Language Executive Summary Panel (DPDP Transparency Expectation) */}
+            <div className="p-4 sm:p-5 rounded-md border border-border bg-card/90 shadow-sm space-y-3">
+              <div className="flex items-center justify-between border-b border-border/80 pb-2">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-primary" />
+                  <span className="font-mono font-bold text-xs uppercase text-foreground">
+                    Plain-Language Executive Summary (TL;DR)
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold">
+                  DPDP Act Plain-Text Standard
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-muted-foreground leading-relaxed">
+                <div className="space-y-1">
+                  <strong className="text-foreground block font-mono text-[11px]">1. What We Collect &amp; Why</strong>
+                  <p>
+                    Only academic, assessment, and credential data needed to benchmark your skills, connect you to recruiters, and coordinate 1-on-1 peer mentorship.
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <strong className="text-foreground block font-mono text-[11px]">2. What We NEVER Do</strong>
+                  <p>
+                    We never sell, rent, or trade your personal records, resumes, or assessment transcripts to third-party ad networks or data brokers.
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <strong className="text-foreground block font-mono text-[11px]">3. Your Rights &amp; Sovereign Control</strong>
+                  <p>
+                    You have full DPDP Act rights to export, correct, or permanently erase your account data. Our designated DPO responds within 72 hours.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Executive Key Guarantees Bento Strip */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-1">
               <div className="p-3 rounded-sm bg-card border border-border space-y-1 shadow-2xs">
                 <span className="text-[10px] font-mono uppercase text-muted-foreground font-semibold flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3 text-emerald-500" />
@@ -599,43 +734,43 @@ export default function PrivacyPage() {
                 </span>
                 <p className="text-xs font-bold text-foreground">HttpOnly Auth Cookies</p>
                 <p className="text-[10px] text-muted-foreground leading-snug">
-                  Tokens are never stored in localStorage, blocking script theft.
-                </p>
-              </div>
-
-              <div className="p-3 rounded-sm bg-card border border-border space-y-1 shadow-2xs">
-                <span className="text-[10px] font-mono uppercase text-muted-foreground font-semibold flex items-center gap-1">
-                  <Bot className="w-3 h-3 text-emerald-500" />
-                  AI Boundaries
-                </span>
-                <p className="text-xs font-bold text-foreground">Zero Model Training</p>
-                <p className="text-[10px] text-muted-foreground leading-snug">
-                  Groq LLM queries are ephemeral and never used for public training.
+                  Tokens restricted from client scripts, eliminating localStorage theft.
                 </p>
               </div>
 
               <div className="p-3 rounded-sm bg-card border border-border space-y-1 shadow-2xs">
                 <span className="text-[10px] font-mono uppercase text-muted-foreground font-semibold flex items-center gap-1">
                   <Clock className="w-3 h-3 text-emerald-500" />
-                  Statutory SLA
+                  AI Ephemerality
                 </span>
-                <p className="text-xs font-bold text-foreground">&lt; 72h DPO Redressal</p>
+                <p className="text-xs font-bold text-foreground">7-Day TTL Storage</p>
                 <p className="text-[10px] text-muted-foreground leading-snug">
-                  Formal DPDP Act grievance response SLA under 72 business hours.
+                  Groq Cloud inference; chat history automatically erased after 7 days.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-sm bg-card border border-border space-y-1 shadow-2xs">
+                <span className="text-[10px] font-mono uppercase text-muted-foreground font-semibold flex items-center gap-1">
+                  <Globe className="w-3 h-3 text-emerald-500" />
+                  Sovereign Hosting
+                </span>
+                <p className="text-xs font-bold text-foreground">AWS Mumbai (India)</p>
+                <p className="text-[10px] text-muted-foreground leading-snug">
+                  Primary databases hosted in India per DPDP Act territorial expectations.
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ── Main Two-Column Reading Area ─────────────────────────── */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 flex-1 w-full">
+        {/* ── Two-Column Layout (TOC + Main Content) ────────────────── */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* ── Sticky Left Navigation Sidebar (Desktop) ─────────── */}
+            {/* ── Left Sidebar (TOC) ─────────────────────────────────── */}
             <aside className="hidden lg:block lg:col-span-4 sticky top-20 space-y-4 print:hidden">
-              <div className="p-4 rounded-sm bg-card border border-border space-y-3.5 shadow-2xs">
+              <div className="p-4 rounded-sm bg-card border border-border space-y-3 shadow-2xs">
                 <div className="flex items-center justify-between border-b border-border pb-2.5">
-                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-mono">
+                  <span className="text-xs font-bold uppercase tracking-wider text-foreground font-mono">
                     Table of Contents
                   </span>
                   <span className="text-[10px] font-mono text-muted-foreground">
@@ -696,7 +831,7 @@ export default function PrivacyPage() {
               </div>
 
               {/* DPO Quick Contact Card */}
-              <div className="p-3.5 rounded-sm bg-muted/30 border border-border space-y-2 text-xs">
+              <div id="dpo-card" className="p-3.5 rounded-sm bg-muted/30 border border-border space-y-2 text-xs">
                 <span className="font-mono text-[10px] uppercase font-bold text-muted-foreground block">
                   Data Protection Officer
                 </span>
@@ -704,11 +839,11 @@ export default function PrivacyPage() {
                   Have an enquiry or want to exercise your DPDP rights?
                 </p>
                 <a
-                  href="mailto:privacy@portalacademia.edu"
+                  href="mailto:dpo@portalacademia.ac.in"
                   className="inline-flex items-center gap-1.5 text-xs font-mono font-medium text-primary hover:underline"
                 >
                   <Mail className="w-3.5 h-3.5" />
-                  <span>privacy@portalacademia.edu</span>
+                  <span>dpo@portalacademia.ac.in</span>
                 </a>
               </div>
             </aside>
@@ -740,7 +875,7 @@ export default function PrivacyPage() {
                 <div className="p-12 rounded-sm border border-dashed border-border text-center space-y-2">
                   <p className="text-xs font-semibold text-foreground">No clauses matched "{searchQuery}"</p>
                   <p className="text-[11px] text-muted-foreground">
-                    Try searching for terms like "cookies", "Groq", "WebRTC", "DPDP", or "collection".
+                    Try searching for terms like "cookies", "Groq", "WebRTC", "DPDP", "Cloudinary", or "Razorpay".
                   </p>
                   <button
                     type="button"
@@ -759,7 +894,6 @@ export default function PrivacyPage() {
                       id={sec.id}
                       className="p-6 rounded-sm bg-card border border-border space-y-4 shadow-2xs scroll-mt-24"
                     >
-                      {/* Clause Title & Quick Copy Link */}
                       <div className="flex items-start justify-between gap-3 border-b border-border/80 pb-3.5">
                         <div className="space-y-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -776,7 +910,6 @@ export default function PrivacyPage() {
                           </h2>
                         </div>
 
-                        {/* Copy Link Button */}
                         <button
                           type="button"
                           onClick={() => copySectionLink(sec.id)}
@@ -791,12 +924,10 @@ export default function PrivacyPage() {
                         </button>
                       </div>
 
-                      {/* Clause Summary */}
                       <p className="text-xs text-muted-foreground font-mono bg-muted/30 px-3 py-1.5 rounded-xs border-l-2 border-primary">
                         {sec.summary}
                       </p>
 
-                      {/* Clause Detailed Body */}
                       <div className="text-xs sm:text-sm text-foreground/90 leading-relaxed pt-1">
                         {sec.content}
                       </div>
@@ -813,13 +944,17 @@ export default function PrivacyPage() {
                     Terms &amp; Conditions
                   </Link>
                   <span>•</span>
+                  <Link to="/knowledge-base" className="text-primary hover:underline font-mono">
+                    Knowledge Base
+                  </Link>
+                  <span>•</span>
                   <Link to="/faq" className="text-primary hover:underline font-mono">
-                    FAQ &amp; Platform Guidelines
+                    FAQ
                   </Link>
                 </div>
                 <div className="flex items-center gap-1.5 text-muted-foreground font-mono text-[11px]">
                   <Shield className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>ISO/IEC 27001 &amp; DPDP 2023 Aligned</span>
+                  <span>DPDP Act 2023 &amp; AISHE Aligned</span>
                 </div>
               </div>
             </main>
@@ -829,8 +964,24 @@ export default function PrivacyPage() {
         {/* ── Minimal Swiss Footer ─────────────────────────────────── */}
         <footer className="py-6 px-4 sm:px-6 border-t border-border bg-card mt-auto print:border-none print:py-2">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground font-mono">
-            <span>© {new Date().getFullYear()} PortalAcademia. All rights reserved.</span>
-            <span>Security &amp; Statutory Telemetry Infrastructure</span>
+            <span>© {new Date().getFullYear()} PortalAcademia. DPDP Act 2023 Aligned Telemetry Specification.</span>
+            <div className="flex items-center gap-4">
+              <Link to="/terms" className="hover:text-foreground transition-colors">
+                Terms
+              </Link>
+              <span>•</span>
+              <Link to="/privacy" className="hover:text-foreground transition-colors">
+                Privacy
+              </Link>
+              <span>•</span>
+              <Link to="/knowledge-base" className="hover:text-foreground transition-colors">
+                Knowledge Base
+              </Link>
+              <span>•</span>
+              <Link to="/faq" className="hover:text-foreground transition-colors">
+                FAQ
+              </Link>
+            </div>
           </div>
         </footer>
       </div>

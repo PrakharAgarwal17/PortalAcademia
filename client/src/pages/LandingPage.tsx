@@ -831,15 +831,14 @@ function Footer() {
                 </Link>
               </li>
               <li>
-                <a href="#faq" className="hover:text-foreground transition-colors">
-                  Knowledge Base
-                </a>
+                <Link to="/knowledge-base" className="hover:text-foreground transition-colors">
+                  Knowledge Base &amp; Guides
+                </Link>
               </li>
               <li>
-                <span className="text-muted-foreground/70">Institutional Docs (2026)</span>
-              </li>
-              <li>
-                <span className="text-muted-foreground/70">API Reference</span>
+                <Link to="/knowledge-base#institution-guide" className="hover:text-foreground transition-colors">
+                  Institution Onboarding Guide
+                </Link>
               </li>
             </ul>
           </div>
@@ -850,7 +849,7 @@ function Footer() {
             <ul className="space-y-2.5 text-muted-foreground">
               <li>
                 <Link to="/terms" className="hover:text-foreground transition-colors">
-                  Terms & Conditions
+                  Terms &amp; Conditions
                 </Link>
               </li>
               <li>
@@ -859,10 +858,20 @@ function Footer() {
                 </Link>
               </li>
               <li>
-                <span className="font-mono text-[11px] text-muted-foreground">DPDP Standards</span>
+                <Link to="/privacy#dpdp-compliance" className="hover:text-foreground transition-colors font-mono text-[11px] block">
+                  DPDP Act Compliance
+                </Link>
               </li>
               <li>
-                <span className="font-mono text-[11px] text-muted-foreground">NEP 2020 Aligned</span>
+                <Link to="/knowledge-base#nep-alignment" className="hover:text-foreground transition-colors font-mono text-[11px] block">
+                  NEP 2020 Framework
+                </Link>
+              </li>
+              <li>
+                <Link to="/privacy#dpo-grievance" className="hover:text-foreground transition-colors font-mono text-[11px] text-primary flex items-center gap-1">
+                  <span>Grievance &amp; DPO Desk</span>
+                  <span className="text-[10px] text-emerald-500 font-semibold">72h SLA</span>
+                </Link>
               </li>
             </ul>
           </div>
@@ -882,6 +891,10 @@ function Footer() {
             <span>•</span>
             <Link to="/faq" className="hover:text-foreground transition-colors">
               FAQ
+            </Link>
+            <span>•</span>
+            <Link to="/knowledge-base" className="hover:text-foreground transition-colors">
+              Knowledge Base
             </Link>
           </div>
         </div>

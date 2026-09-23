@@ -152,20 +152,36 @@ export function registerMentorshipSocket(io: Server, socket: Socket) {
     /**
      * Explicit End Call or Hang Up
      */
-    socket.on("end_call", async (data: { pairingId: string; durationMinutes?: number }) => {
+    socket.on("end_call", async (data: { pairingId: string }) => {
         try {
             if (!data?.pairingId || !mongoose.Types.ObjectId.isValid(data.pairingId)) return;
 
+            const uid = socket.data?.userId as string | undefined;
+            if (!uid) return;
+
+            const mentorship = await mentorshipModel.findById(data.pairingId);
+            if (!mentorship) return;
+
+            // Authorization: only mentor or mentee can end call
+            if (mentorship.mentorId.toString() !== uid && mentorship.menteeId.toString() !== uid) {
+                return socket.emit("call_error", { message: "Unauthorized: You are not a participant in this call." });
+            }
+
             const roomName = `mentorship_${data.pairingId}`;
             const session = activeSessions.get(data.pairingId);
-            const duration = data.durationMinutes || (session ? Math.max(1, Math.round((Date.now() - session.startedAt.getTime()) / 60000)) : 1);
+            // Strict server-side duration calculation capped at 180 mins (3 hours)
+            const duration = session
+                ? Math.max(1, Math.min(180, Math.round((Date.now() - session.startedAt.getTime()) / 60000)))
+                : 1;
+
+            const sessionStartedAt = session?.startedAt || new Date(Date.now() - duration * 60000);
 
             // Persist call session duration in mentorship record
             await mentorshipModel.findByIdAndUpdate(data.pairingId, {
                 $push: {
                     callSessions: {
                         callRoomId: data.pairingId,
-                        startedAt: session?.startedAt || new Date(Date.now() - duration * 60000),
+                        startedAt: sessionStartedAt,
                         endedAt: new Date(),
                         durationMinutes: duration,
                     },

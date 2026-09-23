@@ -49,16 +49,28 @@ export async function createMembershipOrder(req: Request, res: Response) {
 
         // ── FREE TRIAL path (no Razorpay involved) ────────────────────────────
         if (planType === "trial") {
-            const user = await userModel.findById(userId).lean();
+            // Atomic conditional update on userModel: prevents concurrent race conditions
+            const updatedUser = await userModel.findOneAndUpdate(
+                { _id: userId, hasUsedTrial: { $ne: true } },
+                {
+                    $set: {
+                        isPremium: true,
+                        planTier: "trial",
+                        hasUsedTrial: true,
+                        trialEndsAt: expiresAt,
+                        premiumExpiresAt: expiresAt,
+                    },
+                },
+                { new: true }
+            );
 
-            // One trial per lifetime
-            if (user?.hasUsedTrial) {
+            if (!updatedUser) {
                 return res.status(409).json({
-                    message: "You have already used your free trial.",
+                    message: "You have already used your free trial or an active trial exists.",
                 });
             }
 
-            // Check if already active (trial or paid)
+            // Check if already active membership exists
             const existingActive = await membershipModel.findOne({
                 userId,
                 status: "active",
@@ -79,14 +91,6 @@ export async function createMembershipOrder(req: Request, res: Response) {
                 expiresAt,
             });
 
-            // Mark user + profile as premium
-            await userModel.findByIdAndUpdate(userId, {
-                isPremium:        true,
-                planTier:         "trial",
-                hasUsedTrial:     true,
-                trialEndsAt:      expiresAt,
-                premiumExpiresAt: expiresAt,
-            });
             await profileModel.findOneAndUpdate(
                 { userId },
                 { isPremium: true, premiumExpiresAt: expiresAt }
