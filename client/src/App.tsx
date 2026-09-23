@@ -192,6 +192,7 @@ function AppShell() {
     const exchangeToken = searchParams.get("exchange");
     const isGoogleOAuthRedirect = searchParams.get("auth") === "google" || Boolean(token) || Boolean(exchangeToken);
 
+
     if (token) {
       // Clean up sensitive tokens from the URL immediately without reloading
       window.history.replaceState({}, "", window.location.pathname);
@@ -209,11 +210,18 @@ function AppShell() {
         credentials: "include",
         body: JSON.stringify({ exchangeToken }),
       })
-        .then(() => {
+        .then(async (response) => {
+          // If the proxy rejects or drops the exchange response, use the
+          // short-lived token as a bearer token once. checkAuth will then
+          // issue the normal first-party cookies through the same proxy.
+          if (!response.ok) {
+            dispatch(checkAuthThunk(exchangeToken));
+            return;
+          }
           dispatch(checkAuthThunk());
         })
         .catch(() => {
-          dispatch(checkAuthThunk());
+          dispatch(checkAuthThunk(exchangeToken));
         });
     } else if (isGoogleOAuthRedirect) {
       // After a Google OAuth redirect, cookies take a moment to be committed

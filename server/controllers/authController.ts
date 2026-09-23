@@ -683,7 +683,7 @@ export const googleSuccess = async (
 
         const sessionOrigin = (req.session as any)?.frontendOrigin;
         let frontendUrl = sessionOrigin || process.env.FRONTEND_URL || "http://localhost:5173";
-        // If frontendUrl is default localhost but client accessed from external host or origin, resolve dynamically
+
         const originHeader = (req.headers.origin || req.headers.referer) as string | undefined;
         if (!sessionOrigin && originHeader && frontendUrl.includes("localhost") && !originHeader.includes("localhost")) {
             try {
@@ -697,30 +697,30 @@ export const googleSuccess = async (
         }
 
         const email = user.email;
-
         if (!email) {
             return res.redirect(`${frontendUrl}/auth?error=email_not_found`);
         }
 
-        // Check if user has an existing profile and has completed onboarding
         const userProfile = await profileModel.findOne({ userId: user._id });
         const dbUser = await userModel.findById(user._id);
         const isOnboarded = Boolean(dbUser?.isOnboarded && userProfile);
 
-        // Generate JWT tokens and set httpOnly cookies with HTTPS/proxy awareness
-        const { accesstoken, refreshtoken } = generateTokens(String(user._id), true);
-        setAuthCookies(res, accesstoken, refreshtoken, true, req);
-
-        // Generate a short-lived (60s) single-use exchange token for cross-origin / incognito session establishment
+        // The OAuth callback runs on Render while the browser returns to the
+        // frontend origin. Do not set the session cookies here: those cookies
+        // would belong to the Render host and would not be sent by the
+        // frontend's same-origin API requests. Instead, pass a short-lived
+        // exchange token to the frontend, which posts it through the Vercel
+        // proxy and receives first-party session cookies there.
         const exchangeToken = jwt.sign(
             { id: String(user._id), type: "oauth_exchange" },
             getAccessSecret(),
             { expiresIn: "60s" }
         );
 
-        // If user is already onboarded, send to dashboard; otherwise send to onboarding wizard
         const redirectPath = isOnboarded ? "/dashboard" : "/onboarding/select-type";
-        return res.redirect(`${frontendUrl}${redirectPath}?auth=google&token=${accesstoken}&refresh=${refreshtoken}&exchange=${exchangeToken}`);
+        return res.redirect(
+            `${frontendUrl}${redirectPath}?auth=google&exchange=${encodeURIComponent(exchangeToken)}`
+        );
 
     } catch (error) {
         console.error("Google Auth error:", error);
