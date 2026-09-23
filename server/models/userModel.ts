@@ -13,6 +13,10 @@ export interface UserSchema extends Document {
     hasUsedTrial?: boolean;
     trialEndsAt?: Date | null;
     premiumExpiresAt?: Date | null;
+    githubId?: string | null;
+    githubUsername?: string | null;
+    githubProfileUrl?: string | null;
+    githubAvatarUrl?: string | null;
 }
 
 const userSchema: Schema<UserSchema> = new Schema(
@@ -26,6 +30,7 @@ const userSchema: Schema<UserSchema> = new Schema(
 
         password: {
             type: String,
+            select: false,
         },
 
         provider: {
@@ -76,6 +81,28 @@ const userSchema: Schema<UserSchema> = new Schema(
 
         premiumExpiresAt: {
             type: Date,
+            default: null,
+        },
+
+        githubId: {
+            type: String,
+            default: null,
+            sparse: true,
+        },
+
+        githubUsername: {
+            type: String,
+            default: null,
+            trim: true,
+        },
+
+        githubProfileUrl: {
+            type: String,
+            default: null,
+        },
+
+        githubAvatarUrl: {
+            type: String,
             default: null,
         },
     },

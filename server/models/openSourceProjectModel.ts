@@ -2,6 +2,14 @@ import mongoose, { Schema, type Document, type Model } from "mongoose";
 
 export type Difficulty = "beginner" | "intermediate" | "advanced";
 
+export interface IProjectIssue {
+    issueNumber?: number;
+    title: string;
+    url: string;
+    difficulty?: Difficulty;
+    labels?: string[];
+}
+
 export interface IOpenSourceProject extends Document {
     postedBy: mongoose.Types.ObjectId;
     companyName: string;
@@ -12,6 +20,7 @@ export interface IOpenSourceProject extends Document {
     techStack: string[];
     difficulty: Difficulty;
     openIssuesCount: number;
+    issues?: IProjectIssue[];
     webhookSecret: string; // HMAC secret — never exposed to frontend
     isActive: boolean;
     createdAt: Date;
@@ -65,6 +74,19 @@ const openSourceProjectSchema = new Schema<IOpenSourceProject>(
             type: Number,
             default: 0,
         },
+        issues: [
+            {
+                issueNumber: { type: Number },
+                title: { type: String, required: true, trim: true },
+                url: { type: String, required: true, trim: true },
+                difficulty: {
+                    type: String,
+                    enum: ["beginner", "intermediate", "advanced"],
+                    default: "intermediate",
+                },
+                labels: { type: [String], default: [] },
+            },
+        ],
         webhookSecret: {
             type: String,
             required: true,

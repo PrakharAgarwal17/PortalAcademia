@@ -4,16 +4,25 @@ import communitySpaceModel from "../models/communitySpaceModel.js";
 import communityMessageModel from "../models/communityMessageModel.js";
 import profileModel from "../models/profileModel.js";
 
+function escapeHtml(text: string): string {
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// In-memory per-socket message rate limiting (5 messages per 10 seconds)
+const messageRateLimits = new Map<string, { count: number; windowStart: number }>();
+
 export function registerCommunitySocket(io: Server, socket: Socket) {
     /**
      * Join an Industry/Enterprise Community Space
      */
     socket.on("join_community_space", async (data: { spaceId: string; userId?: string }) => {
         try {
-            const effectiveUserId =
-                (socket.data?.userId as string | undefined) ||
-                data?.userId ||
-                (socket.handshake?.auth?.userId as string | undefined);
+            const effectiveUserId = socket.data?.userId as string | undefined;
 
             if (!effectiveUserId) {
                 return socket.emit("community_error", { message: "Unauthorized: Session credentials missing." });
@@ -35,12 +44,16 @@ export function registerCommunitySocket(io: Server, socket: Socket) {
                 return socket.emit("community_error", { message: "User profile not found." });
             }
 
+            const now = new Date();
             const isStaffOrIndustry = ["faculty", "industry", "institution"].includes(profile.accountType);
-            const isPremiumStudent = profile.accountType === "student" && profile.isPremium === true;
+            const isPremiumStudent =
+                profile.accountType === "student" &&
+                profile.isPremium === true &&
+                (!profile.premiumExpiresAt || new Date(profile.premiumExpiresAt) > now);
 
             if (!isStaffOrIndustry && !isPremiumStudent) {
                 return socket.emit("community_error", {
-                    message: "Forbidden: Accessing enterprise community channels requires Premium, Faculty, Industry, or Institution status.",
+                    message: "Forbidden: Accessing enterprise community channels requires active Premium, Faculty, Industry, or Institution status.",
                 });
             }
 
@@ -78,6 +91,20 @@ export function registerCommunitySocket(io: Server, socket: Socket) {
             const uid = socket.data?.userId as string | undefined;
             if (!uid || !data?.spaceId || !data?.content?.trim()) return;
 
+            // Rate limit check: max 5 messages per 10 seconds per user
+            const now = Date.now();
+            const limitEntry = messageRateLimits.get(uid);
+            if (!limitEntry || now - limitEntry.windowStart > 10000) {
+                messageRateLimits.set(uid, { count: 1, windowStart: now });
+            } else {
+                if (limitEntry.count >= 5) {
+                    return socket.emit("community_error", {
+                        message: "Slow down: Message rate limit reached. Please wait a few seconds before posting again.",
+                    });
+                }
+                limitEntry.count += 1;
+            }
+
             const { spaceId, content } = data;
             if (!mongoose.Types.ObjectId.isValid(spaceId)) return;
 
@@ -85,13 +112,19 @@ export function registerCommunitySocket(io: Server, socket: Socket) {
             if (!profile) return;
 
             const isStaffOrIndustry = ["faculty", "industry"].includes(profile.accountType);
-            const isPremiumStudent = profile.accountType === "student" && profile.isPremium === true;
+            const isPremiumStudent =
+                profile.accountType === "student" &&
+                profile.isPremium === true &&
+                (!profile.premiumExpiresAt || new Date(profile.premiumExpiresAt) > new Date());
 
             if (!isStaffOrIndustry && !isPremiumStudent) {
                 return socket.emit("community_error", {
-                    message: "Forbidden: Premium membership or Faculty/Industry standing required to post.",
+                    message: "Forbidden: Active premium membership or Faculty/Industry standing required to post.",
                 });
             }
+
+            // XSS sanitization
+            const sanitizedContent = escapeHtml(content.trim().slice(0, 2000));
 
             const message = await communityMessageModel.create({
                 spaceId: new mongoose.Types.ObjectId(spaceId),
@@ -99,7 +132,7 @@ export function registerCommunitySocket(io: Server, socket: Socket) {
                 senderName: profile.name,
                 senderAvatar: profile.profileImage || profile.image || "",
                 senderRole: profile.accountType,
-                content: content.trim(),
+                content: sanitizedContent,
             });
 
             const roomName = `community_${spaceId}`;
