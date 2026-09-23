@@ -191,6 +191,14 @@ function AppShell() {
     const exchangeToken = searchParams.get("exchange");
     const isGoogleOAuthRedirect = searchParams.get("auth") === "google" || Boolean(token) || Boolean(exchangeToken);
 
+    console.info("[Google OAuth] Frontend callback state", {
+      path: window.location.pathname,
+      hasAuthFlag: searchParams.get("auth") === "google",
+      hasExchangeToken: Boolean(exchangeToken),
+      exchangeTokenLength: exchangeToken?.length ?? 0,
+      apiBase: API_BASE || "same-origin",
+    });
+
     if (token) {
       // Clean up sensitive tokens from the URL immediately without reloading
       window.history.replaceState({}, "", window.location.pathname);
@@ -202,17 +210,32 @@ function AppShell() {
       window.history.replaceState({}, "", window.location.pathname);
 
       // Exchange the temporary OAuth token via same-origin proxy to set first-party cookies
+      console.info("[Google OAuth] Starting exchange request");
       fetch(`${API_BASE}/api/auth/oauth-exchange`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ exchangeToken }),
       })
-        .then(() => {
+        .then(async (response) => {
+          console.info("[Google OAuth] Exchange response", {
+            status: response.status,
+            ok: response.ok,
+          });
+          // If the proxy rejects or drops the exchange response, use the
+          // short-lived token as a bearer token once. checkAuth will then
+          // issue the normal first-party cookies through the same proxy.
+          if (!response.ok) {
+            console.warn("[Google OAuth] Exchange failed; retrying checkAuth with temporary token");
+            dispatch(checkAuthThunk(exchangeToken));
+            return;
+          }
+          console.info("[Google OAuth] Exchange succeeded; checking session");
           dispatch(checkAuthThunk());
         })
-        .catch(() => {
-          dispatch(checkAuthThunk());
+        .catch((error) => {
+          console.error("[Google OAuth] Exchange network error; retrying with temporary token", error);
+          dispatch(checkAuthThunk(exchangeToken));
         });
     } else if (isGoogleOAuthRedirect) {
       // After a Google OAuth redirect, cookies take a moment to be committed

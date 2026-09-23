@@ -56,6 +56,11 @@ export const checkAuthThunk = createAsyncThunk<
   { rejectValue: string }
 >("auth/checkAuth", async (token, { rejectWithValue }) => {
   try {
+    console.info("[Auth] checkAuth request", {
+      hasBearerToken: Boolean(token),
+      tokenLength: typeof token === "string" ? token.length : 0,
+      apiBase: API_BASE || "same-origin",
+    });
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
@@ -73,10 +78,16 @@ export const checkAuthThunk = createAsyncThunk<
     );
 
     if (!response.ok) {
+      console.warn("[Auth] checkAuth HTTP failure", { status: response.status });
       return rejectWithValue("Session check failed");
     }
 
     const data = (await response.json()) as CheckAuthResponse;
+    console.info("[Auth] checkAuth response", {
+      status: response.status,
+      valid: data.valid,
+      hasUser: Boolean(data.user),
+    });
 
     if (data.valid && data.user) {
       if (data.user.isOnboarded && !data.user.role) {
@@ -107,6 +118,7 @@ export const checkAuthThunk = createAsyncThunk<
 
     return data;
   } catch (err) {
+    console.error("[Auth] checkAuth network error", err);
     return rejectWithValue("Network error during session check");
   }
 });
