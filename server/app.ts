@@ -88,9 +88,9 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: isProduction,                           // HTTPS only in production/proxies
-      sameSite: isProduction ? "none" : "lax",        // cross-site cookies for deployed env
-      maxAge: 10 * 60 * 1000,                         // 10 minutes (just for OAuth handshake)
+      secure: isProduction,
+      sameSite: "lax",
+      maxAge: 15 * 60 * 1000,
     },
   })
 );
