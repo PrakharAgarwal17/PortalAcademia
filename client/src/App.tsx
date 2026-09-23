@@ -12,6 +12,7 @@ import AuthPage from "@/pages/AuthPage";
 import TermsPage from "@/pages/TermsPage";
 import PrivacyPage from "@/pages/PrivacyPage";
 import FAQPage from "@/pages/FAQPage";
+import KnowledgeBasePage from "@/pages/KnowledgeBasePage";
 import DashboardRouter from "@/pages/dashboards/DashboardRouter";
 import StudentDashboard from "@/pages/dashboards/StudentDashboard";
 import FacultyDashboard from "@/pages/dashboards/FacultyDashboard";
@@ -251,6 +252,7 @@ function AppShell() {
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/faq" element={<FAQPage />} />
+      <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
 
       {/* Dynamic Authorized Dashboard Resolver */}
       <Route

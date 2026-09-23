@@ -267,7 +267,19 @@ export default function FAQPage() {
         <footer className="py-6 px-4 sm:px-6 border-t border-border bg-background mt-auto">
           <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground font-mono">
             <span>© {new Date().getFullYear()} PortalAcademia. All rights reserved.</span>
-            <span>Knowledge Base Repository</span>
+            <div className="flex items-center gap-4">
+              <Link to="/terms" className="hover:text-foreground transition-colors">
+                Terms
+              </Link>
+              <span>•</span>
+              <Link to="/privacy" className="hover:text-foreground transition-colors">
+                Privacy
+              </Link>
+              <span>•</span>
+              <Link to="/knowledge-base" className="hover:text-foreground transition-colors">
+                Knowledge Base
+              </Link>
+            </div>
           </div>
         </footer>
       </div>
