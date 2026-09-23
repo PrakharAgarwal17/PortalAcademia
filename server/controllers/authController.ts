@@ -680,12 +680,6 @@ export const googleSuccess = async (
 ): Promise<Response | void> => {
     try {
         const user = req.user as GoogleUser;
-        console.info("[Google OAuth] Callback reached", {
-            hasUser: Boolean(user),
-            hasUserId: Boolean(user?._id),
-            hasEmail: Boolean(user?.email),
-            callbackUrl: process.env.CALLBACKURL || "not configured",
-        });
 
         const sessionOrigin = (req.session as any)?.frontendOrigin;
         let frontendUrl = sessionOrigin || process.env.FRONTEND_URL || "http://localhost:5173";
@@ -699,23 +693,17 @@ export const googleSuccess = async (
         }
 
         if (!user || !user._id) {
-            console.warn("[Google OAuth] Passport callback did not provide a user");
             return res.redirect(`${frontendUrl}/auth?error=google_auth_failed`);
         }
 
         const email = user.email;
         if (!email) {
-            console.warn("[Google OAuth] Authenticated Google profile has no email");
             return res.redirect(`${frontendUrl}/auth?error=email_not_found`);
         }
 
-        console.info("[Google OAuth] User resolved; checking onboarding state", {
-            userIdPresent: Boolean(user._id),
-        });
         const userProfile = await profileModel.findOne({ userId: user._id });
         const dbUser = await userModel.findById(user._id);
         const isOnboarded = Boolean(dbUser?.isOnboarded && userProfile);
-        console.info("[Google OAuth] Onboarding state resolved", { isOnboarded });
 
         // The OAuth callback runs on Render while the browser returns to the
         // frontend origin. Do not set the session cookies here: those cookies
@@ -728,11 +716,6 @@ export const googleSuccess = async (
             getAccessSecret(),
             { expiresIn: "60s" }
         );
-        console.info("[Google OAuth] Exchange token signed", {
-            tokenLength: exchangeToken.length,
-            frontendUrl,
-            redirectPath: isOnboarded ? "/dashboard" : "/onboarding/select-type",
-        });
 
         const redirectPath = isOnboarded ? "/dashboard" : "/onboarding/select-type";
         return res.redirect(
@@ -740,7 +723,7 @@ export const googleSuccess = async (
         );
 
     } catch (error) {
-        console.error("[Google OAuth] Callback failed", error instanceof Error ? error.stack : error);
+        console.error("Google Auth error:", error);
         const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
         return res.redirect(`${frontendUrl}/auth?error=server_error`);
     }
@@ -766,14 +749,7 @@ export async function oauthExchange(
 ): Promise<Response> {
     try {
         const { exchangeToken } = req.body;
-        console.info("[Google OAuth] Exchange request received", {
-            hasExchangeToken: typeof exchangeToken === "string" && exchangeToken.length > 0,
-            tokenLength: typeof exchangeToken === "string" ? exchangeToken.length : 0,
-            origin: req.headers.origin || "none",
-            forwardedProto: req.headers["x-forwarded-proto"] || "none",
-        });
         if (!exchangeToken || typeof exchangeToken !== "string") {
-            console.warn("[Google OAuth] Exchange rejected: missing token");
             return res.status(400).json({ message: "Missing or invalid exchange token" });
         }
 
@@ -781,15 +757,10 @@ export async function oauthExchange(
         try {
             decoded = jwt.verify(exchangeToken, getAccessSecret());
         } catch {
-            console.warn("[Google OAuth] Exchange rejected: token verification failed");
             return res.status(401).json({ message: "Exchange token expired or invalid" });
         }
 
         if (decoded?.type !== "oauth_exchange" || !decoded?.id) {
-            console.warn("[Google OAuth] Exchange rejected: invalid token payload", {
-                hasId: Boolean(decoded?.id),
-                tokenType: decoded?.type || "none",
-            });
             return res.status(401).json({ message: "Invalid exchange token format" });
         }
 
@@ -798,17 +769,12 @@ export async function oauthExchange(
             .select("_id email isVerified isOnboarded isEmailVerified");
 
         if (!user) {
-            console.warn("[Google OAuth] Exchange rejected: user not found");
             return res.status(404).json({ message: "User not found" });
         }
 
         // Issue fresh tokens and set httpOnly cookies on the current origin
         const tokens = generateTokens(String(user._id), true);
         setAuthCookies(res, tokens.accesstoken, tokens.refreshtoken, true, req);
-        console.info("[Google OAuth] Session tokens signed and cookies queued", {
-            isHttps: isRequestHttps(req),
-            cookieSameSite: isRequestHttps(req) ? "none" : "lax",
-        });
 
         const userData = await buildUserSessionPayload(user);
         return res.status(200).json({
@@ -816,7 +782,7 @@ export async function oauthExchange(
             user: userData,
         });
     } catch (err) {
-        console.error("[Google OAuth] Exchange failed", err instanceof Error ? err.stack : err);
+        console.error("OAuth exchange failed:", err);
         return res.status(500).json({ message: "OAuth token exchange error" });
     }
 }
