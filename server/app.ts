@@ -1,5 +1,15 @@
 import "dotenv/config";
 import express from 'express'
+import helmet from 'helmet'
+
+// Mandatory fail-fast environment validation
+const REQUIRED_SECRETS = ["SECRET_ACCESS_TOKEN", "SECRET_REFRESH_TOKEN", "SESSION_SECRET"];
+for (const secret of REQUIRED_SECRETS) {
+    if (!process.env[secret] || process.env[secret]?.trim() === "") {
+        console.error(`FATAL: Mandatory environment variable [${secret}] is missing. Server startup aborted.`);
+        process.exit(1);
+    }
+}
 
 import connectDB from './config/connectDB.js'
 import "./config/redisClient.js"
@@ -48,6 +58,11 @@ const allowedOrigins = [
     ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL.replace(/\/+$/, "")] : []),
 ];
 
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: false,
+}));
+
 app.use(cors({
     origin: (origin, callback) => {
         if (!origin) return callback(null, true);
@@ -55,7 +70,7 @@ app.use(cors({
         if (allowedOrigins.includes(normalized) || normalized.endsWith(".vercel.app")) {
             return callback(null, true);
         }
-        return callback(null, true);
+        return callback(new Error(`CORS blocked for unauthorized origin: ${origin}`));
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true
@@ -68,7 +83,7 @@ const isProduction =
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "default_session_secret_portal_academia",
+    secret: process.env.SESSION_SECRET!,
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -155,7 +170,7 @@ const io = new SocketIOServer(httpServer, {
     },
 });
 
-// Socket.IO authentication middleware via handshake cookies and auth payloads
+// Socket.IO authentication middleware via handshake cookies and auth tokens strictly
 io.use((socket, next) => {
     try {
         const cookieHeader = socket.handshake.headers.cookie;
@@ -163,30 +178,27 @@ io.use((socket, next) => {
         const authToken = socket.handshake.auth?.token as string | undefined;
         const token = cookies.accesstoken || cookies.refreshtoken || authToken;
 
-        if (token) {
-            const accessSecret = process.env.SECRET_ACCESS_TOKEN || process.env.JWT_PASS_KEY || "access_token_secret_key";
+        if (!token) {
+            return next(new Error("Unauthorized: Authentication token is required for real-time socket connections."));
+        }
+
+        const accessSecret = process.env.SECRET_ACCESS_TOKEN || process.env.JWT_PASS_KEY!;
+        try {
+            const decoded = jwt.verify(token, accessSecret) as JwtPayload;
+            socket.data.userId = decoded.id || decoded.userId;
+            return next();
+        } catch {
             try {
-                const decoded = jwt.verify(token, accessSecret) as JwtPayload;
+                const refreshSecret = process.env.SECRET_REFRESH_TOKEN || process.env.JWT_REFRESH_KEY || process.env.JWT_PASS_KEY!;
+                const decoded = jwt.verify(cookies.refreshtoken || token, refreshSecret) as JwtPayload;
                 socket.data.userId = decoded.id || decoded.userId;
+                return next();
             } catch {
-                try {
-                    const refreshSecret = process.env.SECRET_REFRESH_TOKEN || process.env.JWT_REFRESH_KEY || process.env.JWT_PASS_KEY || "refresh_token_secret_key";
-                    const decoded = jwt.verify(cookies.refreshtoken || token, refreshSecret) as JwtPayload;
-                    socket.data.userId = decoded.id || decoded.userId;
-                } catch {
-                    // Invalid token; unauthenticated socket
-                }
+                return next(new Error("Unauthorized: Invalid or expired session credentials."));
             }
         }
-
-        // Also accept client-provided userId from auth handshake for cross-origin websocket sessions
-        if (!socket.data.userId && socket.handshake.auth?.userId) {
-            socket.data.userId = String(socket.handshake.auth.userId);
-        }
-
-        return next();
     } catch {
-        return next();
+        return next(new Error("Unauthorized: Socket authentication failed."));
     }
 });
 
@@ -195,6 +207,18 @@ io.on("connection", (socket) => {
     registerCommunitySocket(io, socket);
 });
 
+// Global production-safe error handler
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error("Unhandled Server Error:", err);
+    if (res.headersSent) return;
+    const isProd = process.env.NODE_ENV === "production";
+    res.status(err.status || 500).json({
+        success: false,
+        message: isProd ? "Internal Server Error" : (err.message || "Something went wrong"),
+        ...(isProd ? {} : { stack: err.stack }),
+    });
+});
+
 httpServer.listen(3000, () => {
     console.log("PortalAcademia server & Socket.IO running on port 3000");
-});
+});

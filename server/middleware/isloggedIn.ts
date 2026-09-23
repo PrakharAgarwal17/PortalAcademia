@@ -16,11 +16,19 @@ declare global {
 }
 
 function getAccessSecret(): string {
-    return process.env.SECRET_ACCESS_TOKEN || process.env.JWT_PASS_KEY || "access_token_secret_key";
+    const secret = process.env.SECRET_ACCESS_TOKEN || process.env.JWT_PASS_KEY;
+    if (!secret) {
+        throw new Error("CRITICAL: SECRET_ACCESS_TOKEN or JWT_PASS_KEY is not defined in environment variables.");
+    }
+    return secret;
 }
 
 function getRefreshSecret(): string {
-    return process.env.SECRET_REFRESH_TOKEN || process.env.JWT_REFRESH_KEY || process.env.JWT_PASS_KEY || "refresh_token_secret_key";
+    const secret = process.env.SECRET_REFRESH_TOKEN || process.env.JWT_REFRESH_KEY || process.env.JWT_PASS_KEY;
+    if (!secret) {
+        throw new Error("CRITICAL: SECRET_REFRESH_TOKEN or JWT_REFRESH_KEY is not defined in environment variables.");
+    }
+    return secret;
 }
 
 export default function isloggedIn(req: Request, res: Response, next: NextFunction) {
