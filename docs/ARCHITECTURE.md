@@ -14,7 +14,7 @@ PortalAcademia addresses the structural gap between university curricula and ent
 3. **Unified Objective Skill Match & ATS Scoring Engine**: Deterministic composite scoring evaluated out of 100 points ($0.60 \times \text{SkillScore} + 0.40 \times \text{CompletenessScore}$) with assessment-backed skill weighting and proof-of-separation parity.
 4. **Objective Skill Assessment Engine**: Standardized technical benchmark assessments yielding tamper-evident competency badges and verified skill tags with cumulative average-of-attempts retesting.
 5. **Contextual AI Career Guide**: LLaMA-3.3 70B / Groq-powered conversational mentor with dynamic profile context injection and storage-preserving TTL safeguards.
-6. **Open-Source Contribution Engine & Automated GitHub Webhooks**: Industry partners register enterprise open-source repositories; students contribute code; merged pull requests trigger SHA256 HMAC-verified webhooks to automatically record contributions, notify students, and allow companies to issue verifiable achievement certificates.
+6. **Open-Source Contribution Engine, PR Commit Verification & Automated Webhooks**: Industry partners register enterprise open-source repositories; students contribute code; the platform verifies that pull requests are merged into the published upstream repository and validates commit authorship against the student's linked GitHub identity via real-time SHA256 HMAC webhooks and on-demand REST verification, unlocking verifiable achievement certificates.
 7. **Razorpay Membership & Payment Infrastructure**: Student tier progression supporting 7-day one-time free trials and ₹200 / 30-day subscriptions via Razorpay checkout, unlocking premium open-source repositories, recruiter talent pipelines, and specialized career tracks.
 8. **Peer Mentorship, WebRTC 1-on-1 Video & Hardware Teardown Protocol**: Senior scholars (4th year) apply for free by pledging to the Mentor Honor Code. Junior scholars with active Premium schedule 1-on-1 advisory sessions featuring direct WebRTC audio/video calling with STUN and TURN relay fallback, in-call live chat notes, and misconduct reporting. Completion integrity gates enforce minimum term elapsed time or logged call volume before issuing Certificates of Appreciation and +20 ATS profile boosts. Complete hardware media stream teardown eliminates laptop camera/mic indicator light leaks.
 9. **Enterprise Technical Spaces & Real-Time Chat**: Live industry community discussion channels powered by Socket.IO with socket-level authorization ensuring verified faculty, recruiters, and premium scholars can collaborate.
@@ -135,6 +135,7 @@ graph LR
    - `refreshtoken`: 7-day (or 30-day "Remember Me") validity for seamless rotation.
 4. **Token Refresh via Middleware**: `isloggedIn.ts` inspects `accesstoken`. If expired, it validates `refreshtoken`, issues a fresh `accesstoken`, and allows the request without dropping the session.
 5. **Role-Based Authorization**: `rbacMiddleware.ts` queries the user's `Profile` collection to verify `accountType` (`student`, `faculty`, `institution`, `industry`) and rejects unauthorized cross-role attempts with HTTP 403.
+6. **GitHub Developer Identity Linking (Decoupled from Login)**: GitHub OAuth 2.0 is strictly decoupled from platform authentication and registration (which are restricted to institutional email domain OTP and Google OAuth). Authenticated students connect their GitHub profile via `GET /api/auth/github` (`linkUserId` stored in session). Passport's `GitHubStrategy` with `passReqToCallback: true` validates account uniqueness, attaches `githubId`, `githubUsername`, `githubAvatarUrl`, and `githubProfileUrl` directly to the active user profile, and redirects back to `/premium?tab=opensource`. Unauthenticated visitors attempting to access `/api/auth/github` are denied access and redirected to `/auth?error=github_connect_requires_login`. Account unlinking is supported via `POST /api/auth/github/unlink`.
 
 ### Gov-Tech & Enterprise Anti-Slop UI Architecture
 PortalAcademia replaces generic consumer SaaS aesthetics with a high-density, Gov-Tech & Enterprise design framework:
@@ -162,13 +163,13 @@ PortalAcademia enforces strict schemas with indexes, defaults, and relationships
 ### Core Schemas Summary
 
 1. **`User` (`server/models/userModel.ts`)**
-   - Fields: `email`, `password` (hashed, `select: false`), `provider` (`local` | `google`), `providerID`, `isVerified`, `isOnboarded`, `isEmailVerified`, `planTier` (`free` | `trial` | `paid`), `isPremium`, `hasUsedTrial`, `trialEndsAt`, `premiumExpiresAt`.
-   - Purpose: Authentication identity, account credentials, and subscription status.
+   - Fields: `email`, `password` (hashed, `select: false`), `provider` (`local` | `google`), `providerID`, `isVerified`, `isOnboarded`, `isEmailVerified`, `planTier` (`free` | `trial` | `paid`), `isPremium`, `hasUsedTrial`, `trialEndsAt`, `premiumExpiresAt`, `githubId`, `githubUsername`, `githubAvatarUrl`, `githubProfileUrl`.
+   - Purpose: Authentication identity, account credentials, subscription status, and linked developer identity.
 
 2. **`Profile` (`server/models/profileModel.ts`)**
-   - Fields: `userId` (ref `User`), `accountType`, `name`, `headline`, `bio`, `institution`, `institutionName`, `institutionEmail`, `isEmailVerified`, `isPremium`, `premiumExpiresAt`, `skills`, `verifiedSkills`, `education`, `certifications` (with `isVerified`, `verifiedBy`, `verifiedAt`), `pastExperience`, `github`, `linkedin`, `isAlumni`, `graduationYear`, `currentCompany`, `currentRole`.
+   - Fields: `userId` (ref `User`), `accountType`, `name`, `headline`, `bio`, `institution`, `institutionName`, `institutionEmail`, `isEmailVerified`, `isPremium`, `premiumExpiresAt`, `skills`, `verifiedSkills`, `education`, `certifications` (with `isVerified`, `verifiedBy`, `verifiedAt`), `pastExperience`, `github`, `githubUsername`, `githubAvatarUrl`, `linkedin`, `isAlumni`, `graduationYear`, `currentCompany`, `currentRole`.
    - **Peer Mentorship Fields**: `isMentor`, `isMentorVerified`, `mentorBio`, `mentorTopics`, `mentorTermsAccepted`, `mentorTermsAcceptedAt`, `mentorTestScore`, `mentorTestPassedAt`, `atsBoostPoints`.
-   - Purpose: Master profile entity supporting multi-stakeholder attributes and mentorship credentials.
+   - Purpose: Master profile entity supporting multi-stakeholder attributes, verified developer credentials, and mentorship status.
 
 3. **`Opportunity` (`server/models/opportunityModel.ts`)**
    - Fields: `title`, `description`, `organization`, `createdBy` (ref `User`), `category` (`internship`, `hackathon`, `workshop`, `fdp`, `research`, `sabbatical`), `domain`, `location`, `mode`, `duration`, `stipendOrPrize`, `requiredSkills`, `eligibility`, `deadline`, `status` (`active` | `closed`), `targetAudience` (`student` | `faculty` | `both`), `recommendedByColleges`, `applicantCount`.
@@ -265,16 +266,71 @@ This prevents gaming the system via single-attempt flukes and provides recruiter
 
 ---
 
-## 6. Open-Source Webhooks & Razorpay Architecture
+## 6. Open-Source Contribution Engine, PR Commit Verification & Razorpay Architecture
 
-### GitHub Webhook Ingestion Pipeline
-1. Industry partners register repositories (`POST /api/opensource/projects`) with an auto-generated SHA256 webhook secret.
-2. Students submit Pull Requests on GitHub to active repositories.
-3. Upon PR merge, GitHub dispatches `pull_request` event payload to:
-   `POST /api/opensource/webhook/:projectId`
-4. The server validates `X-Hub-Signature-256` HMAC signature using `crypto.createHmac("sha256", project.webhookSecret)` over the preserved `req.rawBody` buffer, with timing-safe comparison (`crypto.timingSafeEqual` with buffer length validation).
-5. Upon signature match and `action === "closed" && pull_request.merged === true`, the system verifies the student's active premium status, creates a `Contribution` record, and fires an in-app notification.
-6. Industry partners can issue verifiable achievement certificates (`POST /api/opensource/certificate`), which automatically pushes the verified credential to `studentProfile.certifications`.
+### Open-Source Architecture Overview
+PortalAcademia connects corporate technology teams with student developers through partner-sponsored open-source projects. To guarantee academic and credentialing integrity, the platform implements a dual-channel verification architecture:
+
+```mermaid
+flowchart TD
+    subgraph Industry ["Industry Partner Console"]
+        PostRepo["Register Repository\n(POST /api/opensource/projects)\nGenerates HMAC Webhook Secret"]
+        IssueCert["Review Contributions & Issue Certificate\n(POST /api/opensource/certificate)"]
+    end
+
+    subgraph VerificationEngine ["Dual-Channel PR Verification Engine"]
+        Webhook["Channel 1: Automated Webhook Ingestion\n(POST /api/opensource/webhook/:projectId)\nHMAC SHA256 Signature Verification"]
+        VerifyPR["Channel 2: On-Demand PR Verification\n(POST /api/opensource/verify-pr)\nGitHub REST API Query Engine"]
+        
+        C1{"Check 1: Destination Repo Match?\nbase.repo.full_name == project.repoFullName"}
+        C2{"Check 2: Merged State Valid?\npr.merged == true && pr.merged_at != null"}
+        C3{"Check 3: Contributor Attribution?\nPR Opener == @githubUsername\nOR\nCommit Author in PR == @githubUsername / email"}
+        C4{"Check 4: Idempotency?\nDuplicate Check (projectId, prNumber)"}
+    end
+
+    subgraph PlatformDB ["PortalAcademia Platform"]
+        Record["Record in Contribution Collection\n(status: verified, certificateIssued: false)"]
+        Notify["Dispatch In-App Notification\n(student & partner company)"]
+        SyncProfile["Auto-Sync to Student Profile Certifications"]
+    end
+
+    PostRepo --> Webhook
+    Student["Student Developer\n(Linked GitHub Account)"] -->|Submits PR URL| VerifyPR
+    GitHub["GitHub.com\n(PR Merged Event)"] -->|Payload + HMAC Signature| Webhook
+
+    Webhook --> C1
+    VerifyPR --> C1
+    C1 -->|Yes| C2
+    C2 -->|Yes| C3
+    C3 -->|Yes| C4
+    C4 -->|Yes| Record
+    Record --> Notify
+    Record --> IssueCert
+    IssueCert --> SyncProfile
+```
+
+### Dual-Channel Verification Mechanics
+
+#### 1. Channel 1: Automated GitHub Webhook Ingestion Pipeline
+1. Industry partners register repositories (`POST /api/opensource/projects`) with an auto-generated SHA256 webhook secret displayed in their console.
+2. The partner configures the webhook in their GitHub repository settings pointing to `POST /api/opensource/webhook/:projectId`.
+3. When a Pull Request merges on GitHub, GitHub dispatches a `pull_request` event payload.
+4. The server validates `X-Hub-Signature-256` HMAC signature using `crypto.createHmac("sha256", project.webhookSecret)` over the preserved `req.rawBody` buffer using timing-safe comparison (`crypto.timingSafeEqual`).
+5. Upon signature match and `action === "closed" && pull_request.merged === true`, the system verifies:
+   - Destination repository matches `project.repoFullName`.
+   - PR author matches an active student profile with verified `githubUsername`.
+   - Student holds active Premium membership.
+6. The system records the contribution in `Contribution` and fires an in-app notification.
+
+#### 2. Channel 2: On-Demand Pull Request & Commit Verification Engine
+Students who merge pull requests into partner company repositories can verify their contributions on demand from `/premium?tab=opensource`:
+1. **Target Repository Validation**: Parses the submitted URL (`owner/repo/pull/:prNumber`) and verifies that `prData.base.repo.full_name` matches the published company repository, preventing fraudulent claims from personal forks.
+2. **Merge State Confirmation**: Validates that `prData.merged === true` and `prData.merged_at` is populated. Open, draft, or closed-without-merge PRs are rejected.
+3. **Multi-Layer Contributor Attribution**:
+   - **PR Creator Check**: Compares `prData.user.login` against the student's linked `@user.githubUsername`.
+   - **Commit Author & Committer Inspection**: If the student did not open the PR (e.g. multi-author PR or maintainer-opened PR), the engine queries `GET /repos/:owner/:repo/pulls/:prNumber/commits` to inspect all commits in the PR. It validates commit author handles (`c.author.login`, `c.committer.login`) and git commit author emails (`c.commit.author.email`) against the student's linked account and registered email.
+4. **Idempotency Guard**: Queries `contributionModel.findOne({ projectId, prNumber })` to prevent duplicate recording.
+5. **Credential Workflow**: Industry partners review verified contributions on `/dashboard/industry` and award verified achievement certificates (`POST /api/opensource/certificate`), which automatically push verified credential items to `studentProfile.certifications`.
 
 ### Razorpay Subscription & Free Trial Architecture
 1. **Order Creation**: Client calls `POST /api/payment/create-order` with `{ planType: "trial" | "premium" }`.

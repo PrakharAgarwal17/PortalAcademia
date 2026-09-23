@@ -19,6 +19,9 @@
 | `GET` | `/api/auth/google` | Public | Initiates Google OAuth 2.0 flow. |
 | `GET` | `/api/auth/google/callback`| Public | Google OAuth redirect callback; issues JWT cookies and redirects. |
 | `POST` | `/api/auth/oauth-exchange` | Public | Exchanges short-lived (60s) OAuth exchange token for first-party session cookies. |
+| `GET` | `/api/auth/github` | Authenticated | Initiates GitHub OAuth to link developer account for open-source PR verification (requires active login). |
+| `GET` | `/api/auth/github/callback` | Session | Callback for GitHub OAuth; links GitHub handle to student profile and redirects to origin. |
+| `POST` | `/api/auth/github/unlink` | Authenticated | Disconnects and unlinks GitHub account from student profile. |
 
 ### Sign In Request Payload
 ```json
@@ -122,6 +125,7 @@ POST /api/applications
 | `GET` | `/api/opensource/projects/mine` | Industry | View company's registered repositories and contribution counts. |
 | `GET` | `/api/opensource/projects/:id/contributions` | Industry | List merged PR contributions for a specific company project. |
 | `POST` | `/api/opensource/webhook/:projectId` | GitHub (Public) | Ingests merged PR events via HMAC SHA256 signature verification. |
+| `POST` | `/api/opensource/verify-pr` | Premium Student | Verifies merged PR via GitHub REST API and records contribution if commit author matches linked account. |
 | `GET` | `/api/opensource/contributions/me` | Student | View student's verified merged PR contributions and certificate status. |
 | `POST` | `/api/opensource/certificate` | Industry | Issue verified certificate of achievement for a student contribution. |
 | `GET` | `/api/opensource/student/:studentId/contributions` | Industry | View student contributions relevant to company projects. |
