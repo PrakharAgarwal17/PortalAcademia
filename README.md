@@ -2,7 +2,7 @@
 
 > **Smart India Hackathon 2026 — Problem Statement 26044 (Ministry of Ayush)**  
 > **Centralized Academia–Industry Collaboration, Verified Skill Credentials & Career Intelligence Platform**  
-> Connecting Students, Faculty, Higher Education Institutions, and Industry Partners through cryptographically audited portfolios, objective ATS benchmarks, on-demand AI skill assessments, verified corporate talent pipelines, peer mentorship, and open-source contribution tracking.
+> Connecting Students, Faculty, Higher Education Institutions, and Industry Partners through cryptographically audited portfolios, objective ATS benchmarks, on-demand AI skill assessments, verified corporate talent pipelines, peer mentorship, and dual-channel open-source contribution tracking.
 
 <div align="center">
 
@@ -15,6 +15,8 @@
 [![MongoDB](https://img.shields.io/badge/MongoDB-v7.0+-47A248?logo=mongodb&logoColor=white)](https://www.mongodb.com)
 [![Redis](https://img.shields.io/badge/Redis-v6+-DC382D?logo=redis&logoColor=white)](https://redis.io)
 [![Groq AI](https://img.shields.io/badge/Groq-Llama%203.3%2070B-F55036?logo=meta&logoColor=white)](https://groq.com)
+[![WebRTC](https://img.shields.io/badge/WebRTC-Native%20P2P-333333?logo=webrtc&logoColor=white)](https://webrtc.org)
+[![GitHub API](https://img.shields.io/badge/GitHub-Developer%20Linking-181717?logo=github&logoColor=white)](https://github.com)
 [![License](https://img.shields.io/badge/License-ISC-blue.svg)](server/package.json)
 
 </div>
@@ -23,15 +25,51 @@
 
 ## 📑 Core Documentation Directory
 
-For in-depth architectural specifications, API schemas, and developer standards, see the [`docs/`](docs/) directory:
+For complete architectural specifications, REST API schemas, and developer standards, see the [`docs/`](docs/) directory:
 
 | Document | Scope & Contents |
 |:---|:---|
-| 📖 **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** | Subsystem designs, 15 Mongoose schemas, RBAC lifecycle, WebRTC teardown, and deployment topology |
-| 📡 **[`docs/API.md`](docs/API.md)** | Complete REST endpoint contracts, payload schemas, query parameters, and error shapes |
-| 🤝 **[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md)** | Branch conventions, PR checklist, automated test suites, and pre-commit checks |
+| 📖 **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** | Subsystem designs, 15 Mongoose schemas, RBAC lifecycle, WebRTC teardown, dual-channel open source verification, and deployment topology |
+| 📡 **[`docs/API.md`](docs/API.md)** | Complete REST endpoint contracts, payload schemas, query parameters, developer linking, and error shapes |
+| 🤝 **[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md)** | Branch conventions (`GOD` to `main`), PR checklist, automated test suites, and pre-commit checks |
 
 *(For developers and autonomous agents seeking complete system contracts, consult [`docs/`](docs/).)*
+
+---
+
+## 🚀 Recent Release & Patch Highlights (Phase 4.2)
+
+This patch introduces major architectural refinements, security hardening, and a dedicated open-source contribution verification pipeline:
+
+### 1. Decoupled GitHub OAuth & Developer Identity Linking
+- **Authentication Perimeter Protection**: Removed GitHub OAuth from public login and signup forms (`AuthPage.tsx`). Primary authentication is strictly reserved for Google OAuth 2.0 and institutional/corporate email OTPs.
+- **Dedicated Developer Verification**: GitHub OAuth (`/api/auth/github`) is now repurposed exclusively as an authenticated identity linking protocol. Students link their developer handles directly from the Open Source Hub (`/premium?tab=opensource`).
+- **Session-Locked Callback**: The server requires an active authenticated session (`req.session.linkUserId`) before initiating the GitHub handshake. This guarantees that GitHub callbacks link directly to an existing user profile rather than inadvertently creating unvetted accounts.
+
+### 2. Dual-Channel Open-Source PR & Commit Verification Engine
+- **Automated Webhook Channel**: Industry partners register enterprise repositories with SHA256 HMAC webhook secrets. Incoming `pull_request.closed` events on `/api/opensource/webhook/:id` automatically trigger cryptographic signature verification, PR state checks, and badge issuance.
+- **On-Demand Self-Service Modal**: Students can verify merged PRs on demand through the interactive "Verify Pull Request" modal in `PremiumDashboard.tsx`, calling `POST /api/opensource/verify-pr`.
+- **Anti-Fraud Destination Base Repo Validation**: The verification engine enforces `prData.base.repo.full_name === project.repoFullName`. Pull requests merged into personal student forks are strictly rejected.
+- **Multi-Layer Commit Attribution**: Validates that the contributor actually authored the code by inspecting:
+  1. Pull request creator (`prData.user.login`)
+  2. Pull request committer
+  3. Individual commits within the PR (`/pulls/:prNumber/commits`) matching `c.author.login`, `c.committer.login`, or git commit author emails against the student's registered platform email.
+- **Tamper-Evident Contribution Certificates**: Verified contributions confer digital certificates and increment verified project contribution metrics.
+
+### 3. Full-Stack Security Audit & Hardening
+- **Redis Sliding-Window Rate Limiting**: Added `rateLimiterMiddleware.ts` to protect expensive LLM assessment calls (`POST /api/assessment/generate`), auth endpoints (`/api/auth/login`, `/api/auth/send-otp`), and PR verification endpoints.
+- **Strict NoSQL Injection Mitigation**: Replaced loose request body interpolation with typed sanitize utilities and regex validators.
+- **Explicit Write Allow-Lists**: Refactored controllers (`authController.ts`, `profileController.ts`, `opportunityController.ts`, `applicationController.ts`, `assessmentController.ts`, `mentorshipController.ts`, `openSourceController.ts`) to eliminate `req.body` spreading, enforcing strict field whitelisting.
+- **Resource-Level Authorization (IDOR Defense)**: Handlers for institutional directories, student applications, member diagnostics, and mentorship calls verify requester ownership before returning or mutating data.
+- **Socket.IO Connection Authorization**: Hardened Socket connection lifecycle with cookie parsing and JWT token verification, preventing unauthenticated WebSocket subscriptions.
+- **Hardware Privacy Teardown**: The WebRTC peer mentorship suite strictly terminates all active audio and video tracks on modal close to guarantee camera and microphone hardware indicators power off completely.
+
+### 4. Statutory DPDP Act 2023 Compliance & Legal Suite
+- **Statutory Compliance Pages**: Added high-density Swiss typographic legal pages:
+  - `/privacy`: Digital Personal Data Protection Act 2023 compliant policy, lawful processing basis, grievance officer contacts, and data retention rules.
+  - `/terms`: Platform terms of service, acceptable use, academic integrity, and recruiter guidelines.
+  - `/knowledge-base`: Comprehensive user guides with role-filtered search, platform architecture overview, and onboarding walkthroughs.
+  - `/faq`: Common questions across all 4 stakeholders.
 
 ---
 
@@ -40,7 +78,7 @@ For in-depth architectural specifications, API schemas, and developer standards,
 ### The Structural Problem
 Higher technical education in India faces three systemic structural gaps:
 1. **Curriculum-Market Deficit**: Academic syllabi lag behind fast-evolving engineering frontiers (Cloud-Native, Generative AI, Systems Security, Embedded Systems).
-2. **Unverified Credential Inflation**: Self-declared resume skills and non-proctored online certificates result in high screening costs and false positives for corporate talent acquisition.
+2. **Unverified Credential Inflation**: Self-reported resume claims and non-proctored online certificates result in high screening costs and false positives for corporate talent acquisition.
 3. **Fragmented Institutional Pipeline**: Universities and placement cells lack direct, authenticated channels to curate and endorse vetted industry postings to specific cohorts, while educators lack formal immersion into corporate R&D and funded faculty sabbaticals.
 
 ### The Solution: PortalAcademia
@@ -50,7 +88,7 @@ PortalAcademia provides a telemetry-backed, four-sided ecosystem engineered for 
 - **Proof-of-Separation ATS Engine**: Deterministic candidate matching combining verified skill competency ($60\%$) and profile completeness ($40\%$) with a verified $\ge 35\%$ scoring separation gap between assessed and self-reported credentials.
 - **Institutional Endorsement Desk**: Colleges review active industry listings and endorse them directly to their cohorts, rendering dynamic `"Recommended by [College Name]"` badges in student feeds.
 - **Peer Mentorship & WebRTC Video Advising**: Verified 4th-year senior scholars provide 1-on-1 audio/video advising with hardware track termination protocols and ATS profile boosts.
-- **Open-Source GitHub Webhook Engine**: Industry partners register enterprise repositories; merged pull requests trigger SHA256 HMAC-verified webhooks to record contributions and issue verified achievement certificates.
+- **Dual-Channel Open-Source Contribution Tracking**: Industry partners register enterprise repositories; merged pull requests trigger SHA256 HMAC-verified webhooks or on-demand verification to record contributions and issue verified achievement certificates.
 - **Macro Market Diagnostics**: Real-time comparison across 5 macro engineering streams, isolating syllabus deficits against live industry hiring quotas.
 
 ---
@@ -70,6 +108,7 @@ All platform capabilities are fully implemented, verified, and operational (**�
 | **Open-Source PR Verification & Webhooks** | ✅ **Live** | Dual-channel contribution tracking: automated SHA256 HMAC webhooks and on-demand PR REST verification, validating destination repo and commit authorship against student profile. |
 | **Enterprise Technical Community Spaces** | ✅ **Live** | Real-time Socket.IO channel messaging with role authorization (Institution/Faculty/Industry free, Student via pass). |
 | **Razorpay Membership & Trial Tiers** | ✅ **Live** | Razorpay checkout integration, 7-day trial progression, and ₹200 / 30-day subscription pass management. |
+| **Legal & DPDP Act 2023 Compliance** | ✅ **Live** | Statutory privacy policy, terms of service, role-filtered knowledge base, and statutory data principal rights disclosures. |
 
 ---
 
@@ -118,7 +157,7 @@ All platform capabilities are fully implemented, verified, and operational (**�
 | Technology | Version | Purpose in Codebase |
 |:---|:---:|:---|
 | **React** | `v19.2` | Core UI engine utilizing modern hooks, context providers, and component architecture. |
-| **TypeScript** | `v5.x / ~6.0` | Strict client-side typing across components, models, Redux slices, and API clients. |
+| **TypeScript** | `v5.x` | Strict client-side typing across components, models, Redux slices, and API clients. |
 | **Vite** | `v8.2` | High-performance build tool, fast HMR, and optimized production chunking. |
 | **Tailwind CSS** | `v3.4` | Utility-first styling conforming to Gov-Tech/Enterprise anti-slop guidelines (0–6px radiuses, zinc palette). |
 | **Radix UI** | Primitives | Accessible UI primitives (`Dialog`, `Tabs`, `Accordion`, `Checkbox`, `Label`). |
@@ -136,9 +175,9 @@ All platform capabilities are fully implemented, verified, and operational (**�
 | **Express.js** | `v5.2` | REST API framework handling modular routing, middleware pipelines, and error handling. |
 | **Node.js** | `≥v20` | Native ESM runtime executing TypeScript directly via `tsx watch`. |
 | **MongoDB & Mongoose** | `v7.0+` / `v9.9` | Primary document database with 15 strict schemas, compound indexes, and validations. |
-| **Redis (`ioredis`)** | `v6.0` | In-memory distributed caching with graceful fallback for offline resilience. |
-| **Passport.js & JWT** | `v0.7` / `v9.0` | Google OAuth 2.0 social login and dual HttpOnly cookie session management (`accesstoken`, `refreshtoken`). |
-| **Socket.IO Server** | `v4.8` | WebSocket server managing WebRTC signaling rooms and authorized community chat. |
+| **Redis (`ioredis`)** | `v6.0` | In-memory distributed caching and sliding-window rate limiting with graceful fallback. |
+| **Passport.js & JWT** | `v0.7` / `v9.0` | Google OAuth 2.0 social login, GitHub developer linking, and dual HttpOnly cookies. |
+| **Socket.IO Server** | `v4.8` | WebSocket server with JWT cookie handshake for WebRTC signaling and community chat. |
 | **Groq Cloud SDK** | LLaMA-3.3 70B | Ultra-low-latency AI engine generating dynamic quizzes and contextual career guidance. |
 | **Multer & Cloudinary** | `v2.3` / `v2.11` | Secure multipart profile picture, resume, and institutional credential asset storage. |
 | **Nodemailer** | `v10.0` | Transactional email delivery for 6-digit registration OTPs and opportunity alerts. |
@@ -147,7 +186,7 @@ All platform capabilities are fully implemented, verified, and operational (**�
 
 ---
 
-## 5. High-Level Architecture
+## 5. High-Level Architecture & Verification Pipeline
 
 ```mermaid
 flowchart TB
@@ -157,23 +196,25 @@ flowchart TB
         ReduxStore["Redux Toolkit (Auth & Profile State)"]
         ResumeGen["ATS Resume Builder (jsPDF)"]
         WebRTCModal["WebRTC Video & Hardware Teardown"]
+        VerifyModal["Verify Pull Request Modal"]
     end
 
     subgraph GatewayLayer ["Network & Security Gateway"]
         CORS["CORS (Explicit Origin Allowlist)"]
         CookieParser["Cookie Parser (HttpOnly JWT)"]
         RBAC["RBAC Middleware (Strict Role Locks)"]
-        SocketSignaling["Socket.IO Signaling & Chat Gateway"]
+        RateLimiter["Redis Sliding-Window Rate Limiter"]
+        SocketSignaling["Socket.IO Signaling (JWT Handshake)"]
     end
 
     subgraph BackendLayer ["Express 5 TypeScript Server"]
-        AuthController["Auth & OTP Controller"]
+        AuthController["Auth & OTP Controller (Google OAuth / OTP)"]
         ProfileController["Profile & Credential Controller"]
         OppController["Opportunity & Endorsement Controller"]
         AppController["Application & ATS Scoring Controller"]
         AssessController["AI Assessment & Retest Controller"]
         MentorshipController["Mentorship & Session Controller"]
-        OpenSourceController["Open-Source & Webhook Controller"]
+        OpenSourceController["Open-Source & PR Verification Controller"]
         VerificationController["Institution Verification Controller"]
     end
 
@@ -181,7 +222,7 @@ flowchart TB
         GroqAI["Groq Cloud AI (LLaMA-3.3 70B)"]
         Cloudinary["Cloudinary Media CDN"]
         Razorpay["Razorpay Payments Gateway"]
-        GitHub["GitHub Webhooks API"]
+        GitHubAPI["GitHub REST & Commits API"]
         STUN["STUN/TURN WebRTC Relays"]
     end
 
@@ -196,10 +237,42 @@ flowchart TB
     WebRTCModal <--> STUN
     BackendLayer --> StorageLayer
     BackendLayer --> ExternalServices
-    GitHub -->|POST /api/opensource/webhook/:id| BackendLayer
+    VerifyModal -->|POST /api/opensource/verify-pr| BackendLayer
+    GitHubAPI -->|Webhook / API Validation| OpenSourceController
 ```
 
-> For the comprehensive component catalog, model schemas, and state life cycles, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+### Dual-Channel PR Verification Sequence
+```
+┌──────────────┐          ┌───────────────────────┐          ┌─────────────────────────┐          ┌──────────────────┐
+│   Student    │          │     PortalAcademia    │          │     GitHub REST API     │          │ Industry Partner │
+└──────┬───────┘          └──────────┬────────────┘          └────────────┬────────────┘          └────────┬─────────┘
+       │                             │                                    │                                │
+       │ 1. Link GitHub Profile      │                                    │                                │
+       │────────────────────────────>│                                    │                                │
+       │    (/api/auth/github)       │                                    │                                │
+       │                             │                                    │                                │
+       │ 2. Submit Merged PR URL     │                                    │                                │
+       │────────────────────────────>│                                    │                                │
+       │    (Verify Modal)           │ 3. Fetch PR Details                │                                │
+       │                             │───────────────────────────────────>│                                │
+       │                             │<───────────────────────────────────│                                │
+       │                             │    (prData: merged, base.repo)     │                                │
+       │                             │                                    │                                │
+       │                             │ 4. Verify base.repo == project.repo│                                │
+       │                             │ 5. Verify pr.merged == true        │                                │
+       │                             │                                    │                                │
+       │                             │ 6. Fetch PR Commits                │                                │
+       │                             │───────────────────────────────────>│                                │
+       │                             │<───────────────────────────────────│                                │
+       │                             │    (author.login, commit.email)    │                                │
+       │                             │                                    │                                │
+       │                             │ 7. Match against user.githubUsername                                │
+       │                             │    or registered platform email    │                                │
+       │                             │                                    │                                │
+       │ 8. Digital Certificate Issued│                                                                    │
+       │<────────────────────────────│                                                                     │
+       │    (+Project Contribution)  │                                                                     │
+```
 
 ---
 
@@ -237,8 +310,23 @@ MONGO_URL=mongodb://127.0.0.1:27017/PortalAcademia
 REDIS_URL=redis://127.0.0.1:6379
 
 # Session & JWT Secrets
+SECRET_ACCESS_TOKEN=your_secure_random_access_token_secret_sih2026
+SECRET_REFRESH_TOKEN=your_secure_random_refresh_token_secret_sih2026
 JWT_PASS_KEY=your_secure_random_jwt_secret_sih2026
 SESSION_SECRET=your_secure_session_secret_sih2026
+
+# Google OAuth 2.0 Credentials (for Login/Registration)
+GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+CALLBACKURL=http://localhost:3000/api/auth/google/callback
+
+# GitHub Developer OAuth App (for Developer Identity Linking)
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+GITHUB_CALLBACK_URL=http://localhost:3000/api/auth/github/callback
+
+# GitHub Personal Access Token (Optional: increases API limit from 60 to 5,000 req/hr)
+# GITHUB_TOKEN=ghp_your_personal_access_token
 
 # AI Engine (Groq LLaMA-3.3 70B)
 GROQ_API_KEY=gsk_your_groq_api_key_here
@@ -248,13 +336,14 @@ CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
 CLOUDINARY_API_KEY=your_cloudinary_api_key
 CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 
-# Transactional Email (Gmail App Password)
+# Transactional Email (Gmail App Password for OTPs & Alerts)
 EMAIL=your_email@gmail.com
 PASSWORD=your_16_character_gmail_app_password
 
-# Payments (Test Mode)
-RAZORPAY_KEY_ID=rzp_test_your_key_id
-RAZORPAY_KEY_SECRET=your_razorpay_secret
+# Payments (Razorpay Test Mode)
+RAZORPAY_KEY=rzp_test_your_key_id
+RAZORPAY_SECRET=your_razorpay_secret
+# (Aliases supported: RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET)
 ```
 
 #### Frontend Configuration (`client/.env`)
@@ -324,17 +413,20 @@ npx tsx scripts/seed10TopResumes.ts
 
 ---
 
-### Step 6: Automated Test Verification
+### Step 6: Automated Test Verification & TypeScript Audit
 
-Verify core scoring and scoping logic by running the automated benchmark suites:
+Verify core scoring, institutional scoping, and type safety before committing:
 
 ```bash
-cd server
+# 1. Verify TypeScript types across client and server
+cd client && npx tsc --noEmit
+cd ../server && npx tsc --noEmit
 
-# Verify ATS scoring proof-of-separation (>=35% gap between verified & self-reported)
+# 2. Verify ATS scoring proof-of-separation (>=35% gap between verified & self-reported)
+cd server
 npx tsx scripts/testAtsParity.ts
 
-# Verify institution scoping, IDOR defense, and alumni gating
+# 3. Verify institution scoping, IDOR defense, and alumni gating
 npx tsx scripts/testInstitutionScoping.ts
 ```
 
@@ -354,18 +446,23 @@ PortalAcademia/
 │   │   │   ├── institution/         # Directory & Member diagnostic inspection
 │   │   │   ├── trends/              # Macro market trajectories & skill gap diagnosis
 │   │   │   ├── onboarding/          # Stakeholder onboarding wizard
-│   │   │   └── PremiumDashboard.tsx # Mentorship, Open Source, and Community suite
+│   │   │   ├── AuthPage.tsx         # Google OAuth & Email OTP sign in/up (GitHub decoupled)
+│   │   │   ├── PremiumDashboard.tsx # Mentorship, Open Source PR verify modal, Community
+│   │   │   ├── PrivacyPage.tsx      # DPDP Act 2023 Statutory Privacy Policy
+│   │   │   ├── TermsPage.tsx        # Terms of Service & Academic Integrity Policy
+│   │   │   ├── KnowledgeBasePage.tsx# Platform documentation & role walkthroughs
+│   │   │   └── FAQPage.tsx          # Multi-stakeholder FAQs
 │   │   ├── App.tsx                  # Client routing and RoleProtectedRoute definitions
 │   │   └── main.tsx                 # Application entry point
 │   ├── package.json
 │   └── vite.config.ts
 │
 ├── server/                          # Express 5 + TypeScript Backend API
-│   ├── config/                      # connectDB.ts, redisClient.ts, Passport.ts
-│   ├── controllers/                 # REST controllers (auth, opportunity, assessment, etc.)
-│   ├── middleware/                  # isloggedIn.ts (JWT refresh), rbacMiddleware.ts
+│   ├── config/                      # connectDB.ts, redisClient.ts, Passport.ts (Google & GitHub)
+│   ├── controllers/                 # REST controllers (auth, opportunity, openSource, etc.)
+│   ├── middleware/                  # isloggedIn.ts (JWT refresh), rbacMiddleware.ts, rateLimiterMiddleware.ts
 │   ├── models/                      # 15 Mongoose schemas (User, Profile, Opportunity, etc.)
-│   ├── routes/                      # Express route definitions
+│   ├── routes/                      # Express route definitions (auth, openSource, assessment, etc.)
 │   ├── scripts/                     # Seed scripts and automated verification benchmarks
 │   ├── sockets/                     # Socket.IO handlers (mentorship signaling, community chat)
 │   ├── app.ts                       # Express server initialization and middleware stack
@@ -388,15 +485,16 @@ PortalAcademia/
 
 PortalAcademia enforces a defense-in-depth architecture adhering to Indian statutory norms (including the **Digital Personal Data Protection Act 2023**):
 
-- **Stateless HttpOnly Session Cookies**: Authentication tokens (`accesstoken` with 15-minute expiry and `refreshtoken` with 7-to-30 day expiry) are set with `HttpOnly`, preventing JavaScript access and neutralizing XSS token theft.
-- **Decoupled Developer Verification**: GitHub OAuth 2.0 is decoupled from platform login/signup and restricted strictly to linking developer identity for PR verification, preventing unauthorized account creation vectors.
-- **API Rate Limiting & DoS Defense**: Redis-backed sliding-window rate limiters gate costly LLM operations, auth attempts, and public endpoints.
-- **Strict Input Sanitization & Allow-Lists**: NoSQL injection protection and explicit field allow-lists prevent parameter pollution and mass-assignment vulnerabilities.
-- **Automatic Token Rotation**: Middleware (`isloggedIn.ts`) transparently issues fresh short-lived access tokens from valid refresh tokens without interrupting user workflows.
-- **Cryptographic Password Hashing**: Passwords are saved with `bcrypt` (10 salt rounds) and excluded from responses.
-- **Strict Role-Based Access Control (RBAC)**: All sensitive routes execute `rbacMiddleware.ts` to block cross-role privilege escalation.
-- **Resource-Level Authorization (IDOR Defense)**: Handlers for institutional directories, applications, and student diagnostics verify the requester's ownership before returning data.
-- **Hardware Privacy Teardown**: The WebRTC peer mentorship suite strictly terminates all active audio and video tracks on modal close to guarantee camera and microphone hardware indicators power off completely.
+1. **Stateless HttpOnly Session Cookies**: Authentication tokens (`accesstoken` with 15-minute expiry and `refreshtoken` with 7-to-30 day expiry) are set with `HttpOnly`, `SameSite: lax`, and `Secure` in production, preventing JavaScript access and neutralizing XSS token theft.
+2. **Decoupled Developer Verification**: GitHub OAuth 2.0 is completely decoupled from platform login/signup and restricted strictly to linking developer identity for PR verification, preventing unauthorized account creation vectors.
+3. **API Rate Limiting & DoS Defense**: Redis-backed sliding-window rate limiters (`rateLimiterMiddleware.ts`) gate costly LLM operations (Groq assessments), auth attempts, and public endpoints.
+4. **Strict Input Sanitization & Allow-Lists**: NoSQL injection protection and explicit field allow-lists prevent parameter pollution and mass-assignment vulnerabilities.
+5. **Automatic Token Rotation**: Middleware (`isloggedIn.ts`) transparently issues fresh short-lived access tokens from valid refresh tokens without interrupting user workflows.
+6. **Cryptographic Password Hashing**: Passwords are saved with `bcrypt` (10 salt rounds) and excluded from all database queries and responses via schema-level `select: false`.
+7. **Strict Role-Based Access Control (RBAC)**: All sensitive routes execute `rbacMiddleware.ts` to block cross-role privilege escalation between students, faculty, institutions, and recruiters.
+8. **Resource-Level Authorization (IDOR Defense)**: Handlers for institutional directories, applications, and student diagnostics verify the requester's ownership before returning data.
+9. **Socket.IO Handshake Security**: WebSockets validate session cookies and verify JWT signatures before admitting sockets to signaling or chat channels.
+10. **Hardware Privacy Teardown**: The WebRTC peer mentorship suite strictly terminates all active audio and video tracks on modal close to guarantee camera and microphone hardware indicators power off completely.
 
 > Read our full [Privacy Policy](client/src/pages/PrivacyPage.tsx) and [Terms of Service](client/src/pages/TermsPage.tsx) for complete statutory disclosure.
 
