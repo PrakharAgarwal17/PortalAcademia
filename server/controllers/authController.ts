@@ -1,9 +1,11 @@
 import type { Request, Response } from "express";
+import crypto from "crypto";
 import userModel from "../models/userModel.js";
 import profileModel from "../models/profileModel.js";
 import bcrypt from "bcrypt";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 import nodemailer from "nodemailer";
+import { getCache, setCache, deleteCache } from "../config/redisClient.js";
 
 
 // =========================
@@ -34,6 +36,7 @@ interface OtpData {
     password: string;
     rememberMe: boolean;
     expiresAt: number;
+    attempts: number;
 }
 
 interface JwtUserPayload extends JwtPayload {
@@ -57,11 +60,19 @@ const REFRESH_TOKEN_EXPIRY = "7d";
 const REFRESH_TOKEN_REMEMBER_EXPIRY = "30d";
 
 function getAccessSecret(): string {
-    return process.env.SECRET_ACCESS_TOKEN || process.env.JWT_PASS_KEY || "access_token_secret_key";
+    const secret = process.env.SECRET_ACCESS_TOKEN || process.env.JWT_PASS_KEY;
+    if (!secret) {
+        throw new Error("CRITICAL: SECRET_ACCESS_TOKEN or JWT_PASS_KEY is not configured in environment.");
+    }
+    return secret;
 }
 
 function getRefreshSecret(): string {
-    return process.env.SECRET_REFRESH_TOKEN || process.env.JWT_REFRESH_KEY || process.env.JWT_PASS_KEY || "refresh_token_secret_key";
+    const secret = process.env.SECRET_REFRESH_TOKEN || process.env.JWT_REFRESH_KEY || process.env.JWT_PASS_KEY;
+    if (!secret) {
+        throw new Error("CRITICAL: SECRET_REFRESH_TOKEN or JWT_REFRESH_KEY is not configured in environment.");
+    }
+    return secret;
 }
 
 export function generateTokens(userId: string, rememberMe = false) {
@@ -160,7 +171,7 @@ export async function SignIn(
 
         const searchEmail = await userModel.findOne({
             email: normalizedEmail,
-        });
+        }).select("+password");
 
         if (!searchEmail) {
             return res.status(400).json({
@@ -241,6 +252,12 @@ export async function SignUp(
             });
         }
 
+        if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password) || !/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
+            return res.status(400).json({
+                message: "Password must be at least 8 characters long and contain uppercase, lowercase, a number, and a special character.",
+            });
+        }
+
         const normalizedEmail = email.toLowerCase().trim();
 
         const existingUser = await userModel.findOne({
@@ -253,9 +270,7 @@ export async function SignUp(
             });
         }
 
-        const otp = Math.floor(
-            100000 + Math.random() * 900000
-        );
+        const otp = crypto.randomInt(100000, 1000000);
 
         const {
             email: senderEmail,
@@ -355,13 +370,17 @@ export async function SignUp(
             `,
         });
 
-        OtpStorage.set(normalizedEmail, {
+        const otpEntry: OtpData = {
             otp,
             email: normalizedEmail,
             password,
             rememberMe: rememberMe ?? false,
             expiresAt: Date.now() + 5 * 60 * 1000,
-        });
+            attempts: 0,
+        };
+
+        OtpStorage.set(normalizedEmail, otpEntry);
+        await setCache(`signup_otp:${normalizedEmail}`, otpEntry, 300);
 
         return res.status(200).json({
             message: "Next up verify OTP",
@@ -396,7 +415,11 @@ export async function VerifyOtp(
 
         const normalizedEmail = email.toLowerCase().trim();
 
-        const data = OtpStorage.get(normalizedEmail);
+        // Check Redis cache first, fall back to memory
+        let data = await getCache<OtpData>(`signup_otp:${normalizedEmail}`);
+        if (!data) {
+            data = OtpStorage.get(normalizedEmail) || null;
+        }
 
         if (!data) {
             return res.status(400).json({
@@ -404,10 +427,19 @@ export async function VerifyOtp(
             });
         }
 
+        // Lockout check
+        if ((data.attempts || 0) >= 5) {
+            OtpStorage.delete(normalizedEmail);
+            await deleteCache(`signup_otp:${normalizedEmail}`);
+            return res.status(429).json({
+                message: "Too many failed attempts. This OTP has been invalidated. Please sign up again to receive a fresh OTP.",
+            });
+        }
+
         // Check expiry
         if (Date.now() > data.expiresAt) {
             OtpStorage.delete(normalizedEmail);
-
+            await deleteCache(`signup_otp:${normalizedEmail}`);
             return res.status(400).json({
                 message: "OTP expired",
             });
@@ -415,8 +447,12 @@ export async function VerifyOtp(
 
         // Check OTP
         if (Number(otp) !== data.otp) {
+            data.attempts = (data.attempts || 0) + 1;
+            OtpStorage.set(normalizedEmail, data);
+            await setCache(`signup_otp:${normalizedEmail}`, data, Math.max(1, Math.round((data.expiresAt - Date.now()) / 1000)));
+
             return res.status(400).json({
-                message: "Incorrect OTP",
+                message: `Incorrect OTP. ${5 - data.attempts} attempt(s) remaining.`,
             });
         }
 
@@ -444,8 +480,9 @@ export async function VerifyOtp(
 
         setAuthCookies(res, accesstoken, refreshtoken, Boolean(data.rememberMe), req);
 
-        // OTP ko delete kar do
+        // Delete OTP from storage
         OtpStorage.delete(normalizedEmail);
+        await deleteCache(`signup_otp:${normalizedEmail}`);
 
         return res.status(200).json({
             message: "User created successfully",
@@ -519,6 +556,10 @@ async function buildUserSessionPayload(user: any) {
         isOnboarded,
         role: userProfile?.accountType || null,
         isEmailVerified: Boolean(user.isEmailVerified),
+        githubId: user.githubId || null,
+        githubUsername: user.githubUsername || userProfile?.githubUsername || null,
+        githubAvatarUrl: user.githubAvatarUrl || userProfile?.githubAvatarUrl || null,
+        githubProfileUrl: user.githubProfileUrl || userProfile?.github || null,
     };
 }
 
@@ -543,7 +584,7 @@ export async function checkAuth(
                 if (decoded && decoded.id && typeof decoded.id === "string") {
                     const user = await userModel
                         .findById(decoded.id)
-                        .select("_id email isVerified isOnboarded isEmailVerified");
+                        .select("_id email isVerified isOnboarded isEmailVerified githubId githubUsername githubAvatarUrl githubProfileUrl");
 
                     if (user) {
                         // Re-issue or establish first-party cookies if request came via bearer token or if refreshing
@@ -574,7 +615,7 @@ export async function checkAuth(
                 if (decoded && decoded.id && typeof decoded.id === "string") {
                     const user = await userModel
                         .findById(decoded.id)
-                        .select("_id email isVerified isOnboarded isEmailVerified");
+                        .select("_id email isVerified isOnboarded isEmailVerified githubId githubUsername githubAvatarUrl githubProfileUrl");
 
                     if (user) {
                         // Re-issue both tokens
@@ -766,7 +807,7 @@ export async function oauthExchange(
 
         const user = await userModel
             .findById(decoded.id)
-            .select("_id email isVerified isOnboarded isEmailVerified");
+            .select("_id email isVerified isOnboarded isEmailVerified githubId githubUsername githubAvatarUrl githubProfileUrl");
 
         if (!user) {
             return res.status(404).json({ message: "User not found" });
@@ -784,5 +825,110 @@ export async function oauthExchange(
     } catch (err) {
         console.error("OAuth exchange failed:", err);
         return res.status(500).json({ message: "OAuth token exchange error" });
+    }
+}
+
+// =========================
+// GitHub OAuth Handlers
+// =========================
+
+interface GitHubUserSession {
+    _id: string;
+    email?: string;
+    githubUsername?: string;
+    isOnboarded?: boolean;
+}
+
+export const githubSuccess = async (
+    req: Request,
+    res: Response
+): Promise<Response | void> => {
+    try {
+        const user = req.user as GitHubUserSession;
+
+        const sessionOrigin = (req.session as any)?.frontendOrigin;
+        let frontendUrl = sessionOrigin || process.env.FRONTEND_URL || "http://localhost:5173";
+
+        const originHeader = (req.headers.origin || req.headers.referer) as string | undefined;
+        if (!sessionOrigin && originHeader && frontendUrl.includes("localhost") && !originHeader.includes("localhost")) {
+            try {
+                const parsed = new URL(originHeader);
+                frontendUrl = `${parsed.protocol}//${parsed.host}`;
+            } catch { }
+        }
+
+        const returnTo = (req.session as any)?.returnTo || "/premium?tab=opensource";
+        const separator = returnTo.includes("?") ? "&" : "?";
+
+        if (!user || !user._id) {
+            return res.redirect(`${frontendUrl}${returnTo}${separator}error=github_link_failed`);
+        }
+
+        const dbUser = await userModel.findById(user._id);
+
+        const exchangeToken = jwt.sign(
+            { id: String(user._id), type: "oauth_exchange" },
+            getAccessSecret(),
+            { expiresIn: "60s" }
+        );
+
+        return res.redirect(
+            `${frontendUrl}${returnTo}${separator}auth=github&exchange=${encodeURIComponent(exchangeToken)}&githubUsername=${encodeURIComponent(dbUser?.githubUsername || "")}`
+        );
+
+    } catch (error) {
+        console.error("GitHub Auth error:", error);
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        return res.redirect(`${frontendUrl}/premium?tab=opensource&error=server_error`);
+    }
+};
+
+export const githubFailure = (
+    req: Request,
+    res: Response
+): void => {
+    const sessionOrigin = (req.session as any)?.frontendOrigin;
+    const frontendUrl = sessionOrigin || process.env.FRONTEND_URL || "http://localhost:5173";
+    const returnTo = (req.session as any)?.returnTo || "/premium?tab=opensource";
+    const separator = returnTo.includes("?") ? "&" : "?";
+    return res.redirect(`${frontendUrl}${returnTo}${separator}error=github_link_failed`);
+};
+
+export async function unlinkGithub(
+    req: Request,
+    res: Response
+): Promise<Response> {
+    try {
+        const userId = req.userId;
+        if (!userId) {
+            return res.status(401).json({ success: false, message: "Unauthorized." });
+        }
+
+        const user = await userModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found." });
+        }
+
+        user.githubId = null;
+        user.githubUsername = null;
+        user.githubAvatarUrl = null;
+        user.githubProfileUrl = null;
+        await user.save();
+
+        await profileModel.findOneAndUpdate(
+            { userId: user._id },
+            {
+                $unset: { githubUsername: 1, githubAvatarUrl: 1 },
+                $set: { github: "" },
+            }
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "GitHub account unlinked successfully.",
+        });
+    } catch (error) {
+        console.error("[unlinkGithub]", error);
+        return res.status(500).json({ success: false, message: "Failed to unlink GitHub account." });
     }
 }

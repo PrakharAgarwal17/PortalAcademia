@@ -190,18 +190,25 @@ function AppShell() {
     const searchParams = new URLSearchParams(window.location.search);
     const token = searchParams.get("token");
     const exchangeToken = searchParams.get("exchange");
-    const isGoogleOAuthRedirect = searchParams.get("auth") === "google" || Boolean(token) || Boolean(exchangeToken);
+    const isOAuthRedirect =
+      searchParams.get("auth") === "google" ||
+      searchParams.get("auth") === "github" ||
+      Boolean(token) ||
+      Boolean(exchangeToken);
 
+    // Preserve non-sensitive navigation params such as tab
+    const preserveTab = searchParams.get("tab");
+    const cleanUrl = preserveTab ? `${window.location.pathname}?tab=${preserveTab}` : window.location.pathname;
 
     if (token) {
       // Clean up sensitive tokens from the URL immediately without reloading
-      window.history.replaceState({}, "", window.location.pathname);
+      window.history.replaceState({}, "", cleanUrl);
       // Dispatch checkAuth with the bearer token to immediately establish the session
       // and allow the server to issue same-origin first-party cookies via the Vercel proxy.
       dispatch(checkAuthThunk(token));
     } else if (exchangeToken) {
       // Clean up sensitive tokens from the URL immediately without reloading
-      window.history.replaceState({}, "", window.location.pathname);
+      window.history.replaceState({}, "", cleanUrl);
 
       // Exchange the temporary OAuth token via same-origin proxy to set first-party cookies
       fetch(`${API_BASE}/api/auth/oauth-exchange`, {
@@ -223,11 +230,10 @@ function AppShell() {
         .catch(() => {
           dispatch(checkAuthThunk(exchangeToken));
         });
-    } else if (isGoogleOAuthRedirect) {
-      // After a Google OAuth redirect, cookies take a moment to be committed
+    } else if (isOAuthRedirect) {
+      // After an OAuth redirect, cookies take a moment to be committed
       // by the browser. A brief delay ensures Set-Cookie is fully processed
       // before we call checkAuth, avoiding a false "unauthenticated" state.
-      const cleanUrl = window.location.pathname;
       window.history.replaceState({}, "", cleanUrl);
       const timer = setTimeout(() => {
         dispatch(checkAuthThunk());
