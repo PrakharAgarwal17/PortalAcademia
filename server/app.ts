@@ -83,7 +83,7 @@ const isProduction =
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET!,
+    secret: process.env.SESSION_SECRET || "portalacademia_oauth_session_secret_fallback_2026",
     resave: false,
     saveUninitialized: false,
     cookie: {

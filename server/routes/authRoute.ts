@@ -38,16 +38,34 @@ router.get("/google", (req, res, next) => {
     passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
 });
 
-router.get("/google/callback", passport.authenticate("google", { failureRedirect: "/api/auth/google/failure" }), googleSuccess);
+router.get("/google/callback", (req, res, next) => {
+    passport.authenticate("google", (err: any, user: any, info: any) => {
+        if (err || !user) {
+            console.error("[Google OAuth Callback Error]:", err || info);
+            const sessionOrigin = (req.session as any)?.frontendOrigin;
+            const frontendUrl = sessionOrigin || process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
+            const errCode = err?.message?.includes("email") ? "email_not_found" : "google_auth_failed";
+            return res.redirect(`${frontendUrl}/auth?error=${errCode}`);
+        }
+        req.login(user, (loginErr) => {
+            if (loginErr) {
+                console.error("[Google OAuth req.login Error]:", loginErr);
+                const frontendUrl = (req.session as any)?.frontendOrigin || process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
+                return res.redirect(`${frontendUrl}/auth?error=google_auth_failed`);
+            }
+            return googleSuccess(req, res);
+        });
+    })(req, res, next);
+});
 
 router.get("/google/failure", googleFailure);
 
 import jwt from "jsonwebtoken";
 
-// ── GitHub OAuth 2.0 (Developer Identity & PR Verification) ─────────────────
+// ── GitHub OAuth 2.0 (Login, Sign-Up & Developer Verification) ──────────────
 router.get("/github", (req, res, next) => {
     if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
-        const origin = (req.session as any)?.frontendOrigin || process.env.FRONTEND_URL || "http://localhost:5173";
+        const origin = (req.session as any)?.frontendOrigin || process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
         return res.redirect(`${origin}/auth?error=github_oauth_not_configured`);
     }
 
@@ -64,8 +82,7 @@ router.get("/github", (req, res, next) => {
         }
     }
 
-    // GitHub OAuth is strictly for developer identity & PR verification, not platform login.
-    // The user MUST have an active authenticated session to link their GitHub account.
+    // Inspect if user has an active session cookie to link an existing account
     const accessToken = req.cookies?.accesstoken;
     const refreshToken = req.cookies?.refreshtoken;
     let authenticatedUserId: string | null = null;
@@ -87,13 +104,15 @@ router.get("/github", (req, res, next) => {
         } catch { }
     }
 
-    if (!authenticatedUserId) {
-        const origin = (req.session as any)?.frontendOrigin || process.env.FRONTEND_URL || "http://localhost:5173";
-        return res.redirect(`${origin}/auth?error=github_connect_requires_login`);
-    }
-
+    // If authenticated, we link to this user; otherwise, it's a direct login/signup
     if (req.session as any) {
-        (req.session as any).linkUserId = authenticatedUserId;
+        if (authenticatedUserId) {
+            (req.session as any).linkUserId = authenticatedUserId;
+            (req.session as any).isLinking = true;
+        } else {
+            (req.session as any).linkUserId = null;
+            (req.session as any).isLinking = false;
+        }
     }
 
     passport.authenticate("github", { scope: ["user:email", "read:user"] })(req, res, next);
@@ -101,11 +120,32 @@ router.get("/github", (req, res, next) => {
 
 router.get("/github/callback", (req, res, next) => {
     if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
-        const origin = (req.session as any)?.frontendOrigin || process.env.FRONTEND_URL || "http://localhost:5173";
+        const origin = (req.session as any)?.frontendOrigin || process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
         return res.redirect(`${origin}/auth?error=github_oauth_not_configured`);
     }
-    passport.authenticate("github", { failureRedirect: "/api/auth/github/failure" })(req, res, next);
-}, githubSuccess);
+
+    passport.authenticate("github", (err: any, user: any, info: any) => {
+        if (err || !user) {
+            console.error("[GitHub OAuth Callback Error]:", err || info);
+            const sessionOrigin = (req.session as any)?.frontendOrigin;
+            const frontendUrl = sessionOrigin || process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
+            const returnTo = (req.session as any)?.returnTo;
+            if (returnTo) {
+                const sep = returnTo.includes("?") ? "&" : "?";
+                return res.redirect(`${frontendUrl}${returnTo}${sep}error=github_link_failed`);
+            }
+            return res.redirect(`${frontendUrl}/auth?error=github_auth_failed`);
+        }
+        req.login(user, (loginErr) => {
+            if (loginErr) {
+                console.error("[GitHub OAuth req.login Error]:", loginErr);
+                const frontendUrl = (req.session as any)?.frontendOrigin || process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
+                return res.redirect(`${frontendUrl}/auth?error=github_auth_failed`);
+            }
+            return githubSuccess(req, res);
+        });
+    })(req, res, next);
+});
 
 router.get("/github/failure", githubFailure);
 
