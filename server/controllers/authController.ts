@@ -676,7 +676,7 @@ export const googleSuccess = async (
 
         const sessionOrigin = (req.session as any)?.frontendOrigin;
         let frontendUrl = sessionOrigin || process.env.FRONTEND_URL || "http://localhost:5173";
-        // If frontendUrl is default localhost but client accessed from external host or origin, resolve dynamically
+
         const originHeader = (req.headers.origin || req.headers.referer) as string | undefined;
         if (!sessionOrigin && originHeader && frontendUrl.includes("localhost") && !originHeader.includes("localhost")) {
             try {
@@ -690,30 +690,37 @@ export const googleSuccess = async (
         }
 
         const email = user.email;
-
         if (!email) {
             return res.redirect(`${frontendUrl}/auth?error=email_not_found`);
         }
 
-        // Check if user has an existing profile and has completed onboarding
         const userProfile = await profileModel.findOne({ userId: user._id });
         const dbUser = await userModel.findById(user._id);
         const isOnboarded = Boolean(dbUser?.isOnboarded && userProfile);
 
-        // Generate JWT tokens and set httpOnly cookies with HTTPS/proxy awareness
         const { accesstoken, refreshtoken } = generateTokens(String(user._id), true);
-        setAuthCookies(res, accesstoken, refreshtoken, true, req);
 
-        // Generate a short-lived (60s) single-use exchange token for cross-origin / incognito session establishment
-        const exchangeToken = jwt.sign(
-            { id: String(user._id), type: "oauth_exchange" },
-            getAccessSecret(),
-            { expiresIn: "60s" }
-        );
+        // Directly set cookies here instead of relying on exchange token
+        const isHttps = isRequestHttps(req);
+        const baseOptions = {
+            httpOnly: true,
+            secure: isHttps,
+            sameSite: isHttps ? ("none" as const) : ("lax" as const),
+            path: "/",
+        };
 
-        // If user is already onboarded, send to dashboard; otherwise send to onboarding wizard
+        res.cookie("accesstoken", accesstoken, {
+            ...baseOptions,
+            maxAge: 15 * 60 * 1000, // 15 min
+        });
+
+        res.cookie("refreshtoken", refreshtoken, {
+            ...baseOptions,
+            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        });
+
         const redirectPath = isOnboarded ? "/dashboard" : "/onboarding/select-type";
-        return res.redirect(`${frontendUrl}${redirectPath}?auth=google&exchange=${exchangeToken}`);
+        return res.redirect(`${frontendUrl}${redirectPath}?auth=google`);
 
     } catch (error) {
         console.error("Google Auth error:", error);
