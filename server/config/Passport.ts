@@ -9,97 +9,72 @@ import profileModel from "../models/profileModel.js";
 
 dotenv.config();
 
-export function getGoogleCallbackUrl(): string {
-    if (process.env.GOOGLE_CALLBACK_URL) {
-        return process.env.GOOGLE_CALLBACK_URL;
-    }
-    if (process.env.CALLBACKURL && !process.env.CALLBACKURL.includes("localhost")) {
-        return process.env.CALLBACKURL;
-    }
-    if (process.env.RENDER_EXTERNAL_URL) {
-        return `${process.env.RENDER_EXTERNAL_URL}/api/auth/google/callback`;
-    }
-    if (process.env.SERVER_URL) {
-        return `${process.env.SERVER_URL}/api/auth/google/callback`;
-    }
-    return process.env.CALLBACKURL || "http://localhost:3000/api/auth/google/callback";
-}
-
 const clientID = process.env.GOOGLE_CLIENT_ID;
 const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-const googleCallbackURL = getGoogleCallbackUrl();
+const callbackURL = process.env.CALLBACKURL;
 
-if (clientID && clientSecret) {
-    passport.use(
-        new GoogleStrategy(
-            {
-                clientID,
-                clientSecret,
-                callbackURL: googleCallbackURL,
-            },
-            async (
-                accessToken: string,
-                refreshToken: string,
-                profile: Profile,
-                done: VerifyCallback
-            ) => {
-                try {
-                    const rawEmail = profile.emails?.[0]?.value;
+if (!clientID || !clientSecret || !callbackURL) {
+    throw new Error("Google OAuth environment variables are missing");
+}
 
-                    if (!rawEmail) {
-                        return done(new Error("Google account does not have an email"));
+passport.use(
+    new GoogleStrategy(
+        {
+            clientID,
+            clientSecret,
+            callbackURL,
+            state: true,
+        },
+        async (
+            accessToken: string,
+            refreshToken: string,
+            profile: Profile,
+            done: VerifyCallback
+        ) => {
+            try {
+                const email = profile.emails?.[0]?.value;
+
+                if (!email) {
+                    return done(new Error("Google account does not have an email"));
+                }
+
+                let user = await User.findOne({ email });
+
+                if (!user) {
+                    user = await User.create({
+                        email,
+                        provider: "google",
+                        providerID: profile.id,
+                        isVerified: true,
+                        isOnboarded: false,
+                    });
+                } else {
+                    let needsSave = false;
+                    if (!user.providerID) {
+                        user.provider = "google";
+                        user.providerID = profile.id;
+                        user.isVerified = true;
+                        needsSave = true;
                     }
-
-                    const email = rawEmail.toLowerCase().trim();
-
-                    let user = await User.findOne({ email });
-
-                    if (!user) {
-                        user = await User.create({
-                            email,
-                            provider: "google",
-                            providerID: profile.id,
-                            isVerified: true,
-                            isEmailVerified: true,
-                            isOnboarded: false,
-                        });
-                    } else {
-                        let needsSave = false;
-                        if (!user.providerID) {
-                            user.provider = "google";
-                            user.providerID = profile.id;
-                            user.isVerified = true;
-                            needsSave = true;
-                        }
-                        if (!user.isEmailVerified) {
-                            user.isEmailVerified = true;
-                            needsSave = true;
-                        }
-                        if (needsSave) {
-                            await user.save();
-                        }
-                    }
-
-                    // If a profile exists in the DB, ensure user.isOnboarded is synced to true
-                    const existingProfile = await profileModel.findOne({ userId: user._id });
-                    if (existingProfile && !user.isOnboarded) {
-                        user.isOnboarded = true;
+                    if (needsSave) {
                         await user.save();
                     }
-
-                    return done(null, user);
-                } catch (error) {
-                    console.error("[Passport GoogleStrategy Error]:", error);
-                    return done(error as Error);
                 }
+
+                // If a profile exists in the DB, ensure user.isOnboarded is synced to true
+                const existingProfile = await profileModel.findOne({ userId: user._id });
+                if (existingProfile && !user.isOnboarded) {
+                    user.isOnboarded = true;
+                    await user.save();
+                }
+
+                return done(null, user);
+            } catch (error) {
+                return done(error as Error);
             }
-        )
-    );
-} else {
-    console.warn(
-        "[Passport] GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not configured. Google OAuth disabled until environment secrets are set."
-    );
-}
+        }
+    )
+);
 
 // ============================================================
 // GitHub OAuth 2.0 Strategy
@@ -149,116 +124,44 @@ if (githubClientID && githubClientSecret) {
             ) => {
                 try {
                     const linkUserId = req.session?.linkUserId;
+                    if (!linkUserId) {
+                        return done(new Error("GitHub account linking requires an authenticated session. Please log in first."));
+                    }
+
                     const username = profile.username || `github_user_${profile.id}`;
                     const avatarUrl = profile.photos?.[0]?.value || `https://avatars.githubusercontent.com/u/${profile.id}?v=4`;
                     const profileUrl = profile.profileUrl || `https://github.com/${username}`;
-                    const rawEmail = profile.emails?.[0]?.value;
-                    const email = rawEmail ? rawEmail.toLowerCase().trim() : null;
 
-                    // ── Case A: Account Linking Flow (authenticated user connecting GitHub) ──
-                    if (linkUserId) {
-                        const existingWithGithub = await User.findOne({
-                            $or: [{ githubId: profile.id }, { githubUsername: username }],
-                            _id: { $ne: linkUserId },
-                        });
+                    // 1. Prevent collisions: check if another account already linked this GitHub account
+                    const existingWithGithub = await User.findOne({
+                        $or: [{ githubId: profile.id }, { githubUsername: username }],
+                        _id: { $ne: linkUserId },
+                    });
 
-                        if (existingWithGithub) {
-                            return done(new Error("This GitHub account is already linked to another PortalAcademia profile."));
-                        }
-
-                        const user = await User.findById(linkUserId);
-                        if (!user) {
-                            return done(new Error("Authenticated user account not found."));
-                        }
-
-                        user.githubId = profile.id;
-                        user.githubUsername = username;
-                        user.githubAvatarUrl = avatarUrl;
-                        user.githubProfileUrl = profileUrl;
-                        await user.save();
-
-                        const existingProfile = await profileModel.findOne({ userId: user._id });
-                        if (existingProfile) {
-                            existingProfile.github = profileUrl;
-                            existingProfile.githubUsername = username;
-                            existingProfile.githubAvatarUrl = avatarUrl;
-                            await existingProfile.save();
-                        }
-
-                        return done(null, user);
+                    if (existingWithGithub) {
+                        return done(new Error("This GitHub account is already linked to another PortalAcademia profile."));
                     }
 
-                    // ── Case B: Sign In / Registration Flow (independent platform login) ──
-                    let user = await User.findOne({ githubId: profile.id });
-
-                    if (!user && email) {
-                        user = await User.findOne({ email });
-                    }
-
+                    // 2. Fetch authenticated user
+                    const user = await User.findById(linkUserId);
                     if (!user) {
-                        const fallbackEmail = email || `${username}@users.noreply.github.com`;
-                        user = await User.create({
-                            email: fallbackEmail,
-                            provider: "github",
-                            providerID: profile.id,
-                            githubId: profile.id,
-                            githubUsername: username,
-                            githubAvatarUrl: avatarUrl,
-                            githubProfileUrl: profileUrl,
-                            isVerified: true,
-                            isEmailVerified: Boolean(email),
-                            isOnboarded: false,
-                        });
-                    } else {
-                        let needsSave = false;
-                        if (!user.githubId) {
-                            user.githubId = profile.id;
-                            needsSave = true;
-                        }
-                        if (!user.githubUsername) {
-                            user.githubUsername = username;
-                            needsSave = true;
-                        }
-                        if (!user.githubAvatarUrl) {
-                            user.githubAvatarUrl = avatarUrl;
-                            needsSave = true;
-                        }
-                        if (!user.githubProfileUrl) {
-                            user.githubProfileUrl = profileUrl;
-                            needsSave = true;
-                        }
-                        if (email && !user.isEmailVerified) {
-                            user.isEmailVerified = true;
-                            needsSave = true;
-                        }
-                        if (needsSave) {
-                            await user.save();
-                        }
+                        return done(new Error("Authenticated user account not found."));
                     }
 
-                    // Sync profileModel if it exists
+                    // 3. Attach verified GitHub credentials to the user account
+                    user.githubId = profile.id;
+                    user.githubUsername = username;
+                    user.githubAvatarUrl = avatarUrl;
+                    user.githubProfileUrl = profileUrl;
+                    await user.save();
+
+                    // 4. Synchronize profileModel with verified GitHub credentials
                     const existingProfile = await profileModel.findOne({ userId: user._id });
                     if (existingProfile) {
-                        let profileNeedsSave = false;
-                        if (!existingProfile.githubUsername) {
-                            existingProfile.githubUsername = username;
-                            profileNeedsSave = true;
-                        }
-                        if (!existingProfile.github) {
-                            existingProfile.github = profileUrl;
-                            profileNeedsSave = true;
-                        }
-                        if (!existingProfile.githubAvatarUrl) {
-                            existingProfile.githubAvatarUrl = avatarUrl;
-                            profileNeedsSave = true;
-                        }
-                        if (!user.isOnboarded) {
-                            user.isOnboarded = true;
-                            await user.save();
-                        }
-                        if (profileNeedsSave) {
-                            await existingProfile.save();
-                        }
+                        existingProfile.github = profileUrl;
+                        existingProfile.githubUsername = username;
+                        existingProfile.githubAvatarUrl = avatarUrl;
+                        await existingProfile.save();
                     }
 
                     return done(null, user);

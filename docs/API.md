@@ -19,8 +19,8 @@
 | `GET` | `/api/auth/google` | Public | Initiates Google OAuth 2.0 flow. |
 | `GET` | `/api/auth/google/callback`| Public | Google OAuth redirect callback; issues JWT cookies and redirects. |
 | `POST` | `/api/auth/oauth-exchange` | Public | Exchanges short-lived (60s) OAuth exchange token for first-party session cookies. |
-| `GET` | `/api/auth/github` | Public / Session | Initiates GitHub OAuth 2.0 flow for platform login/registration or developer account linking. |
-| `GET` | `/api/auth/github/callback` | Public / Session | Callback for GitHub OAuth; completes sign-in/registration or links GitHub handle to student profile. |
+| `GET` | `/api/auth/github` | Authenticated | Initiates GitHub OAuth to link developer account for open-source PR verification (requires active login). |
+| `GET` | `/api/auth/github/callback` | Session | Callback for GitHub OAuth; links GitHub handle to student profile and redirects to origin. |
 | `POST` | `/api/auth/github/unlink` | Authenticated | Disconnects and unlinks GitHub account from student profile. |
 
 ### Sign In Request Payload
