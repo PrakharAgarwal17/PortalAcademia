@@ -3,6 +3,7 @@ import opportunityModel, { type OpportunityCategory, type OpportunityMode } from
 import profileModel from "../models/profileModel.js";
 import { getCache, setCache, deleteCache } from "../config/redisClient.js";
 import { sendOpportunitySkillMatchAlerts } from "../services/emailAlertService.js";
+import { escapeRegex } from "../utils/sanitize.js";
 
 /**
  * @description Fetch active opportunities with filtering by category, mode, domain, and recommendation
@@ -24,12 +25,12 @@ export async function getOpportunities(req: Request, res: Response) {
         const filter: any = { status: "active" };
 
         if (category && category !== "all") {
-            const catStr = String(category).trim();
+            const catStr = escapeRegex(String(category).trim());
             filter.category = { $regex: new RegExp(`^${catStr}$`, "i") };
         }
 
         if (mode && mode !== "all") {
-            const modeStr = String(mode).trim();
+            const modeStr = escapeRegex(String(mode).trim());
             filter.mode = { $regex: new RegExp(`^${modeStr}$`, "i") };
         }
 
@@ -276,7 +277,40 @@ export async function updateOpportunity(req: Request, res: Response) {
             });
         }
 
-        const updated = await opportunityModel.findByIdAndUpdate(id, req.body, {
+        const {
+            title,
+            description,
+            category,
+            domain,
+            location,
+            mode,
+            duration,
+            stipendOrPrize,
+            deadline,
+            requiredSkills,
+            status,
+            tags,
+            selectionCriteria,
+            perks,
+        } = req.body;
+
+        const allowedUpdates: Record<string, any> = {};
+        if (title !== undefined) allowedUpdates.title = title;
+        if (description !== undefined) allowedUpdates.description = description;
+        if (category !== undefined) allowedUpdates.category = category;
+        if (domain !== undefined) allowedUpdates.domain = domain;
+        if (location !== undefined) allowedUpdates.location = location;
+        if (mode !== undefined) allowedUpdates.mode = mode;
+        if (duration !== undefined) allowedUpdates.duration = duration;
+        if (stipendOrPrize !== undefined) allowedUpdates.stipendOrPrize = stipendOrPrize;
+        if (deadline !== undefined) allowedUpdates.deadline = deadline;
+        if (requiredSkills !== undefined) allowedUpdates.requiredSkills = requiredSkills;
+        if (status !== undefined) allowedUpdates.status = status;
+        if (tags !== undefined) allowedUpdates.tags = tags;
+        if (selectionCriteria !== undefined) allowedUpdates.selectionCriteria = selectionCriteria;
+        if (perks !== undefined) allowedUpdates.perks = perks;
+
+        const updated = await opportunityModel.findByIdAndUpdate(id, allowedUpdates, {
             new: true,
             runValidators: true,
         });

@@ -17,7 +17,7 @@ export async function applyToOpportunity(req: Request, res: Response) {
             return res.status(401).json({ success: false, message: "Unauthorized: Please log in." });
         }
 
-        const { opportunityId, notes, resumeUrl, resumeData, customAtsScore } = req.body;
+        const { opportunityId, notes, resumeUrl, resumeData } = req.body;
 
         if (!opportunityId) {
             return res.status(400).json({
@@ -106,40 +106,37 @@ export async function applyToOpportunity(req: Request, res: Response) {
             Math.max(10, Math.round(skillScore * 0.7 + assessmentScore * 0.3))
         );
 
-        // 3. Authoritative Unified ATS Score Calculation
-        let atsScore = customAtsScore;
-        if (atsScore === undefined || typeof atsScore !== "number") {
-            const assessmentScores = pastResults.map((r: any) => ({
-                skill: r.assessmentTitle || (r.relatedSkills && r.relatedSkills[0]) || "",
-                score: r.percentage,
-            }));
+        // 3. Authoritative Unified ATS Score Calculation (strictly server-computed)
+        const assessmentScores = pastResults.map((r: any) => ({
+            skill: r.assessmentTitle || (r.relatedSkills && r.relatedSkills[0]) || "",
+            score: r.percentage,
+        }));
 
-            const atsAnalysis = calculateAtsScore(
-                {
-                    fullName: profile.name,
-                    email: profile.institutionEmail || profile.workEmail || (profile as any).email,
-                    phone: profile.contact,
-                    location: profile.location,
-                    summary: profile.bio,
-                    skills: profile.skills || [],
-                    verifiedSkills: profile.verifiedSkills || [],
-                    assessmentScores,
-                    institutionCredentials: (profile.certifications || []).map((c: any) => ({
-                        title: c.title,
-                        isVerified: Boolean(c.isVerified),
-                    })),
-                    education: profile.education || [],
-                    experience: profile.pastExperience || [],
-                    certifications: profile.certifications || [],
-                },
-                {
-                    requiredSkills: opportunity.requiredSkills || [],
-                    title: opportunity.title,
-                    category: opportunity.category,
-                }
-            );
-            atsScore = atsAnalysis.totalScore;
-        }
+        const atsAnalysis = calculateAtsScore(
+            {
+                fullName: profile.name,
+                email: profile.institutionEmail || profile.workEmail || (profile as any).email,
+                phone: profile.contact,
+                location: profile.location,
+                summary: profile.bio,
+                skills: profile.skills || [],
+                verifiedSkills: profile.verifiedSkills || [],
+                assessmentScores,
+                institutionCredentials: (profile.certifications || []).map((c: any) => ({
+                    title: c.title,
+                    isVerified: Boolean(c.isVerified),
+                })),
+                education: profile.education || [],
+                experience: profile.pastExperience || [],
+                certifications: profile.certifications || [],
+            },
+            {
+                requiredSkills: opportunity.requiredSkills || [],
+                title: opportunity.title,
+                category: opportunity.category,
+            }
+        );
+        const atsScore = atsAnalysis.totalScore;
 
         const application = await applicationModel.create({
             opportunityId,
@@ -157,9 +154,10 @@ export async function applyToOpportunity(req: Request, res: Response) {
             notes: notes || "",
         });
 
-        // Increment applicant count on opportunity
-        opportunity.applicantCount = (opportunity.applicantCount || 0) + 1;
-        await opportunity.save();
+        // Increment applicant count on opportunity atomically
+        await opportunityModel.findByIdAndUpdate(opportunityId, {
+            $inc: { applicantCount: 1 },
+        });
 
         return res.status(201).json({
             success: true,
@@ -283,11 +281,20 @@ export async function updateApplicationStatus(req: Request, res: Response) {
             });
         }
 
-        const application = await applicationModel.findById(id);
+        const application = await applicationModel.findById(id).populate("opportunityId");
         if (!application) {
             return res.status(404).json({
                 success: false,
                 message: "Application not found",
+            });
+        }
+
+        // Verify that the logged-in user is the owner/recruiter of the opportunity
+        const parentOpportunity: any = application.opportunityId;
+        if (!parentOpportunity || !parentOpportunity.createdBy || parentOpportunity.createdBy.toString() !== req.userId) {
+            return res.status(403).json({
+                success: false,
+                message: "Forbidden: You are not authorized to update application status for this opportunity.",
             });
         }
 

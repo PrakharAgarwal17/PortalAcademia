@@ -134,6 +134,25 @@ export async function verifyCredential(req: Request, res: Response) {
             });
         }
 
+        // Strict Institution Multi-Tenant Scoping Check
+        const institutionProfile = req.userProfile || await profileModel.findOne({ userId: req.userId });
+        if (!institutionProfile) {
+            return res.status(403).json({
+                success: false,
+                message: "Forbidden: Institution profile required.",
+            });
+        }
+
+        const instName = (institutionProfile.institutionName || institutionProfile.name || "").trim().toLowerCase();
+        const studentInst = (student.institution || student.institutionName || "").trim().toLowerCase();
+
+        if (!instName || !studentInst || (instName !== studentInst && !studentInst.includes(instName) && !instName.includes(studentInst))) {
+            return res.status(403).json({
+                success: false,
+                message: `Forbidden: You may only verify credentials for students enrolled at your institution. Target student belongs to [${studentInst || "Unknown"}].`,
+            });
+        }
+
         let updatedItem: any = null;
         let itemType = "";
 
