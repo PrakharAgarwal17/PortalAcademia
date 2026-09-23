@@ -773,11 +773,10 @@ export const googleSuccess = async (
 export const googleFailure = (
     req: Request,
     res: Response
-): Response => {
-    return res.status(401).json({
-        success: false,
-        message: "Google Authentication Failed",
-    });
+): Response | void => {
+    const sessionOrigin = (req.session as any)?.frontendOrigin;
+    const frontendUrl = sessionOrigin || process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
+    return res.redirect(`${frontendUrl}/auth?error=google_auth_failed`);
 };
 
 // =========================
@@ -847,7 +846,7 @@ export const githubSuccess = async (
         const user = req.user as GitHubUserSession;
 
         const sessionOrigin = (req.session as any)?.frontendOrigin;
-        let frontendUrl = sessionOrigin || process.env.FRONTEND_URL || "http://localhost:5173";
+        let frontendUrl = sessionOrigin || process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
 
         const originHeader = (req.headers.origin || req.headers.referer) as string | undefined;
         if (!sessionOrigin && originHeader && frontendUrl.includes("localhost") && !originHeader.includes("localhost")) {
@@ -857,14 +856,18 @@ export const githubSuccess = async (
             } catch { }
         }
 
-        const returnTo = (req.session as any)?.returnTo || "/premium?tab=opensource";
-        const separator = returnTo.includes("?") ? "&" : "?";
+        const isLinking = (req.session as any)?.isLinking || Boolean((req.session as any)?.linkUserId);
+        const returnTo = (req.session as any)?.returnTo;
 
         if (!user || !user._id) {
-            return res.redirect(`${frontendUrl}${returnTo}${separator}error=github_link_failed`);
+            const dest = returnTo || "/auth";
+            const sep = dest.includes("?") ? "&" : "?";
+            return res.redirect(`${frontendUrl}${dest}${sep}error=github_auth_failed`);
         }
 
         const dbUser = await userModel.findById(user._id);
+        const userProfile = await profileModel.findOne({ userId: user._id });
+        const isOnboarded = Boolean(dbUser?.isOnboarded && userProfile);
 
         const exchangeToken = jwt.sign(
             { id: String(user._id), type: "oauth_exchange" },
@@ -872,14 +875,24 @@ export const githubSuccess = async (
             { expiresIn: "60s" }
         );
 
+        // Case A: User was linking their existing account
+        if (isLinking && returnTo) {
+            const separator = returnTo.includes("?") ? "&" : "?";
+            return res.redirect(
+                `${frontendUrl}${returnTo}${separator}auth=github&exchange=${encodeURIComponent(exchangeToken)}&githubUsername=${encodeURIComponent(dbUser?.githubUsername || "")}`
+            );
+        }
+
+        // Case B: Direct sign-in / registration
+        const redirectPath = isOnboarded ? "/dashboard" : "/onboarding/select-type";
         return res.redirect(
-            `${frontendUrl}${returnTo}${separator}auth=github&exchange=${encodeURIComponent(exchangeToken)}&githubUsername=${encodeURIComponent(dbUser?.githubUsername || "")}`
+            `${frontendUrl}${redirectPath}?auth=github&exchange=${encodeURIComponent(exchangeToken)}`
         );
 
     } catch (error) {
         console.error("GitHub Auth error:", error);
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-        return res.redirect(`${frontendUrl}/premium?tab=opensource&error=server_error`);
+        const frontendUrl = process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
+        return res.redirect(`${frontendUrl}/auth?error=server_error`);
     }
 };
 
@@ -888,10 +901,13 @@ export const githubFailure = (
     res: Response
 ): void => {
     const sessionOrigin = (req.session as any)?.frontendOrigin;
-    const frontendUrl = sessionOrigin || process.env.FRONTEND_URL || "http://localhost:5173";
-    const returnTo = (req.session as any)?.returnTo || "/premium?tab=opensource";
-    const separator = returnTo.includes("?") ? "&" : "?";
-    return res.redirect(`${frontendUrl}${returnTo}${separator}error=github_link_failed`);
+    const frontendUrl = sessionOrigin || process.env.FRONTEND_URL || "https://portal-academia-phi.vercel.app";
+    const returnTo = (req.session as any)?.returnTo;
+    if (returnTo) {
+        const separator = returnTo.includes("?") ? "&" : "?";
+        return res.redirect(`${frontendUrl}${returnTo}${separator}error=github_link_failed`);
+    }
+    return res.redirect(`${frontendUrl}/auth?error=github_auth_failed`);
 };
 
 export async function unlinkGithub(
