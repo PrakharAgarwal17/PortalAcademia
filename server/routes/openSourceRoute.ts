@@ -10,6 +10,8 @@ import {
     getMyContributions,
     handleGithubWebhook,
     getStudentContributionsForCompany,
+    verifyPullRequest,
+    addProjectIssue,
 } from "../controllers/openSourceController.js";
 
 const router = express.Router();
@@ -21,6 +23,7 @@ router.post("/webhook/:projectId", handleGithubWebhook);
 // ── Industry routes ───────────────────────────────────────────────────────────
 router.post("/projects",                        isloggedIn, isIndustry, createProject);
 router.get("/projects/mine",                    isloggedIn, isIndustry, getMyProjects);
+router.post("/projects/:id/issues",             isloggedIn, isIndustry, addProjectIssue);
 router.get("/projects/:id/contributions",       isloggedIn, isIndustry, getProjectContributions);
 router.post("/certificate",                     isloggedIn, isIndustry, issueCertificate);
 router.get("/student/:studentId/contributions", isloggedIn, isIndustry, getStudentContributionsForCompany);
@@ -28,5 +31,7 @@ router.get("/student/:studentId/contributions", isloggedIn, isIndustry, getStude
 // ── Student / General routes (premium gated in controller) ────────────────────
 router.get("/projects",          isloggedIn, getAllProjects);
 router.get("/contributions/me",  isloggedIn, getMyContributions);
+router.post("/verify-pr",        isloggedIn, verifyPullRequest);
 
 export default router;
+

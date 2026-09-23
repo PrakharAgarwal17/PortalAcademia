@@ -217,6 +217,10 @@ export default function IndustryDashboard() {
     techStack: "React, TypeScript, Node.js",
     difficulty: "intermediate",
   });
+  const [curatedIssuesDraft, setCuratedIssuesDraft] = useState<
+    Array<{ title: string; url: string; difficulty: string }>
+  >([]);
+
   const [createdOssSetup, setCreatedOssSetup] = useState<any | null>(null);
   const [selectedOssProject, setSelectedOssProject] = useState<any | null>(null);
   const [ossContributors, setOssContributors] = useState<any[]>([]);
@@ -250,11 +254,13 @@ export default function IndustryDashboard() {
         body: JSON.stringify({
           ...ossForm,
           techStack: ossForm.techStack.split(",").map((s) => s.trim()).filter(Boolean),
+          issues: curatedIssuesDraft,
         }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
         setCreatedOssSetup(data.webhookSetup);
+        setCuratedIssuesDraft([]);
         fetchOssProjects();
       }
     } catch (err) {
